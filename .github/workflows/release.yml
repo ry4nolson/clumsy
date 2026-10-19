@@ -2,11 +2,18 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   APP_PATH: src-tauri/target/universal-apple-darwin/release/bundle/macos/Clumsy.app
@@ -19,6 +26,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -33,6 +42,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
+          components: clippy
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
@@ -42,9 +52,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Set version from tag
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Test
+        run: pnpm test
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+      - name: Determine version
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          PREVIOUS_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+          VERSION="$(./scripts/next-version.sh)"
+          echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           node -e '
             const fs = require("fs");
@@ -144,21 +168,31 @@ jobs:
             ${{ env.DIST_DIR }}/Clumsy.zip
             ${{ env.DIST_DIR }}/Clumsy.dmg
 
-      - name: Extract changelog for this version
-        id: changelog
+      - name: Write release notes
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES=""
           if [ -f CHANGELOG.md ]; then
             NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
           fi
           if [ -z "${NOTES:-}" ]; then
-            NOTES="Release v$VERSION"
+            RANGE="${PREVIOUS_TAG:+$PREVIOUS_TAG..}HEAD"
+            NOTES=$(git log "$RANGE" --no-merges --format='- %s')
           fi
-          echo "$NOTES" > /tmp/release_notes.md
+          {
+            echo "$NOTES"
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo
+              echo "**Full changelog:** https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...v$VERSION"
+            fi
+          } > /tmp/release_notes.md
+          cat /tmp/release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.VERSION }}
+          name: Clumsy v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           files: |
             ${{ env.DIST_DIR }}/Clumsy.zip
             ${{ env.DIST_DIR }}/Clumsy.dmg
