@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-19
+
 ### Added
 - **Licenses** tab in the About window with Clumsy's license and the licenses of every bundled open source package
 - Full menu bar with every command and its shortcut: **Go** and **Tools** menus, a **Help** menu with **Keyboard Shortcuts** (⌘/), **What's New**, **Clumsy on GitHub**, and **Report an Issue…**; macOS Help search now finds Clumsy commands
