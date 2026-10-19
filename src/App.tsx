@@ -11,9 +11,11 @@ import {
   confirmDiscard,
   downloadPdf,
   fileNameFromPath,
+  hasOverlayTitlebar,
   isDesktop,
   onCloseRequested,
   onFileDrop,
+  onFullscreenChange,
   onOpenedFiles,
   openExternal,
   pickPdf,
@@ -43,8 +45,10 @@ export default function App() {
   const [openDocument, setOpenDocument] = useState<OpenDocument | null>(null);
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
+  const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [findOpen, setFindOpen] = useState(false);
   const [findFocusToken, setFindFocusToken] = useState(0);
   const [signatureOpen, setSignatureOpen] = useState(false);
@@ -173,15 +177,17 @@ export default function App() {
     viewer.setEditorParam(param, color);
   };
 
+  const documentTitle = openDocument ? `${openDocument.name}${viewer.modified ? " — Edited" : ""}` : null;
+
   useEffect(() => {
-    const title = openDocument ? `${openDocument.name}${viewer.modified ? " — Edited" : ""}` : "Clumsy";
-    setWindowTitle(title);
-  }, [openDocument, viewer.modified]);
+    setWindowTitle(documentTitle ?? "Clumsy");
+  }, [documentTitle]);
 
   useEffect(() => {
     const cleanups: Array<Promise<() => void>> = [
       onOpenedFiles((paths) => openSourceRef.current(readPdfFromPath(paths[0]))),
       onFileDrop((source) => openSourceRef.current(source), setDragging),
+      onFullscreenChange(setFullscreen),
       onCloseRequested(
         () => stateRef.current.modified,
         () => stateRef.current.openDocument?.name ?? "Document",
@@ -269,10 +275,14 @@ export default function App() {
   return (
     <div className={`app${dragging ? " dragging" : ""}`}>
       <Toolbar
+        documentTitle={hasOverlayTitlebar ? documentTitle : null}
+        titlebarInset={hasOverlayTitlebar && !fullscreen}
         hasDocument={hasDocument}
         sidebarOpen={sidebarOpen}
         findOpen={findOpen}
         darkPages={darkPages}
+        darkPagesImages={darkPagesImages}
+        onDarkPagesImages={setDarkPagesImages}
         pageNumber={viewer.pageNumber}
         pagesCount={viewer.pagesCount}
         scale={viewer.scale}
@@ -303,7 +313,7 @@ export default function App() {
             onOpenUrl={openExternal}
           />
         )}
-        <main className={`viewer-area${darkPages ? " dark-pages" : ""}`}>
+        <main className={`viewer-area${darkPages ? " dark-pages" : ""}${darkPagesImages === "keep" ? " keep-images" : ""}`}>
           {findOpen && hasDocument && <FindBar status={viewer.findStatus} focusToken={findFocusToken} onFind={find} onClose={closeFind} />}
           <div ref={viewer.containerRef} className="viewer-container" tabIndex={-1}>
             <div className="pdfViewer" />

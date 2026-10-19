@@ -106,6 +106,18 @@ export async function openExternal(url: string) {
   }
 }
 
+export const hasOverlayTitlebar = isDesktop && navigator.userAgent.includes("Mac");
+
+export async function onFullscreenChange(handler: (fullscreen: boolean) => void) {
+  if (!isDesktop) {
+    return () => {};
+  }
+  const window = getCurrentWindow();
+  const sync = async () => handler(await window.isFullscreen());
+  await sync();
+  return window.onResized(sync);
+}
+
 export async function onOpenedFiles(handler: (paths: string[]) => void) {
   if (!isDesktop) {
     return () => {};

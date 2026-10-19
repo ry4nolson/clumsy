@@ -17,7 +17,13 @@
         "width": 1200,
         "height": 860,
         "minWidth": 640,
-        "minHeight": 420
+        "minHeight": 420,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 17
+        }
       }
     ],
     "security": {
@@ -30,7 +36,9 @@
     "category": "Productivity",
     "fileAssociations": [
       {
-        "ext": ["pdf"],
+        "ext": [
+          "pdf"
+        ],
         "mimeType": "application/pdf",
         "name": "PDF Document",
         "role": "Editor",

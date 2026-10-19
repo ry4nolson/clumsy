@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType, AnnotationEditorType, AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, FindState, LinkTarget, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
+import { imageRects, recordImageCoordinates, recordedImages } from "../lib/imageRegions";
 
 export const highlightColors = {
   yellow: "#FFFF98",
@@ -39,6 +40,43 @@ const findStates: Record<number, FindStatus["state"]> = {
   [FindState.PENDING]: "pending",
   [FindState.WRAPPED]: "wrapped",
 };
+
+type RenderedPageView = {
+  div: HTMLDivElement;
+  canvas: HTMLCanvasElement | null;
+  pdfPage: object;
+  imageCoordinates: ArrayLike<number> | null;
+  viewport: { rotation: number };
+};
+
+function restoreImages(pageView: RenderedPageView) {
+  const { canvas, div, pdfPage, viewport } = pageView;
+  recordImageCoordinates(pdfPage, pageView.imageCoordinates, viewport.rotation);
+  const images = recordedImages(pdfPage);
+  let overlay = div.querySelector<HTMLCanvasElement>("canvas.image-restore");
+  if (!canvas || !images?.coords.length) {
+    overlay?.remove();
+    return;
+  }
+  if (!overlay) {
+    overlay = document.createElement("canvas");
+    overlay.className = "image-restore";
+    overlay.setAttribute("aria-hidden", "true");
+  }
+  if (!overlay.isConnected) {
+    div.querySelector(".canvasWrapper")?.after(overlay);
+  }
+  overlay.width = canvas.width;
+  overlay.height = canvas.height;
+  const context = overlay.getContext("2d")!;
+  for (const rect of imageRects(images.coords, viewport.rotation - images.rotation)) {
+    const x = Math.floor(rect.x * canvas.width);
+    const y = Math.floor(rect.y * canvas.height);
+    const width = Math.ceil(rect.width * canvas.width);
+    const height = Math.ceil(rect.height * canvas.height);
+    context.drawImage(canvas, x, y, width, height, x, y, width, height);
+  }
+}
 
 type ViewerParts = {
   eventBus: EventBus;
@@ -80,6 +118,8 @@ export function usePdfViewer() {
         .map(([name, hex]) => `${name}=${hex}`)
         .join(","),
       enableHighlightFloatingButton: true,
+      imagesRightClickMinSize: 0,
+      enableDetailCanvas: false,
       imageResourcesPath: "",
     } as ConstructorParameters<typeof PDFViewer>[0]);
     linkService.setViewer(viewer);
@@ -87,6 +127,11 @@ export function usePdfViewer() {
 
     eventBus.on("pagesinit", () => {
       viewer.currentScaleValue = "page-width";
+    });
+    eventBus.on("pagerendered", ({ source, isDetailView, error }: { source: RenderedPageView; isDetailView: boolean; error: unknown }) => {
+      if (!isDetailView && !error) {
+        restoreImages(source);
+      }
     });
     eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => setPageNumber(pageNumber));
     eventBus.on("pagesloaded", ({ pagesCount }: { pagesCount: number }) => setPagesCount(pagesCount));

@@ -36,10 +36,14 @@ const zoomPresets = [
 ];
 
 type ToolbarProps = {
+  documentTitle: string | null;
+  titlebarInset: boolean;
   hasDocument: boolean;
   sidebarOpen: boolean;
   findOpen: boolean;
   darkPages: boolean;
+  darkPagesImages: "keep" | "invert";
+  onDarkPagesImages: (value: "keep" | "invert") => void;
   pageNumber: number;
   pagesCount: number;
   scale: number;
@@ -79,8 +83,8 @@ export function Toolbar(props: ToolbarProps) {
   const swatches = tool === "highlight" ? Object.values(highlightColors) : tool === "text" || tool === "draw" ? inkColors : [];
 
   return (
-    <header className="toolbar" data-tauri-drag-region>
-      <div className="toolbar-group">
+    <header className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
+      <div className="toolbar-group" data-tauri-drag-region>
         <IconButton title="Toggle sidebar (⌘\)" active={props.sidebarOpen} disabled={!hasDocument} onClick={props.onToggleSidebar}>
           <PanelLeft size={18} />
         </IconButton>
@@ -90,11 +94,16 @@ export function Toolbar(props: ToolbarProps) {
         <IconButton title="Save (⌘S)" disabled={!hasDocument} onClick={props.onSave}>
           <Save size={18} />
         </IconButton>
+        {props.documentTitle && (
+          <span className="document-title" title={props.documentTitle} data-tauri-drag-region>
+            {props.documentTitle}
+          </span>
+        )}
       </div>
 
       {hasDocument && (
         <>
-          <div className="toolbar-group">
+          <div className="toolbar-group" data-tauri-drag-region>
             <form
               className="page-nav"
               onSubmit={(event) => {
@@ -119,7 +128,7 @@ export function Toolbar(props: ToolbarProps) {
             </form>
           </div>
 
-          <div className="toolbar-group">
+          <div className="toolbar-group" data-tauri-drag-region>
             <IconButton title="Zoom out (⌘−)" onClick={() => props.onZoom(-1)}>
               <Minus size={16} />
             </IconButton>
@@ -139,7 +148,7 @@ export function Toolbar(props: ToolbarProps) {
             </IconButton>
           </div>
 
-          <div className="toolbar-group tools">
+          <div className="toolbar-group tools" data-tauri-drag-region>
             <IconButton title="Select (V)" active={tool === "select"} onClick={() => props.onTool("select")}>
               <MousePointer2 size={18} />
             </IconButton>
@@ -159,7 +168,7 @@ export function Toolbar(props: ToolbarProps) {
               <Signature size={18} />
             </IconButton>
             {swatches.length > 0 && (
-              <div className="swatches" role="radiogroup" aria-label="Color">
+              <div className="swatches" role="radiogroup" aria-label="Color" data-tauri-drag-region>
                 {swatches.map((color) => (
                   <button
                     key={color}
@@ -178,7 +187,18 @@ export function Toolbar(props: ToolbarProps) {
         </>
       )}
 
-      <div className="toolbar-group end">
+      <div className="toolbar-group end" data-tauri-drag-region>
+        {hasDocument && props.darkPages && (
+          <select
+            aria-label="Images in dark pages"
+            title="How images look on dark pages"
+            value={props.darkPagesImages}
+            onChange={(event) => props.onDarkPagesImages(event.target.value as "keep" | "invert")}
+          >
+            <option value="keep">Keep images</option>
+            <option value="invert">Invert images</option>
+          </select>
+        )}
         <IconButton title={props.darkPages ? "Light pages" : "Dark pages"} active={props.darkPages} disabled={!hasDocument} onClick={props.onToggleDarkPages}>
           {props.darkPages ? <Sun size={18} /> : <Moon size={18} />}
         </IconButton>
