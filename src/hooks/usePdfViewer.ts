@@ -1,0 +1,279 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnnotationEditorParamsType, AnnotationEditorType, AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
+import { EventBus, FindState, LinkTarget, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
+import "pdfjs-dist/web/pdf_viewer.css";
+
+export const highlightColors = {
+  yellow: "#FFFF98",
+  green: "#53FFBC",
+  blue: "#80EBFF",
+  pink: "#FFCBE6",
+  red: "#FF4F5F",
+};
+
+export type EditorTool = "select" | "highlight" | "text" | "draw" | "image";
+
+const toolModes: Record<EditorTool, number> = {
+  select: AnnotationEditorType.NONE,
+  highlight: AnnotationEditorType.HIGHLIGHT,
+  text: AnnotationEditorType.FREETEXT,
+  draw: AnnotationEditorType.INK,
+  image: AnnotationEditorType.STAMP,
+};
+
+export type FindStatus = {
+  state: "idle" | "found" | "notFound" | "pending" | "wrapped";
+  current: number;
+  total: number;
+};
+
+export type FindQuery = {
+  query: string;
+  caseSensitive: boolean;
+  entireWord: boolean;
+};
+
+const findStates: Record<number, FindStatus["state"]> = {
+  [FindState.FOUND]: "found",
+  [FindState.NOT_FOUND]: "notFound",
+  [FindState.PENDING]: "pending",
+  [FindState.WRAPPED]: "wrapped",
+};
+
+type ViewerParts = {
+  eventBus: EventBus;
+  linkService: PDFLinkService;
+  findController: PDFFindController;
+  viewer: PDFViewer;
+};
+
+export function usePdfViewer() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const partsRef = useRef<ViewerParts | null>(null);
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pagesCount, setPagesCount] = useState(0);
+  const [scale, setScale] = useState(1);
+  const [scaleValue, setScaleValue] = useState("page-width");
+  const [tool, setToolState] = useState<EditorTool>("select");
+  const [modified, setModified] = useState(false);
+  const [findStatus, setFindStatus] = useState<FindStatus>({ state: "idle", current: 0, total: 0 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const viewerElement = container.querySelector<HTMLDivElement>(".pdfViewer")!;
+    const eventBus = new EventBus();
+    const linkService = new PDFLinkService({ eventBus, externalLinkTarget: LinkTarget.BLANK });
+    const findController = new PDFFindController({ eventBus, linkService });
+    const viewer = new PDFViewer({
+      container,
+      viewer: viewerElement,
+      eventBus,
+      linkService,
+      findController,
+      annotationMode: AnnotationMode.ENABLE_FORMS,
+      annotationEditorMode: AnnotationEditorType.NONE,
+      annotationEditorHighlightColors: Object.entries(highlightColors)
+        .map(([name, hex]) => `${name}=${hex}`)
+        .join(","),
+      enableHighlightFloatingButton: true,
+      imageResourcesPath: "",
+    } as ConstructorParameters<typeof PDFViewer>[0]);
+    linkService.setViewer(viewer);
+    partsRef.current = { eventBus, linkService, findController, viewer };
+
+    eventBus.on("pagesinit", () => {
+      viewer.currentScaleValue = "page-width";
+    });
+    eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => setPageNumber(pageNumber));
+    eventBus.on("pagesloaded", ({ pagesCount }: { pagesCount: number }) => setPagesCount(pagesCount));
+    eventBus.on("scalechanging", ({ scale, presetValue }: { scale: number; presetValue?: string }) => {
+      setScale(scale);
+      setScaleValue(presetValue ?? String(scale));
+    });
+    eventBus.on("annotationeditormodechanged", ({ mode }: { mode: number }) => {
+      const match = (Object.keys(toolModes) as EditorTool[]).find((key) => toolModes[key] === mode);
+      setToolState(match ?? "select");
+    });
+    const onFindUpdate = ({ state, matchesCount }: { state?: number; matchesCount: { current: number; total: number } }) => {
+      setFindStatus((previous) => ({
+        state: state === undefined ? previous.state : (findStates[state] ?? "idle"),
+        current: matchesCount.current,
+        total: matchesCount.total,
+      }));
+    };
+    eventBus.on("updatefindcontrolstate", onFindUpdate);
+    eventBus.on("updatefindmatchescount", onFindUpdate);
+
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return;
+      }
+      event.preventDefault();
+      viewer.updateScale({
+        drawingDelay: 400,
+        scaleFactor: Math.exp(-event.deltaY / 100),
+        origin: [event.clientX, event.clientY],
+      });
+    };
+    container.addEventListener("wheel", onWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener("wheel", onWheel);
+      partsRef.current = null;
+    };
+  }, []);
+
+  const setDocument = useCallback((doc: PDFDocumentProxy | null) => {
+    const parts = partsRef.current;
+    if (!parts) {
+      return;
+    }
+    setModified(false);
+    setPageNumber(1);
+    setPagesCount(doc?.numPages ?? 0);
+    setToolState("select");
+    setFindStatus({ state: "idle", current: 0, total: 0 });
+    if (doc) {
+      Object.assign(doc.annotationStorage, {
+        onSetModified: () => setModified(true),
+        onResetModified: () => setModified(false),
+      });
+    }
+    parts.viewer.setDocument(doc!);
+    parts.linkService.setDocument(doc, null);
+    parts.findController.setDocument(doc!);
+    setPdfDocument(doc);
+  }, []);
+
+  const goToPage = useCallback((page: number) => {
+    const viewer = partsRef.current?.viewer;
+    if (viewer?.pdfDocument) {
+      viewer.currentPageNumber = Math.min(Math.max(1, page), viewer.pagesCount);
+    }
+  }, []);
+
+  const goToDestination = useCallback((dest: unknown) => {
+    partsRef.current?.linkService.goToDestination(dest as string);
+  }, []);
+
+  const setZoom = useCallback((value: string | number) => {
+    const viewer = partsRef.current?.viewer;
+    if (viewer?.pdfDocument) {
+      viewer.currentScaleValue = String(value);
+    }
+  }, []);
+
+  const zoom = useCallback((direction: 1 | -1) => {
+    const viewer = partsRef.current?.viewer;
+    if (!viewer?.pdfDocument) {
+      return;
+    }
+    if (direction > 0) {
+      viewer.increaseScale();
+    } else {
+      viewer.decreaseScale();
+    }
+  }, []);
+
+  const rotate = useCallback(() => {
+    const viewer = partsRef.current?.viewer;
+    if (viewer?.pdfDocument) {
+      viewer.pagesRotation = (viewer.pagesRotation + 90) % 360;
+    }
+  }, []);
+
+  const setTool = useCallback((next: EditorTool) => {
+    const parts = partsRef.current;
+    if (!parts?.viewer.pdfDocument) {
+      return Promise.resolve();
+    }
+    const mode = toolModes[next];
+    if ((parts.viewer.annotationEditorMode as unknown as number) === mode) {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      const done = ({ mode: changed }: { mode: number }) => {
+        if (changed === mode) {
+          parts.eventBus.off("annotationeditormodechanged", done);
+          resolve();
+        }
+      };
+      parts.eventBus.on("annotationeditormodechanged", done);
+      parts.viewer.annotationEditorMode = { mode };
+    });
+  }, []);
+
+  const setEditorParam = useCallback((type: number, value: unknown) => {
+    partsRef.current?.eventBus.dispatch("switchannotationeditorparams", { source: null, type, value });
+  }, []);
+
+  const addImage = useCallback(
+    async (file?: File) => {
+      await setTool("image");
+      setEditorParam(AnnotationEditorParamsType.CREATE, file ? { bitmapFile: file } : {});
+    },
+    [setTool, setEditorParam],
+  );
+
+  const find = useCallback((query: FindQuery, type: "" | "again" | "casesensitivitychange" | "entirewordchange", findPrevious = false) => {
+    partsRef.current?.eventBus.dispatch("find", {
+      source: null,
+      type,
+      query: query.query,
+      caseSensitive: query.caseSensitive,
+      entireWord: query.entireWord,
+      highlightAll: true,
+      findPrevious,
+      matchDiacritics: false,
+    });
+  }, []);
+
+  const closeFind = useCallback(() => {
+    partsRef.current?.eventBus.dispatch("findbarclose", { source: null });
+    setFindStatus({ state: "idle", current: 0, total: 0 });
+  }, []);
+
+  const save = useCallback(async () => {
+    const doc = partsRef.current?.viewer.pdfDocument;
+    if (!doc) {
+      return null;
+    }
+    return doc.saveDocument();
+  }, []);
+
+  const markSaved = useCallback(() => {
+    partsRef.current?.viewer.pdfDocument?.annotationStorage.resetModified();
+    setModified(false);
+  }, []);
+
+  return {
+    containerRef,
+    pdfDocument,
+    pageNumber,
+    pagesCount,
+    scale,
+    scaleValue,
+    tool,
+    modified,
+    findStatus,
+    setDocument,
+    goToPage,
+    goToDestination,
+    setZoom,
+    zoom,
+    rotate,
+    setTool,
+    setEditorParam,
+    addImage,
+    find,
+    closeFind,
+    save,
+    markSaved,
+  };
+}
+
+export type PdfViewerApi = ReturnType<typeof usePdfViewer>;
