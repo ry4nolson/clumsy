@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths-ignore:
       - 'README.md'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
       - 'docs/**'
   workflow_dispatch:
 
@@ -78,6 +80,16 @@ jobs:
             fs.writeFileSync(path, JSON.stringify(config, null, 2) + "\n");
           ' "$VERSION"
           echo "Version set to $VERSION"
+
+      - name: Stamp changelog
+        run: |
+          node scripts/stamp-changelog.mjs "$VERSION" "$(date -u +%F)" > /tmp/changelog_notes.md
+          if [ -s /tmp/changelog_notes.md ]; then
+            echo "CHANGELOG_STAMPED=true" >> $GITHUB_ENV
+            echo "Moved [Unreleased] under [$VERSION]"
+          else
+            echo "No unreleased changelog entries; release notes will list commits"
+          fi
 
       - name: Import signing certificate
         env:
@@ -170,11 +182,9 @@ jobs:
 
       - name: Write release notes
         run: |
-          NOTES=""
-          if [ -f CHANGELOG.md ]; then
-            NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
-          fi
-          if [ -z "${NOTES:-}" ]; then
+          if [ "${CHANGELOG_STAMPED:-}" = "true" ]; then
+            NOTES="$(cat /tmp/changelog_notes.md)"
+          else
             RANGE="${PREVIOUS_TAG:+$PREVIOUS_TAG..}HEAD"
             NOTES=$(git log "$RANGE" --no-merges --format='- %s')
           fi
@@ -199,3 +209,18 @@ jobs:
           body_path: /tmp/release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit stamped changelog
+        if: env.CHANGELOG_STAMPED == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "Release v$VERSION"
+          git reset --hard HEAD
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          echo "::error::Could not push the stamped changelog; move [Unreleased] under [$VERSION] by hand"
+          exit 1

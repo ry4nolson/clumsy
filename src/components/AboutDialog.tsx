@@ -114,6 +114,10 @@ export function AboutDialog({ request, onClose, onOpenUrl, onMakeDefault }: Abou
               <dd>pdf.js + Tauri</dd>
             </div>
             <div>
+              <dt>License</dt>
+              <dd>MIT</dd>
+            </div>
+            <div>
               <dt>Platform</dt>
               <dd>macOS Universal</dd>
             </div>
