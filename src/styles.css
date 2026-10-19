@@ -843,6 +843,24 @@ body {
   box-shadow: var(--shadow);
 }
 
+.dialog.sheet {
+  margin: 46px auto auto;
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  animation: sheet-in 200ms ease-out;
+}
+
+.dialog.sheet::backdrop {
+  background: rgb(0 0 0 / 0.18);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(-40px);
+    opacity: 0;
+  }
+}
+
 .dialog::backdrop {
   background: rgb(0 0 0 / 0.35);
 }
@@ -929,16 +947,12 @@ body {
   font-size: 12px;
 }
 
-.about-dialog {
-  width: min(560px, calc(100vw - 32px));
-  height: min(640px, calc(100vh - 48px));
-  padding: 0;
-  overflow: hidden;
-}
-
-.about-dialog[open] {
+.aux-window {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .about-tabs {
@@ -962,10 +976,6 @@ body {
 .about-tabs [role="tab"][aria-selected="true"] {
   background: var(--active);
   color: var(--text);
-}
-
-.about-close {
-  margin-left: auto;
 }
 
 .about,
@@ -1300,38 +1310,6 @@ body {
   }
 }
 
-.default-app-dialog {
-  width: min(440px, calc(100vw - 32px));
-  text-align: center;
-}
-
-.default-app-dialog h2 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.default-app-dialog .dialog-actions {
-  align-items: center;
-}
-
-.default-app-dialog .checkbox {
-  margin-top: 0;
-  font-size: 12px;
-}
-
-.default-app-error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 0;
-  color: var(--danger);
-  font-size: 12px;
-}
-
 .about-licenses {
   flex: 1;
   min-height: 0;
@@ -1360,30 +1338,9 @@ body {
   user-select: text;
 }
 
-.shortcuts-dialog {
-  width: min(760px, calc(100vw - 32px));
-  max-height: min(720px, calc(100vh - 48px));
-  padding: 0;
-}
-
-.shortcuts-dialog[open] {
-  display: flex;
-  flex-direction: column;
-}
-
-.shortcuts-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 14px 12px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.shortcuts-header h2 {
-  margin: 0;
-}
-
 .shortcuts-groups {
+  flex: 1;
+  min-height: 0;
   columns: 2 300px;
   column-gap: 32px;
   padding: 16px 20px 20px;

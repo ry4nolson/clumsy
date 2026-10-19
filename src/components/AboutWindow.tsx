@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CircleArrowDown,
   CircleCheck,
@@ -7,7 +7,6 @@ import {
   LoaderCircle,
   MessageSquareWarning,
   TriangleAlert,
-  X,
 } from "lucide-react";
 import changelogSource from "../../CHANGELOG.md?raw";
 import licenseSource from "../../LICENSE?raw";
@@ -16,7 +15,8 @@ import sponsorLogo from "../assets/brand/HorizontalLogo.png";
 import sponsorLogoWhite from "../assets/brand/HorizontalLogoWhite.png";
 import { parseChangelog } from "../lib/changelog";
 import type { DefaultAppStatus } from "../lib/defaultApp";
-import { getDefaultAppStatus } from "../lib/platform";
+import { promptForDefaultApp } from "../lib/defaultAppPrompt";
+import { getDefaultAppStatus, initialWindowParams, onAuxWindowParams, openExternal, type AuxWindowParams } from "../lib/platform";
 import { appVersion, repoUrl, useUpdateCheck } from "../lib/updates";
 import { ChangelogList } from "./ChangelogList";
 import { LicensesView } from "./LicensesView";
@@ -38,51 +38,50 @@ const links = [
   { title: "Issues", icon: MessageSquareWarning, url: `${repoUrl}/issues` },
 ];
 
-type AboutDialogProps = {
-  request: { tab: AboutTab; checkForUpdates: boolean; token: number } | null;
-  onClose: () => void;
-  onOpenUrl: (url: string) => void;
-  onMakeDefault: () => void;
-};
+const isAboutTab = (value: string | undefined): value is AboutTab => value === "about" || value === "changelog" || value === "licenses";
 
-export function AboutDialog({ request, onClose, onOpenUrl, onMakeDefault }: AboutDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const [tab, setTab] = useState<AboutTab>("about");
+export function AboutWindow() {
+  const [tab, setTab] = useState<AboutTab>(() => {
+    const requested = initialWindowParams().tab;
+    return isAboutTab(requested) ? requested : "about";
+  });
   const releases = useMemo(() => parseChangelog(changelogSource), []);
   const { status, check } = useUpdateCheck();
   const [defaultApp, setDefaultApp] = useState<DefaultAppStatus | null>(null);
+  const onOpenUrl = openExternal;
+
+  const refreshDefaultApp = useCallback(() => {
+    getDefaultAppStatus().then(setDefaultApp);
+  }, []);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) {
-      return;
-    }
-    if (request) {
-      setTab(request.tab);
-      if (!dialog.open) {
-        dialog.showModal();
+    const apply = (params: AuxWindowParams) => {
+      if (isAboutTab(params.tab)) {
+        setTab(params.tab);
       }
-      if (request.checkForUpdates) {
+      if (params.check === "1") {
         check();
       }
-      getDefaultAppStatus().then(setDefaultApp);
-    } else if (dialog.open) {
-      dialog.close();
+      refreshDefaultApp();
+    };
+    apply(initialWindowParams());
+    const dispose = onAuxWindowParams(apply);
+    window.addEventListener("focus", refreshDefaultApp);
+    return () => {
+      dispose.then((unlisten) => unlisten());
+      window.removeEventListener("focus", refreshDefaultApp);
+    };
+  }, [check, refreshDefaultApp]);
+
+  const makeDefault = async () => {
+    if (defaultApp) {
+      await promptForDefaultApp(defaultApp, "manual");
+      refreshDefaultApp();
     }
-  }, [request, check]);
+  };
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog about-dialog"
-      onClose={onClose}
-      onCancel={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-    >
+    <div className="aux-window about-window">
       <div className="about-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === "about"} onClick={() => setTab("about")}>
           About
@@ -92,9 +91,6 @@ export function AboutDialog({ request, onClose, onOpenUrl, onMakeDefault }: Abou
         </button>
         <button type="button" role="tab" aria-selected={tab === "licenses"} onClick={() => setTab("licenses")}>
           Licenses
-        </button>
-        <button type="button" className="icon-button about-close" aria-label="Close" onClick={onClose}>
-          <X size={16} />
         </button>
       </div>
 
@@ -194,7 +190,7 @@ export function AboutDialog({ request, onClose, onOpenUrl, onMakeDefault }: Abou
               ) : (
                 <>
                   <span>PDFs open in {defaultApp.currentApp ?? "another app"}</span>
-                  <button type="button" className="link-button" onClick={onMakeDefault}>
+                  <button type="button" className="link-button" onClick={makeDefault}>
                     Make Clumsy the default
                   </button>
                 </>
@@ -221,6 +217,6 @@ export function AboutDialog({ request, onClose, onOpenUrl, onMakeDefault }: Abou
       ) : (
         <LicensesView license={licenseSource} />
       )}
-    </dialog>
+    </div>
   );
 }

@@ -1,5 +1,3 @@
-import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
 import { commands, displayCombo, type Command, type MenuName } from "../lib/commands";
 
 const groupOrder: Array<MenuName | "Tabs"> = ["File", "Edit", "View", "Go", "Tools", "Window", "Tabs", "Help"];
@@ -21,42 +19,9 @@ function shortcutRows(isMac: boolean) {
   return groupOrder.filter((group) => groups.has(group)).map((group) => [group, groups.get(group)!] as const);
 }
 
-type ShortcutsDialogProps = {
-  open: boolean;
-  isMac: boolean;
-  onClose: () => void;
-};
-
-export function ShortcutsDialog({ open, isMac, onClose }: ShortcutsDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (open && dialog && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog?.open) {
-      dialog.close();
-    }
-  }, [open]);
-
+export function ShortcutsWindow({ isMac }: { isMac: boolean }) {
   return (
-    <dialog
-      ref={dialogRef}
-      className="dialog shortcuts-dialog"
-      onClose={onClose}
-      onCancel={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-    >
-      <header className="shortcuts-header">
-        <h2>Keyboard Shortcuts</h2>
-        <button type="button" className="icon-button" aria-label="Close" onClick={onClose}>
-          <X size={16} />
-        </button>
-      </header>
+    <div className="aux-window shortcuts-window">
       <div className="shortcuts-groups">
         {shortcutRows(isMac).map(([group, rows]) => (
           <section key={group}>
@@ -79,6 +44,6 @@ export function ShortcutsDialog({ open, isMac, onClose }: ShortcutsDialogProps) 
           </section>
         ))}
       </div>
-    </dialog>
+    </div>
   );
 }

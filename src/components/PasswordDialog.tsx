@@ -22,7 +22,7 @@ export function PasswordDialog({ request, onSubmit }: PasswordDialogProps) {
   return (
     <dialog
       ref={dialogRef}
-      className="dialog"
+      className="dialog sheet"
       onCancel={(event) => {
         event.preventDefault();
         onSubmit(null);

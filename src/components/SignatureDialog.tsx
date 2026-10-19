@@ -106,7 +106,7 @@ export function SignatureDialog({ open, onClose, onPlace }: SignatureDialogProps
   };
 
   return (
-    <dialog ref={dialogRef} className="dialog" onClose={onClose} onCancel={onClose}>
+    <dialog ref={dialogRef} className="dialog sheet" onClose={onClose} onCancel={onClose}>
       <h2>Signature</h2>
       {drawing ? (
         <>

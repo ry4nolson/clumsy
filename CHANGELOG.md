@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **About** (with What's New and Licenses) and **Keyboard Shortcuts** open in their own windows instead of popups; they can sit beside your document, and reopening one brings it to the front
+- The default PDF app prompt is a native macOS alert
+- Password and signature prompts slide down from the toolbar like macOS sheets
+- About and Keyboard Shortcuts open centered over the Clumsy window, on whichever display it's on
+
 ## [0.1.4] - 2026-10-19
 
 ### Added

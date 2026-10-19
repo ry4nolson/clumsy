@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType } from "pdfjs-dist";
-import { AboutDialog, type AboutTab } from "./components/AboutDialog";
-import { DefaultAppDialog, type DefaultAppRequest } from "./components/DefaultAppDialog";
+import type { AboutTab } from "./components/AboutWindow";
 import { DocumentTab, type DocumentHandle, type TabSnapshot } from "./components/DocumentTab";
 import { PasswordDialog } from "./components/PasswordDialog";
-import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
 import { TabStrip, type TabItem } from "./components/TabStrip";
@@ -13,10 +11,12 @@ import { Welcome } from "./components/Welcome";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
 import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./lib/commands";
 import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppPreference } from "./lib/defaultApp";
+import { promptForDefaultApp } from "./lib/defaultAppPrompt";
 import { installAppMenu, type AppMenu } from "./lib/menu";
 import type { RecentEntry } from "./lib/recent";
 import {
   clearRecentFiles,
+  closeFocusedAuxWindow,
   closeWindow,
   confirmDiscard,
   downloadPdf,
@@ -25,12 +25,12 @@ import {
   getRecentFiles,
   hasOverlayTitlebar,
   isDesktop,
-  makeDefaultApp,
   onCloseRequested,
   onFileDrop,
   onFullscreenChange,
   onOpenedFiles,
   onRecentFilesChanged,
+  openAuxWindow,
   openExternal,
   pickImage,
   pickPdf,
@@ -81,15 +81,12 @@ export default function App() {
   const [fullscreen, setFullscreen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
   const [sidebarTab, setSidebarTab] = usePersistentState<SidebarTab>("clumsy.sidebarTab", "thumbnails");
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [menuReady, setMenuReady] = useState(false);
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [passwordPrompts, setPasswordPrompts] = useState<PasswordPrompt[]>([]);
-  const [aboutRequest, setAboutRequest] = useState<{ tab: AboutTab; checkForUpdates: boolean; token: number } | null>(null);
   const [recentFiles, setRecentFiles] = useState<RecentEntry[] | null>(null);
-  const [defaultAppRequest, setDefaultAppRequest] = useState<DefaultAppRequest | null>(null);
   const [defaultAppPreference, setDefaultAppPreference] = usePersistentState<DefaultAppPreference>("clumsy.defaultAppPrompt", null);
   const [toolColors, setToolColors] = useState<Record<string, string>>({
     highlight: Object.values(highlightColors)[0],
@@ -305,7 +302,7 @@ export default function App() {
   );
 
   const requestDefaultApp = useCallback(async () => {
-    setDefaultAppRequest({ status: await getDefaultAppStatus(), source: "manual", token: Date.now() });
+    await promptForDefaultApp(await getDefaultAppStatus(), "manual");
   }, []);
 
   const defaultAppPreferenceRef = useRef(defaultAppPreference);
@@ -317,8 +314,14 @@ export default function App() {
     }
     const timer = window.setTimeout(async () => {
       const status = await getDefaultAppStatus();
-      if (shouldPromptForDefault(status, defaultAppPreferenceRef.current, Date.now())) {
-        setDefaultAppRequest({ status, source: "launch", token: Date.now() });
+      if (!shouldPromptForDefault(status, defaultAppPreferenceRef.current, Date.now())) {
+        return;
+      }
+      const choice = await promptForDefaultApp(status, "launch");
+      if (choice === "never") {
+        setDefaultAppPreference({ state: "never" });
+      } else if (choice === "declined") {
+        setDefaultAppPreference({ state: "snoozed", until: Date.now() + SNOOZE_MS });
       }
     }, 1200);
     return () => window.clearTimeout(timer);
@@ -382,7 +385,7 @@ export default function App() {
     }
   };
 
-  const openAbout = (tab: AboutTab, checkForUpdates = false) => setAboutRequest({ tab, checkForUpdates, token: Date.now() });
+  const openAbout = (tab: AboutTab, checkForUpdates = false) => openAuxWindow("about", checkForUpdates ? { tab, check: "1" } : { tab });
 
   const runCommand = (id: CommandId) => {
     const handle = activeHandle();
@@ -405,8 +408,16 @@ export default function App() {
       makeDefault: () => requestDefaultApp(),
       newTab,
       open: () => openSource(pickPdf()),
-      closeTab: () => closeTab(activeIdRef.current),
-      closeWindow: () => closeWindow(),
+      closeTab: async () => {
+        if (!(await closeFocusedAuxWindow())) {
+          closeTab(activeIdRef.current);
+        }
+      },
+      closeWindow: async () => {
+        if (!(await closeFocusedAuxWindow())) {
+          closeWindow();
+        }
+      },
       save: () => save(false),
       saveAs: () => save(true),
       revealInFinder: () => activeTab.kind === "document" && activeTab.path && revealInFinder(activeTab.path),
@@ -454,7 +465,7 @@ export default function App() {
       sign: () => setSignatureOpen(true),
       nextTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, 1)),
       previousTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, -1)),
-      keyboardShortcuts: () => setShortcutsOpen(true),
+      keyboardShortcuts: () => openAuxWindow("shortcuts"),
       whatsNew: () => openAbout("changelog"),
       openGitHub: () => openExternal(repoUrl),
       reportIssue: () => openExternal(`${repoUrl}/issues/new`),
@@ -627,29 +638,9 @@ export default function App() {
           activeHandle()?.viewer.addImage(file);
         }}
       />
-      <ShortcutsDialog open={shortcutsOpen} isMac={isMac} onClose={() => setShortcutsOpen(false)} />
       <PasswordDialog
         request={passwordPrompts[0] ? { fileName: passwordPrompts[0].fileName, incorrect: passwordPrompts[0].incorrect } : null}
         onSubmit={resolvePassword}
-      />
-      <AboutDialog
-        request={aboutRequest}
-        onClose={() => setAboutRequest(null)}
-        onOpenUrl={openExternal}
-        onMakeDefault={() => {
-          setAboutRequest(null);
-          requestDefaultApp();
-        }}
-      />
-      <DefaultAppDialog
-        request={defaultAppRequest}
-        onMakeDefault={makeDefaultApp}
-        onDismiss={({ neverAsk, source }) => {
-          if (source === "launch") {
-            setDefaultAppPreference(neverAsk ? { state: "never" } : { state: "snoozed", until: Date.now() + SNOOZE_MS });
-          }
-        }}
-        onClose={() => setDefaultAppRequest(null)}
       />
     </div>
   );

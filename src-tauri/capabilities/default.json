@@ -1,9 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Capability for the main, About, and Keyboard Shortcuts windows",
   "windows": [
-    "main"
+    "main",
+    "about",
+    "shortcuts"
   ],
   "permissions": [
     "core:default",
@@ -14,6 +16,10 @@
     "core:window:allow-destroy",
     "dialog:default",
     "opener:allow-open-url",
-    "opener:allow-reveal-item-in-dir"
+    "opener:allow-reveal-item-in-dir",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-unminimize"
   ]
 }
