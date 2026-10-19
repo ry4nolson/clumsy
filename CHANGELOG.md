@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-19
+
 ### Fixed
 - Pages no longer shake when a document's fitted height lands right at the scroll threshold with always-visible scrollbars; the page also no longer shifts sideways when the scrollbar appears
 
