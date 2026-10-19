@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import type { DefaultAppStatus } from "./defaultApp";
 
 export type PdfSource = {
   name: string;
@@ -116,6 +117,31 @@ export async function onFullscreenChange(handler: (fullscreen: boolean) => void)
   const sync = async () => handler(await window.isFullscreen());
   await sync();
   return window.onResized(sync);
+}
+
+export async function onAboutRequested(handler: (checkForUpdates: boolean) => void) {
+  if (!isDesktop) {
+    return () => {};
+  }
+  return listen<string>("menu-about", ({ payload }) => handler(payload === "updates"));
+}
+
+export async function getDefaultAppStatus(): Promise<DefaultAppStatus> {
+  if (!isDesktop) {
+    return { supported: false, isDefault: false, currentApp: null };
+  }
+  return invoke<DefaultAppStatus>("default_pdf_app");
+}
+
+export async function makeDefaultApp() {
+  return invoke<DefaultAppStatus>("make_default_pdf_app");
+}
+
+export async function onMakeDefaultRequested(handler: () => void) {
+  if (!isDesktop) {
+    return () => {};
+  }
+  return listen("menu-make-default", handler);
 }
 
 export async function onOpenedFiles(handler: (paths: string[]) => void) {

@@ -1,21 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType } from "pdfjs-dist";
+import { AboutDialog, type AboutTab } from "./components/AboutDialog";
+import { DefaultAppDialog, type DefaultAppRequest } from "./components/DefaultAppDialog";
 import { FindBar } from "./components/FindBar";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { Sidebar } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
 import { Toolbar, inkColors } from "./components/Toolbar";
 import { highlightColors, usePdfViewer, type EditorTool, type FindQuery } from "./hooks/usePdfViewer";
+import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppPreference } from "./lib/defaultApp";
 import { PasswordCancelledError, loadPdf } from "./lib/pdfjs";
 import {
   confirmDiscard,
   downloadPdf,
   fileNameFromPath,
+  getDefaultAppStatus,
   hasOverlayTitlebar,
   isDesktop,
+  makeDefaultApp,
+  onAboutRequested,
   onCloseRequested,
   onFileDrop,
   onFullscreenChange,
+  onMakeDefaultRequested,
   onOpenedFiles,
   openExternal,
   pickPdf,
@@ -53,6 +60,9 @@ export default function App() {
   const [findFocusToken, setFindFocusToken] = useState(0);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const [passwordRequest, setPasswordRequest] = useState<PasswordRequest | null>(null);
+  const [aboutRequest, setAboutRequest] = useState<{ tab: AboutTab; checkForUpdates: boolean; token: number } | null>(null);
+  const [defaultAppRequest, setDefaultAppRequest] = useState<DefaultAppRequest | null>(null);
+  const [defaultAppPreference, setDefaultAppPreference] = usePersistentState<DefaultAppPreference>("clumsy.defaultAppPrompt", null);
   const [toolColors, setToolColors] = useState<Record<string, string>>({
     highlight: Object.values(highlightColors)[0],
     text: inkColors[0],
@@ -166,6 +176,26 @@ export default function App() {
     [viewer],
   );
 
+  const requestDefaultApp = useCallback(async () => {
+    setDefaultAppRequest({ status: await getDefaultAppStatus(), source: "manual", token: Date.now() });
+  }, []);
+
+  const defaultAppPreferenceRef = useRef(defaultAppPreference);
+  defaultAppPreferenceRef.current = defaultAppPreference;
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      const status = await getDefaultAppStatus();
+      if (shouldPromptForDefault(status, defaultAppPreferenceRef.current, Date.now())) {
+        setDefaultAppRequest({ status, source: "launch", token: Date.now() });
+      }
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const changeTool = useCallback((tool: EditorTool) => viewer.setTool(tool), [viewer]);
 
   const changeToolColor = (color: string) => {
@@ -188,6 +218,8 @@ export default function App() {
       onOpenedFiles((paths) => openSourceRef.current(readPdfFromPath(paths[0]))),
       onFileDrop((source) => openSourceRef.current(source), setDragging),
       onFullscreenChange(setFullscreen),
+      onAboutRequested((checkForUpdates) => setAboutRequest({ tab: "about", checkForUpdates, token: Date.now() })),
+      onMakeDefaultRequested(() => requestDefaultApp()),
       onCloseRequested(
         () => stateRef.current.modified,
         () => stateRef.current.openDocument?.name ?? "Document",
@@ -326,6 +358,13 @@ export default function App() {
                 <button type="button" className="button primary" onClick={() => openSource(pickPdf())} disabled={loading}>
                   Choose file… <kbd>{isMac ? "⌘O" : "Ctrl+O"}</kbd>
                 </button>
+                <button
+                  type="button"
+                  className="link-button empty-about"
+                  onClick={() => setAboutRequest({ tab: "about", checkForUpdates: false, token: Date.now() })}
+                >
+                  About Clumsy
+                </button>
               </div>
             </div>
           )}
@@ -354,6 +393,25 @@ export default function App() {
         }}
       />
       <PasswordDialog request={passwordRequest} onSubmit={resolvePassword} />
+      <AboutDialog
+        request={aboutRequest}
+        onClose={() => setAboutRequest(null)}
+        onOpenUrl={openExternal}
+        onMakeDefault={() => {
+          setAboutRequest(null);
+          requestDefaultApp();
+        }}
+      />
+      <DefaultAppDialog
+        request={defaultAppRequest}
+        onMakeDefault={makeDefaultApp}
+        onDismiss={({ neverAsk, source }) => {
+          if (source === "launch") {
+            setDefaultAppPreference(neverAsk ? { state: "never" } : { state: "snoozed", until: Date.now() + SNOOZE_MS });
+          }
+        }}
+        onClose={() => setDefaultAppRequest(null)}
+      />
     </div>
   );
 }

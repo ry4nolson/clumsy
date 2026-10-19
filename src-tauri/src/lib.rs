@@ -1,3 +1,5 @@
+mod default_app;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -29,6 +31,36 @@ fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_focus();
     }
+}
+
+#[cfg(target_os = "macos")]
+fn install_app_menu(app: &AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem, MenuItemKind};
+
+    let menu = Menu::default(app)?;
+    if let Some(MenuItemKind::Submenu(app_menu)) = menu.items()?.into_iter().next() {
+        app_menu.remove_at(0)?;
+        app_menu.insert_items(
+            &[
+                &MenuItem::with_id(app, "about", "About Clumsy", true, None::<&str>)?,
+                &MenuItem::with_id(app, "check-updates", "Check for Updates…", true, None::<&str>)?,
+                &MenuItem::with_id(app, "make-default", "Make Clumsy the Default PDF App…", true, None::<&str>)?,
+            ],
+            0,
+        )?;
+    }
+    app.set_menu(menu)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn default_pdf_app(app: AppHandle) -> default_app::DefaultAppStatus {
+    default_app::status(&app.config().identifier)
+}
+
+#[tauri::command]
+fn make_default_pdf_app(app: AppHandle) -> Result<default_app::DefaultAppStatus, String> {
+    default_app::make_default(&app.config().identifier)
 }
 
 #[tauri::command]
@@ -79,11 +111,27 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(PendingFiles::default())
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            install_app_menu(app.handle())?;
             let args = std::env::args().skip(1).map(PathBuf::from).collect();
             queue_files(app.handle(), args);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![take_pending_files, read_pdf, write_pdf])
+        .on_menu_event(|app, event| {
+            let _ = match event.id().as_ref() {
+                "about" => app.emit("menu-about", "about"),
+                "check-updates" => app.emit("menu-about", "updates"),
+                "make-default" => app.emit("menu-make-default", ()),
+                _ => return,
+            };
+        })
+        .invoke_handler(tauri::generate_handler![
+            take_pending_files,
+            read_pdf,
+            write_pdf,
+            default_pdf_app,
+            make_default_pdf_app
+        ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

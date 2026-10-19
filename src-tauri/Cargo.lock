@@ -476,6 +476,7 @@ dependencies = [
 name = "clumsy"
 version = "0.1.0"
 dependencies = [
+ "core-foundation",
  "percent-encoding",
  "serde",
  "serde_json",

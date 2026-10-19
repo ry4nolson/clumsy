@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **About** window with version, feature overview, project links, and Texas Beard Company sponsorship
+- **What's New** release history built from the bundled changelog
+- **About Clumsy** and **Check for Updates…** in the app menu, backed by GitHub releases
+- Offers to become the default PDF app on launch, with **Not Now** and **Don’t ask again**; also available from the app menu and the About window
+
 ## [0.1.0] - 2026-10-19
 
 ### Added

@@ -42,7 +42,10 @@
         "mimeType": "application/pdf",
         "name": "PDF Document",
         "role": "Editor",
-        "rank": "Alternate"
+        "rank": "Alternate",
+        "contentTypes": [
+          "com.adobe.pdf"
+        ]
       }
     ],
     "icon": [
