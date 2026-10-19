@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PDF Viewer",
+  "productName": "Clumsy",
   "version": "0.1.0",
-  "identifier": "com.rolson.pdfviewer",
+  "identifier": "com.ry4nolson.clumsy",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "PDF Viewer",
+        "title": "Clumsy",
         "width": 1200,
         "height": 860,
         "minWidth": 640,

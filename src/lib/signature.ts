@@ -1,4 +1,4 @@
-const STORAGE_KEY = "pdf-viewer.signature";
+const STORAGE_KEY = "clumsy.signature";
 
 export function loadSavedSignature() {
   try {

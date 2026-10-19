@@ -88,7 +88,7 @@ export async function showError(text: string) {
     window.alert(text);
     return;
   }
-  await message(text, { title: "PDF Viewer", kind: "error" });
+  await message(text, { title: "Clumsy", kind: "error" });
 }
 
 export async function setWindowTitle(title: string) {

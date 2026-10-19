@@ -43,8 +43,8 @@ export default function App() {
   const [openDocument, setOpenDocument] = useState<OpenDocument | null>(null);
   const [loading, setLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = usePersistentState("pdf-viewer.sidebar", true);
-  const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("pdf-viewer.darkPages", "auto");
+  const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
+  const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [findOpen, setFindOpen] = useState(false);
   const [findFocusToken, setFindFocusToken] = useState(0);
   const [signatureOpen, setSignatureOpen] = useState(false);
@@ -174,7 +174,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    const title = openDocument ? `${openDocument.name}${viewer.modified ? " — Edited" : ""}` : "PDF Viewer";
+    const title = openDocument ? `${openDocument.name}${viewer.modified ? " — Edited" : ""}` : "Clumsy";
     setWindowTitle(title);
   }, [openDocument, viewer.modified]);
 
