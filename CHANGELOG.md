@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Pages no longer shake when a document's fitted height lands right at the scroll threshold with always-visible scrollbars; the page also no longer shifts sideways when the scrollbar appears
+
+### Removed
+- Two sample PDFs that were accidentally bundled into the v0.1.4 and v0.1.5 apps; those releases have been withdrawn
+
 ## [0.1.5] - 2026-10-19
 
 ### Changed

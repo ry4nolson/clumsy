@@ -492,6 +492,7 @@ body {
   position: absolute;
   inset: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   outline: none;
 }
 

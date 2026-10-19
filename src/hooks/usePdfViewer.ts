@@ -168,19 +168,22 @@ export function usePdfViewer() {
     };
     container.addEventListener("wheel", onWheel, { passive: false });
 
-    let lastWidth = 0;
+    let lastSize = "";
     const resizeObserver = new ResizeObserver(([entry]) => {
-      const width = Math.round(entry.contentRect.width);
-      if (!width || width === lastWidth) {
+      const box = entry.borderBoxSize?.[0];
+      const width = Math.round(box?.inlineSize ?? container.offsetWidth);
+      const height = Math.round(box?.blockSize ?? container.offsetHeight);
+      const size = `${width}x${height}`;
+      if (!width || !height || size === lastSize) {
         return;
       }
-      lastWidth = width;
+      lastSize = size;
       const preset = viewer.currentScaleValue;
       if (viewer.pdfDocument && presetScales.has(preset)) {
         viewer.currentScaleValue = preset;
       }
     });
-    resizeObserver.observe(container);
+    resizeObserver.observe(container, { box: "border-box" });
 
     return () => {
       resizeObserver.disconnect();

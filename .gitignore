@@ -28,3 +28,6 @@ dist-release
 
 # Generated at build time by scripts/third-party-licenses.mjs
 public/third-party-licenses.txt
+
+# Local test documents; anything in public/ ships inside the app
+public/*.pdf
