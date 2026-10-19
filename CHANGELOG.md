@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-19
+
 ### Changed
 - **About** (with What's New and Licenses) and **Keyboard Shortcuts** open in their own windows instead of popups; they can sit beside your document, and reopening one brings it to the front
 - The default PDF app prompt is a native macOS alert
