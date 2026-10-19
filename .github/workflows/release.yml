@@ -1,0 +1,167 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  APP_PATH: src-tauri/target/universal-apple-darwin/release/bundle/macos/Clumsy.app
+  DIST_DIR: dist-release
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          node -e '
+            const fs = require("fs");
+            const path = "src-tauri/tauri.conf.json";
+            const config = JSON.parse(fs.readFileSync(path, "utf8"));
+            config.version = process.argv[1];
+            fs.writeFileSync(path, JSON.stringify(config, null, 2) + "\n");
+          ' "$VERSION"
+          echo "Version set to $VERSION"
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          if [ -z "$CERTIFICATE_P12" ]; then
+            echo "No signing certificate configured, skipping"
+            echo "CODESIGN_IDENTITY=-" >> $GITHUB_ENV
+            exit 0
+          fi
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+
+          echo "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$KEYCHAIN_PATH" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          echo "CODESIGN_IDENTITY=Developer ID Application: Texas Beard Company LLC (M3C8F32WA5)" >> $GITHUB_ENV
+
+      - name: Build and sign app bundle
+        run: |
+          set -euo pipefail
+          APPLE_SIGNING_IDENTITY="$CODESIGN_IDENTITY" pnpm tauri build --target universal-apple-darwin --bundles app
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          lipo -archs "$APP_PATH/Contents/MacOS/clumsy"
+
+      - name: Package zip
+        run: |
+          set -euo pipefail
+          mkdir -p "$DIST_DIR"
+          ditto -c -k --keepParent "$APP_PATH" "$DIST_DIR/Clumsy.zip"
+          echo "✓ $DIST_DIR/Clumsy.zip"
+
+      - name: Notarize app zip
+        if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: M3C8F32WA5
+        run: |
+          echo "==> Submitting zip for notarization..."
+          xcrun notarytool submit "$DIST_DIR/Clumsy.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          echo "==> Stapling notarization ticket to app..."
+          xcrun stapler staple "$APP_PATH"
+
+          echo "==> Re-creating zip with stapled ticket..."
+          rm -f "$DIST_DIR/Clumsy.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$DIST_DIR/Clumsy.zip"
+
+      - name: Create DMG
+        run: ./scripts/create-dmg.sh "$APP_PATH" "$DIST_DIR/Clumsy.dmg"
+
+      - name: Sign and notarize DMG
+        if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: M3C8F32WA5
+        run: |
+          codesign --force --sign "$CODESIGN_IDENTITY" "$DIST_DIR/Clumsy.dmg"
+
+          echo "==> Submitting DMG for notarization..."
+          xcrun notarytool submit "$DIST_DIR/Clumsy.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          echo "==> Stapling notarization ticket to DMG..."
+          xcrun stapler staple "$DIST_DIR/Clumsy.dmg"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clumsy
+          path: |
+            ${{ env.DIST_DIR }}/Clumsy.zip
+            ${{ env.DIST_DIR }}/Clumsy.dmg
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ -f CHANGELOG.md ]; then
+            NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          fi
+          if [ -z "${NOTES:-}" ]; then
+            NOTES="Release v$VERSION"
+          fi
+          echo "$NOTES" > /tmp/release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.DIST_DIR }}/Clumsy.zip
+            ${{ env.DIST_DIR }}/Clumsy.dmg
+          body_path: /tmp/release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
