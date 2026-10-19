@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-19
+
 ### Changed
 - What's New now shows every release under its own version instead of an ever-growing Unreleased section
 - Clumsy is now open source under the MIT License
