@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppStatus } from "./defaultApp";
 import type { RecentEntry } from "./recent";
 
@@ -123,13 +123,6 @@ export async function onFullscreenChange(handler: (fullscreen: boolean) => void)
   return window.onResized(sync);
 }
 
-export async function onAboutRequested(handler: (checkForUpdates: boolean) => void) {
-  if (!isDesktop) {
-    return () => {};
-  }
-  return listen<string>("menu-about", ({ payload }) => handler(payload === "updates"));
-}
-
 export async function getDefaultAppStatus(): Promise<DefaultAppStatus> {
   if (!isDesktop) {
     return { supported: false, isDefault: false, currentApp: null };
@@ -139,13 +132,6 @@ export async function getDefaultAppStatus(): Promise<DefaultAppStatus> {
 
 export async function makeDefaultApp() {
   return invoke<DefaultAppStatus>("make_default_pdf_app");
-}
-
-export async function onMakeDefaultRequested(handler: () => void) {
-  if (!isDesktop) {
-    return () => {};
-  }
-  return listen("menu-make-default", handler);
 }
 
 export async function getRecentFiles(): Promise<RecentEntry[] | null> {
@@ -166,24 +152,51 @@ export async function clearRecentFiles() {
   await invoke("clear_recent_files");
 }
 
-type RecentHandlers = {
-  onChanged: () => void;
-  onOpen: () => void;
-  onOpenRecent: (path: string) => void;
-  onMissing: (path: string) => void;
-};
-
-export async function onRecentFileEvents(handlers: RecentHandlers) {
+export async function onRecentFilesChanged(handler: () => void) {
   if (!isDesktop) {
     return () => {};
   }
-  const unlisten = await Promise.all([
-    listen("recent-files-changed", handlers.onChanged),
-    listen("menu-open", handlers.onOpen),
-    listen<string>("open-recent", ({ payload }) => handlers.onOpenRecent(payload)),
-    listen<string>("recent-missing", ({ payload }) => handlers.onMissing(payload)),
-  ]);
-  return () => unlisten.forEach((dispose) => dispose());
+  return listen("recent-files-changed", handler);
+}
+
+export async function revealInFinder(path: string) {
+  if (isDesktop) {
+    await revealItemInDir(path);
+  }
+}
+
+const imageTypes: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+};
+
+function pickImageInBrowser(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = Object.values(imageTypes).join(",");
+    input.addEventListener("change", () => resolve(input.files?.[0] ?? null), { once: true });
+    input.addEventListener("cancel", () => resolve(null), { once: true });
+    input.click();
+  });
+}
+
+export async function pickImage(): Promise<File | null> {
+  if (!isDesktop) {
+    return pickImageInBrowser();
+  }
+  const path = await open({ multiple: false, directory: false, filters: [{ name: "Images", extensions: Object.keys(imageTypes) }] });
+  if (!path) {
+    return null;
+  }
+  const buffer = await invoke<ArrayBuffer>("read_pdf", { path });
+  const name = fileNameFromPath(path);
+  const extension = name.split(".").pop()?.toLowerCase() ?? "";
+  return new File([buffer], name, { type: imageTypes[extension] ?? "application/octet-stream" });
 }
 
 export async function onOpenedFiles(handler: (paths: string[]) => void) {
@@ -245,24 +258,6 @@ export async function closeWindow() {
   if (isDesktop) {
     await getCurrentWindow().close();
   }
-}
-
-type TabMenuHandlers = {
-  onNewTab: () => void;
-  onCloseTab: () => void;
-  onCloseWindow: () => void;
-};
-
-export async function onTabMenuEvents(handlers: TabMenuHandlers) {
-  if (!isDesktop) {
-    return () => {};
-  }
-  const unlisten = await Promise.all([
-    listen("menu-new-tab", handlers.onNewTab),
-    listen("menu-close-tab", handlers.onCloseTab),
-    listen("menu-close-window", handlers.onCloseWindow),
-  ]);
-  return () => unlisten.forEach((dispose) => dispose());
 }
 
 export async function onCloseRequested(isDirty: () => boolean, documentNames: () => string[]) {

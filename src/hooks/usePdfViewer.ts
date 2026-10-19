@@ -241,11 +241,15 @@ export function usePdfViewer() {
     }
   }, []);
 
-  const rotate = useCallback(() => {
+  const rotate = useCallback((direction: 1 | -1 = 1) => {
     const viewer = partsRef.current?.viewer;
     if (viewer?.pdfDocument) {
-      viewer.pagesRotation = (viewer.pagesRotation + 90) % 360;
+      viewer.pagesRotation = (viewer.pagesRotation + 90 * direction + 360) % 360;
     }
+  }, []);
+
+  const editingAction = useCallback((name: "undo" | "redo") => {
+    partsRef.current?.eventBus.dispatch("editingaction", { source: null, name });
   }, []);
 
   const setTool = useCallback((next: EditorTool) => {
@@ -328,6 +332,7 @@ export function usePdfViewer() {
     setZoom,
     zoom,
     rotate,
+    editingAction,
     setTool,
     setEditorParam,
     addImage,

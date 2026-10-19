@@ -4,13 +4,9 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-use tauri::menu::{IsMenuItem, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Manager, Wry};
+use tauri::{AppHandle, Emitter, Manager};
 
-pub const MENU_LIMIT: usize = 10;
 const STORE_LIMIT: usize = 20;
-pub const MENU_PREFIX: &str = "recent:";
-pub const CLEAR_MENU_ID: &str = "recent-clear";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,7 +51,6 @@ fn now_millis() -> u64 {
 pub struct RecentFiles {
     list: Mutex<Vec<RecentFile>>,
     store: Mutex<Option<PathBuf>>,
-    menu: Mutex<Option<Submenu<Wry>>>,
 }
 
 impl RecentFiles {
@@ -70,11 +65,6 @@ impl RecentFiles {
             .unwrap_or_default();
         *self.list.lock().unwrap() = list;
         *self.store.lock().unwrap() = Some(store);
-    }
-
-    pub fn attach_menu(&self, app: &AppHandle, submenu: Submenu<Wry>) {
-        *self.menu.lock().unwrap() = Some(submenu);
-        self.rebuild_menu(app);
     }
 
     pub fn entries(&self, app: &AppHandle) -> Vec<RecentEntry> {
@@ -96,10 +86,6 @@ impl RecentFiles {
             .collect()
     }
 
-    pub fn path_at(&self, index: usize) -> Option<String> {
-        self.list.lock().unwrap().get(index).map(|entry| entry.path.clone())
-    }
-
     pub fn add(&self, app: &AppHandle, path: &str) {
         record(&mut self.list.lock().unwrap(), path, now_millis());
         self.changed(app);
@@ -117,7 +103,6 @@ impl RecentFiles {
 
     fn changed(&self, app: &AppHandle) {
         self.save();
-        self.rebuild_menu(app);
         let _ = app.emit("recent-files-changed", ());
     }
 
@@ -132,34 +117,6 @@ impl RecentFiles {
             let _ = fs::create_dir_all(dir);
         }
         let _ = fs::write(store, json);
-    }
-
-    fn rebuild_menu(&self, app: &AppHandle) {
-        let Some(submenu) = self.menu.lock().unwrap().clone() else {
-            return;
-        };
-        if let Err(error) = self.fill_menu(app, &submenu) {
-            eprintln!("could not rebuild Open Recent menu: {error}");
-        }
-    }
-
-    fn fill_menu(&self, app: &AppHandle, submenu: &Submenu<Wry>) -> tauri::Result<()> {
-        for item in submenu.items()? {
-            submenu.remove(&item)?;
-        }
-        let entries = self.entries(app);
-        if entries.is_empty() {
-            submenu.append(&MenuItem::with_id(app, "recent-empty", "No Recent Files", false, None::<&str>)?)?;
-            return Ok(());
-        }
-        for (index, entry) in entries.iter().take(MENU_LIMIT).enumerate() {
-            let label = format!("{}  —  {}", entry.name, entry.location);
-            let item = MenuItem::with_id(app, format!("{MENU_PREFIX}{index}"), label, true, None::<&str>)?;
-            submenu.append(&item as &dyn IsMenuItem<Wry>)?;
-        }
-        submenu.append(&PredefinedMenuItem::separator(app)?)?;
-        submenu.append(&MenuItem::with_id(app, CLEAR_MENU_ID, "Clear Recently Opened", true, None::<&str>)?)?;
-        Ok(())
     }
 }
 

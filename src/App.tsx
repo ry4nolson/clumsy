@@ -4,12 +4,16 @@ import { AboutDialog, type AboutTab } from "./components/AboutDialog";
 import { DefaultAppDialog, type DefaultAppRequest } from "./components/DefaultAppDialog";
 import { DocumentTab, type DocumentHandle, type TabSnapshot } from "./components/DocumentTab";
 import { PasswordDialog } from "./components/PasswordDialog";
+import { ShortcutsDialog } from "./components/ShortcutsDialog";
+import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
 import { TabStrip, type TabItem } from "./components/TabStrip";
 import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
+import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./lib/commands";
 import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppPreference } from "./lib/defaultApp";
+import { installAppMenu, type AppMenu } from "./lib/menu";
 import type { RecentEntry } from "./lib/recent";
 import {
   clearRecentFiles,
@@ -22,28 +26,27 @@ import {
   hasOverlayTitlebar,
   isDesktop,
   makeDefaultApp,
-  onAboutRequested,
   onCloseRequested,
   onFileDrop,
   onFullscreenChange,
-  onMakeDefaultRequested,
   onOpenedFiles,
-  onRecentFileEvents,
-  onTabMenuEvents,
+  onRecentFilesChanged,
   openExternal,
+  pickImage,
   pickPdf,
   pickSavePath,
   readPdfFromPath,
   recordRecentFile,
   removeRecentFile,
+  revealInFinder,
   setWindowTitle,
   showError,
   writePdf,
   type PdfSource,
 } from "./lib/platform";
 import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
-import { isTypingTarget, resolveShortcut, type ShortcutAction } from "./lib/shortcuts";
 import { cycleTab, insertAfter, removeTab } from "./lib/tabs";
+import { repoUrl } from "./lib/updates";
 
 type StartTab = { id: string; kind: "start" };
 type DocTab = {
@@ -65,17 +68,6 @@ const colorParams: Partial<Record<EditorTool, number>> = {
   draw: AnnotationEditorParamsType.INK_COLOR,
 };
 
-const tabShortcuts: Partial<Record<ShortcutAction, number>> = {
-  tab1: 0,
-  tab2: 1,
-  tab3: 2,
-  tab4: 3,
-  tab5: 4,
-  tab6: 5,
-  tab7: 6,
-  tab8: 7,
-};
-
 const isMac = navigator.userAgent.includes("Mac");
 
 let tabCounter = 0;
@@ -88,6 +80,9 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
+  const [sidebarTab, setSidebarTab] = usePersistentState<SidebarTab>("clumsy.sidebarTab", "thumbnails");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [menuReady, setMenuReady] = useState(false);
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
@@ -105,7 +100,7 @@ export default function App() {
   const darkPages = darkPagesPreference === "on" || (darkPagesPreference === "auto" && systemDark);
 
   const handles = useRef(new Map<string, DocumentHandle>());
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<AppMenu | null>(null);
   const tabsRef = useRef(tabs);
   const activeIdRef = useRef(activeId);
   const snapshotsRef = useRef(snapshots);
@@ -371,19 +366,7 @@ export default function App() {
       }),
       onFileDrop((source) => openSourceRef.current(source), setDragging),
       onFullscreenChange(setFullscreen),
-      onAboutRequested((checkForUpdates) => setAboutRequest({ tab: "about", checkForUpdates, token: Date.now() })),
-      onMakeDefaultRequested(() => requestDefaultApp()),
-      onRecentFileEvents({
-        onChanged: refreshRecentFiles,
-        onOpen: () => openSourceRef.current(pickPdf()),
-        onOpenRecent: (path) => openSourceRef.current(readPdfFromPath(path)),
-        onMissing: reportMissingRecent,
-      }),
-      onTabMenuEvents({
-        onNewTab: () => newTab(),
-        onCloseTab: () => closeTab(activeIdRef.current),
-        onCloseWindow: () => closeWindow(),
-      }),
+      onRecentFilesChanged(refreshRecentFiles),
       onCloseRequested(() => modifiedNames().length > 0, modifiedNames),
     ];
     return () => {
@@ -391,75 +374,152 @@ export default function App() {
     };
   }, []);
 
+  const editingCommand = (name: "undo" | "redo") => {
+    if (isTypingTarget(document.activeElement)) {
+      document.execCommand(name);
+    } else {
+      activeHandle()?.viewer.editingAction(name);
+    }
+  };
+
+  const openAbout = (tab: AboutTab, checkForUpdates = false) => setAboutRequest({ tab, checkForUpdates, token: Date.now() });
+
+  const runCommand = (id: CommandId) => {
+    const handle = activeHandle();
+    if (commandById.get(id)?.needsDocument && (!handle || !hasDocument || !activeSnapshot)) {
+      return;
+    }
+    const viewer = handle?.viewer;
+    const page = activeSnapshot?.pageNumber ?? 1;
+    const tabIndex = /^tab(\d)$/.exec(id)?.[1];
+    if (tabIndex) {
+      const target = tabsRef.current[Number(tabIndex) - 1];
+      if (target) {
+        selectTab(target.id);
+      }
+      return;
+    }
+    const actions: Partial<Record<CommandId, () => void>> = {
+      about: () => openAbout("about"),
+      checkUpdates: () => openAbout("about", true),
+      makeDefault: () => requestDefaultApp(),
+      newTab,
+      open: () => openSource(pickPdf()),
+      closeTab: () => closeTab(activeIdRef.current),
+      closeWindow: () => closeWindow(),
+      save: () => save(false),
+      saveAs: () => save(true),
+      revealInFinder: () => activeTab.kind === "document" && activeTab.path && revealInFinder(activeTab.path),
+      undo: () => editingCommand("undo"),
+      redo: () => editingCommand("redo"),
+      find: () => handle?.openFind(),
+      findNext: () => handle?.findAgain(false),
+      findPrevious: () => handle?.findAgain(true),
+      useSelectionForFind: () => {
+        const selection = window.getSelection()?.toString().trim();
+        if (selection) {
+          handle?.openFind(selection);
+        }
+      },
+      toggleSidebar: () => setSidebarOpen((open) => !open),
+      showPages: () => {
+        setSidebarOpen(true);
+        setSidebarTab("thumbnails");
+      },
+      showOutline: () => {
+        setSidebarOpen(true);
+        setSidebarTab("outline");
+      },
+      actualSize: () => viewer?.setZoom(1),
+      zoomIn: () => viewer?.zoom(1),
+      zoomOut: () => viewer?.zoom(-1),
+      fitWidth: () => viewer?.setZoom("page-width"),
+      fitPage: () => viewer?.setZoom("page-fit"),
+      rotateLeft: () => viewer?.rotate(-1),
+      rotateRight: () => viewer?.rotate(1),
+      toggleDarkPages: () => setDarkPagesPreference(darkPages ? "off" : "on"),
+      toggleInvertImages: () => setDarkPagesImages((current) => (current === "keep" ? "invert" : "keep")),
+      previousPage: () => viewer?.goToPage(page - 1),
+      nextPage: () => viewer?.goToPage(page + 1),
+      firstPage: () => viewer?.goToPage(1),
+      lastPage: () => viewer?.goToPage(activeSnapshot?.pagesCount ?? 1),
+      goToPage: () => document.querySelector<HTMLInputElement>(".page-nav input")?.focus(),
+      toolSelect: () => viewer?.setTool("select"),
+      toolHighlight: () => viewer?.setTool("highlight"),
+      toolText: () => viewer?.setTool("text"),
+      toolDraw: () => viewer?.setTool("draw"),
+      addImage: () => {
+        pickImage().then((file) => file && activeHandle()?.viewer.addImage(file));
+      },
+      sign: () => setSignatureOpen(true),
+      nextTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, 1)),
+      previousTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, -1)),
+      keyboardShortcuts: () => setShortcutsOpen(true),
+      whatsNew: () => openAbout("changelog"),
+      openGitHub: () => openExternal(repoUrl),
+      reportIssue: () => openExternal(`${repoUrl}/issues/new`),
+    };
+    actions[id]?.();
+  };
+
+  const runCommandRef = useRef(runCommand);
+  runCommandRef.current = runCommand;
+  const openRecentRef = useRef(openRecent);
+  openRecentRef.current = openRecent;
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+    let cancelled = false;
+    installAppMenu({
+      onCommand: (id) => runCommandRef.current(id),
+      onOpenRecent: (entry) => openRecentRef.current(entry),
+      onClearRecent: () => clearRecentFiles(),
+    })
+      .then((menu) => {
+        if (!cancelled) {
+          menuRef.current = menu;
+          setMenuReady(true);
+        }
+      })
+      .catch((error: unknown) => console.error("Could not build the app menu", error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    menuRef.current?.setState({ hasDocument, darkPages, invertImages: darkPagesImages === "invert" });
+  }, [menuReady, hasDocument, darkPages, darkPagesImages]);
+
+  useEffect(() => {
+    if (recentFiles) {
+      menuRef.current?.setRecent(recentFiles);
+    }
+  }, [menuReady, recentFiles]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const typing = isTypingTarget(event.target);
-      const action = resolveShortcut(event, isMac, typing);
-      if (!action) {
+      const id = resolveCommand(event, isMac, typing);
+      if (!id || id === "undo" || id === "redo") {
         return;
       }
-      const handle = activeHandle();
-      if (action === "escape") {
+      if (id === "escape") {
         if (activeSnapshot?.findOpen) {
-          handle?.closeFind();
+          activeHandle()?.closeFind();
         } else if (!typing && hasDocument && activeSnapshot?.tool !== "select") {
-          handle?.viewer.setTool("select");
+          activeHandle()?.viewer.setTool("select");
         }
-        return;
-      }
-
-      const tabIndex = tabShortcuts[action];
-      const appActions: Partial<Record<ShortcutAction, () => void>> = {
-        open: () => openSource(pickPdf()),
-        newTab,
-        closeTab: () => closeTab(activeIdRef.current),
-        nextTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, 1)),
-        previousTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, -1)),
-      };
-      if (tabIndex !== undefined) {
-        event.preventDefault();
-        const target = tabsRef.current[tabIndex];
-        if (target) {
-          selectTab(target.id);
-        }
-        return;
-      }
-      if (appActions[action]) {
-        event.preventDefault();
-        appActions[action]!();
-        return;
-      }
-      if (!handle || !hasDocument || !activeSnapshot) {
         return;
       }
       event.preventDefault();
-      const { viewer } = handle;
-      const documentActions: Partial<Record<ShortcutAction, () => void>> = {
-        save: () => save(false),
-        saveAs: () => save(true),
-        find: () => handle.openFind(),
-        findNext: () => handle.findAgain(false),
-        findPrevious: () => handle.findAgain(true),
-        zoomIn: () => viewer.zoom(1),
-        zoomOut: () => viewer.zoom(-1),
-        actualSize: () => viewer.setZoom(1),
-        fitWidth: () => viewer.setZoom("page-width"),
-        rotate: viewer.rotate,
-        toggleSidebar: () => setSidebarOpen((open) => !open),
-        firstPage: () => viewer.goToPage(1),
-        lastPage: () => viewer.goToPage(activeSnapshot.pagesCount),
-        nextPage: () => viewer.goToPage(activeSnapshot.pageNumber + 1),
-        previousPage: () => viewer.goToPage(activeSnapshot.pageNumber - 1),
-        toolSelect: () => viewer.setTool("select"),
-        toolHighlight: () => viewer.setTool("highlight"),
-        toolText: () => viewer.setTool("text"),
-        toolDraw: () => viewer.setTool("draw"),
-      };
-      documentActions[action]?.();
+      runCommandRef.current(id);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeSnapshot, hasDocument, newTab, closeTab, selectTab, openSource, save, setSidebarOpen]);
+  }, [activeSnapshot, hasDocument]);
 
   const tabItems: TabItem[] = tabs.map((tab) =>
     tab.kind === "start"
@@ -498,10 +558,10 @@ export default function App() {
         onPage={(page) => viewer?.goToPage(page)}
         onZoom={(direction) => viewer?.zoom(direction)}
         onZoomValue={(value) => viewer?.setZoom(value)}
-        onRotate={() => viewer?.rotate()}
+        onRotate={() => viewer?.rotate(1)}
         onTool={changeTool}
         onToolColor={changeToolColor}
-        onImage={() => imageInputRef.current?.click()}
+        onImage={() => runCommand("addImage")}
         onSign={() => setSignatureOpen(true)}
         onToggleFind={toggleFind}
         onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
@@ -527,7 +587,7 @@ export default function App() {
                   onOpenRecent={openRecent}
                   onRemoveRecent={(entry) => removeRecentFile(entry.path)}
                   onClearRecent={() => clearRecentFiles()}
-                  onAbout={() => setAboutRequest({ tab: "about", checkForUpdates: false, token: Date.now() })}
+                  onAbout={() => openAbout("about")}
                 />
               </div>
             </div>
@@ -545,6 +605,8 @@ export default function App() {
               source={tab.source}
               active={tab.id === activeTab.id}
               sidebarOpen={sidebarOpen}
+              sidebarTab={sidebarTab}
+              onSidebarTab={setSidebarTab}
               darkPages={darkPages}
               keepImages={darkPagesImages === "keep"}
               requestPassword={requestPassword}
@@ -557,19 +619,6 @@ export default function App() {
         )}
         {dragging && <div className="drop-overlay">Drop to open</div>}
       </div>
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-        hidden
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) {
-            activeHandle()?.viewer.addImage(file);
-          }
-        }}
-      />
       <SignatureDialog
         open={signatureOpen}
         onClose={() => setSignatureOpen(false)}
@@ -578,6 +627,7 @@ export default function App() {
           activeHandle()?.viewer.addImage(file);
         }}
       />
+      <ShortcutsDialog open={shortcutsOpen} isMac={isMac} onClose={() => setShortcutsOpen(false)} />
       <PasswordDialog
         request={passwordPrompts[0] ? { fileName: passwordPrompts[0].fileName, incorrect: passwordPrompts[0].incorrect } : null}
         onSubmit={resolvePassword}

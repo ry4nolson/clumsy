@@ -5,15 +5,23 @@ import type { FindQuery, FindStatus } from "../hooks/usePdfViewer";
 type FindBarProps = {
   status: FindStatus;
   focusToken: number;
+  seed: string | null;
   onFind: (query: FindQuery, type: "" | "again" | "casesensitivitychange" | "entirewordchange", findPrevious?: boolean) => void;
   onClose: () => void;
 };
 
-export function FindBar({ status, focusToken, onFind, onClose }: FindBarProps) {
+export function FindBar({ status, focusToken, seed, onFind, onClose }: FindBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState<FindQuery>({ query: "", caseSensitive: false, entireWord: false });
 
   useEffect(() => {
+    if (seed) {
+      setQuery((current) => {
+        const next = { ...current, query: seed };
+        onFind(next, "");
+        return next;
+      });
+    }
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [focusToken]);

@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Licenses** tab in the About window with Clumsy's license and the licenses of every bundled open source package
+- Full menu bar with every command and its shortcut: **Go** and **Tools** menus, a **Help** menu with **Keyboard Shortcuts** (⌘/), **What's New**, **Clumsy on GitHub**, and **Report an Issue…**; macOS Help search now finds Clumsy commands
+- New shortcuts: Rotate Left (⌘L), Fit Page (⌥⌘9), Page Thumbnails / Outline (⌥⌘1 / ⌥⌘2), Go to Page (⌥⌘G), previous / next / first / last page (⌥⌘↑ / ⌥⌘↓ / ⇧⌥⌘↑ / ⇧⌥⌘↓), Dark Pages (⇧⌘D), Use Selection for Find (⌘E), Show in Finder (⌥⌘R), and ⌃⌘ shortcuts for the markup tools
+- Menu items for document commands are disabled when no PDF is open, and Dark Pages / Invert Images show checkmarks
+
+### Fixed
+- ⌘Z / ⇧⌘Z now undo and redo highlights, notes, and drawings instead of only text edits
+
 ## [0.1.3] - 2026-10-19
 
 ### Changed

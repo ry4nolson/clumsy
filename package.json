@@ -7,10 +7,11 @@
   "packageManager": "pnpm@8.6.12",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node scripts/third-party-licenses.mjs && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "vitest run"
+    "test": "vitest run",
+    "licenses": "node scripts/third-party-licenses.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

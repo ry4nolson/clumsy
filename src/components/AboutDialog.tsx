@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import changelogSource from "../../CHANGELOG.md?raw";
+import licenseSource from "../../LICENSE?raw";
 import appIcon from "../../src-tauri/icons/128x128@2x.png";
 import sponsorLogo from "../assets/brand/HorizontalLogo.png";
 import sponsorLogoWhite from "../assets/brand/HorizontalLogoWhite.png";
@@ -18,8 +19,9 @@ import type { DefaultAppStatus } from "../lib/defaultApp";
 import { getDefaultAppStatus } from "../lib/platform";
 import { appVersion, repoUrl, useUpdateCheck } from "../lib/updates";
 import { ChangelogList } from "./ChangelogList";
+import { LicensesView } from "./LicensesView";
 
-export type AboutTab = "about" | "changelog";
+export type AboutTab = "about" | "changelog" | "licenses";
 
 const features = [
   "Search with match highlighting",
@@ -87,6 +89,9 @@ export function AboutDialog({ request, onClose, onOpenUrl, onMakeDefault }: Abou
         </button>
         <button type="button" role="tab" aria-selected={tab === "changelog"} onClick={() => setTab("changelog")}>
           What's New
+        </button>
+        <button type="button" role="tab" aria-selected={tab === "licenses"} onClick={() => setTab("licenses")}>
+          Licenses
         </button>
         <button type="button" className="icon-button about-close" aria-label="Close" onClick={onClose}>
           <X size={16} />
@@ -209,10 +214,12 @@ export function AboutDialog({ request, onClose, onOpenUrl, onMakeDefault }: Abou
 
           <p className="about-footer">Built because Acrobat wanted to update again.</p>
         </div>
-      ) : (
+      ) : tab === "changelog" ? (
         <div className="about-changelog">
           <ChangelogList releases={releases} onOpenUrl={onOpenUrl} />
         </div>
+      ) : (
+        <LicensesView license={licenseSource} />
       )}
     </dialog>
   );

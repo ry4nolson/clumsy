@@ -25,3 +25,6 @@ dist-ssr
 
 # Release packaging
 dist-release
+
+# Generated at build time by scripts/third-party-licenses.mjs
+public/third-party-licenses.txt

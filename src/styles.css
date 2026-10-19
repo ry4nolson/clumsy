@@ -1331,3 +1331,118 @@ body {
   color: var(--danger);
   font-size: 12px;
 }
+
+.about-licenses {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+}
+
+.about-licenses section + section {
+  margin-top: 20px;
+}
+
+.about-licenses h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.about-licenses pre {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.shortcuts-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 48px));
+  padding: 0;
+}
+
+.shortcuts-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.shortcuts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-header h2 {
+  margin: 0;
+}
+
+.shortcuts-groups {
+  columns: 2 300px;
+  column-gap: 32px;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+}
+
+.shortcuts-groups section {
+  break-inside: avoid;
+  margin-bottom: 18px;
+}
+
+.shortcuts-groups h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.shortcuts-groups dl {
+  margin: 0;
+}
+
+.shortcuts-groups dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.shortcuts-groups dt {
+  font-size: 12.5px;
+}
+
+.shortcuts-groups dd {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0;
+}
+
+.shortcuts-groups kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--bg);
+  font: 11.5px/1.5 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.shortcut-or {
+  margin: 0 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}

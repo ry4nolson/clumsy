@@ -15,6 +15,7 @@ pnpm exec tsc --noEmit         # typecheck
 cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 cargo test --manifest-path src-tauri/Cargo.toml --lib
 pnpm tauri build --bundles app # local release build -> src-tauri/target/release/bundle/macos/Clumsy.app
+pnpm licenses                  # regenerate public/third-party-licenses.txt (also runs as part of pnpm build)
 ```
 
 - Node 20.19+ is required by Vite 8 (Node 22 recommended). pnpm is pinned through `packageManager` in `package.json`.
@@ -30,17 +31,18 @@ src/
     TabStrip.tsx             tab bar (start tabs + document tabs)
     Welcome.tsx              start screen with recent files
     Toolbar.tsx              title-bar toolbar (lives in the macOS overlay title bar)
-    AboutDialog.tsx, ChangelogList.tsx, DefaultAppDialog.tsx, SignatureDialog.tsx, PasswordDialog.tsx, ...
+    AboutDialog.tsx, ChangelogList.tsx, LicensesView.tsx, ShortcutsDialog.tsx, DefaultAppDialog.tsx, SignatureDialog.tsx, ...
   hooks/usePdfViewer.ts      wraps pdf.js PDFViewer, EventBus, find controller, editor modes
-  lib/                       pure logic (shortcuts, tabs, changelog, recent, imageRegions, defaultApp) + platform.ts
+  lib/                       pure logic (commands, tabs, changelog, recent, imageRegions, defaultApp) + platform.ts, menu.ts
 src-tauri/src/
-  lib.rs                     commands, native menu, file-open events
-  recent.rs                  recent files list, persisted + mirrored into File > Open Recent
+  lib.rs                     IPC commands and macOS file-open events
+  recent.rs                  recent files list, persisted to app data
   default_app.rs             Launch Services: read/set the default PDF handler
 scripts/
   next-version.sh            computes the next release version
   stamp-changelog.mjs        moves [Unreleased] under a release heading
   create-dmg.sh              headless DMG (no Finder/AppleScript styling, CI-safe)
+  third-party-licenses.mjs   generates public/third-party-licenses.txt (gitignored) for the About > Licenses tab
 tests/                       vitest unit tests for src/lib and scripts
 ```
 
@@ -54,8 +56,9 @@ tests/                       vitest unit tests for src/lib and scripts
 - **Dark pages.** The default ("Keep images") applies `invert(0.92) hue-rotate(180deg)` to `.canvasWrapper` and the editor layer, then draws each image's original pixels into an unfiltered overlay canvas (`.image-restore`). Image rectangles come from pdf.js's image tracker (`imagesRightClickMinSize: 0`) and are rotated by `src/lib/imageRegions.ts`. pdf.js's own `pageColors` high-contrast mode recolors images too, so it isn't used. `enableDetailCanvas` is off because the detail canvas would cover the overlay.
 - **Recent files.** Rust owns the list (`~/Library/Application Support/com.ry4nolson.clumsy/recent-files.json`, max 20, menu shows 10) so the native menu works before the webview loads. The frontend records a path after a successful load or a Save As, and listens for `recent-files-changed`.
 - **Default PDF app.** `default_app.rs` calls `LSCopyDefaultRoleHandlerForContentType` / `LSSetDefaultRoleHandlerForContentType` for `com.adobe.pdf` (what `duti` uses). Only offered when running from an installed `.app`; dev builds aren't registered bundles.
-- **Native menu.** Built in `install_app_menu`: custom About / Check for Updates / Make Default items, and a rebuilt File menu (New Tab ⌘T, Open… ⌘O, Open Recent, Close Tab ⌘W, Close Window ⇧⌘W). Menu items emit events the frontend listens for in `platform.ts`. A menu accelerator swallows the key, so the webview never sees it.
+- **Commands, shortcuts, and menus.** `src/lib/commands.ts` is the single source of truth: every command's id, label, menu, and key combos. The same table builds the native menu bar (`src/lib/menu.ts`, via Tauri's JS menu API, so the menu shows each shortcut), resolves keyboard shortcuts in `App.tsx`, and renders the Keyboard Shortcuts sheet (⌘/). Every path ends in `runCommand(id)` in `App.tsx`. To add a command: add it to the table, place it in `menuLayout` if it belongs in a menu (the tests check every menu command is placed exactly once and no combo is used twice), and handle it in `runCommand`. Combos use physical keys (`event.code`), so ⌥ shortcuts work even though Option changes the typed character. Plain-letter combos (`h`, `n`, `Home`) are ignored while typing and never become menu accelerators, because a native accelerator swallows the key everywhere, including text fields. Native menu accelerators win over the webview's keydown, which is why Undo/Redo are custom items that route to the focused text field or to pdf.js's `editingaction` event; the predefined Undo would never reach pdf.js. Document commands set `needsDocument` and are disabled in the menu when the active tab has no PDF. The Rust side no longer builds menus.
 - **Title bar.** The window uses `titleBarStyle: Overlay` with `hiddenTitle`; the toolbar pads left for the traffic lights (except in fullscreen) and toolbar groups carry `data-tauri-drag-region`.
+- **Third-party licenses.** `pnpm build` (and so every release) runs `scripts/third-party-licenses.mjs`, which collects license texts for the npm packages the UI bundles (production `dependencies`, walked transitively) and the Rust crates compiled into the binary (`cargo metadata`, normal dependencies only). For "A OR B" licenses it uses MIT when offered. Crates that ship without a license file get the shared Apache/MPL text or an MIT/BSD template with the crate's authors. Identical texts are listed once. The About window shows the result under Licenses. New dependencies are picked up automatically; check the "without a bundled license file" section of the output if a new license type appears.
 - **Version** shown in the app comes from `tauri.conf.json` at build time (`__APP_VERSION__` in `vite.config.ts`); CI sets it from the computed release version.
 
 ## Releases

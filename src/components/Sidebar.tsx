@@ -1,9 +1,12 @@
-import { useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Outline } from "./Outline";
 import { Thumbnails } from "./Thumbnails";
 
+export type SidebarTab = "thumbnails" | "outline";
+
 type SidebarProps = {
+  tab: SidebarTab;
+  onTab: (tab: SidebarTab) => void;
   pdfDocument: PDFDocumentProxy;
   currentPage: number;
   onSelectPage: (page: number) => void;
@@ -11,16 +14,14 @@ type SidebarProps = {
   onOpenUrl: (url: string) => void;
 };
 
-export function Sidebar({ pdfDocument, currentPage, onSelectPage, onNavigate, onOpenUrl }: SidebarProps) {
-  const [tab, setTab] = useState<"thumbnails" | "outline">("thumbnails");
-
+export function Sidebar({ tab, onTab, pdfDocument, currentPage, onSelectPage, onNavigate, onOpenUrl }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "thumbnails"} onClick={() => setTab("thumbnails")}>
+        <button type="button" role="tab" aria-selected={tab === "thumbnails"} onClick={() => onTab("thumbnails")}>
           Pages
         </button>
-        <button type="button" role="tab" aria-selected={tab === "outline"} onClick={() => setTab("outline")}>
+        <button type="button" role="tab" aria-selected={tab === "outline"} onClick={() => onTab("outline")}>
           Outline
         </button>
       </div>

@@ -3,7 +3,7 @@ import { usePdfViewer, type FindQuery, type PdfViewerApi } from "../hooks/usePdf
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
 import type { PdfSource } from "../lib/platform";
 import { FindBar } from "./FindBar";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, type SidebarTab } from "./Sidebar";
 
 export type TabSnapshot = {
   loaded: boolean;
@@ -18,7 +18,7 @@ export type TabSnapshot = {
 
 export type DocumentHandle = {
   viewer: PdfViewerApi;
-  openFind: () => void;
+  openFind: (query?: string) => void;
   closeFind: () => void;
   findAgain: (previous: boolean) => void;
 };
@@ -28,6 +28,8 @@ type DocumentTabProps = {
   source: PdfSource;
   active: boolean;
   sidebarOpen: boolean;
+  sidebarTab: SidebarTab;
+  onSidebarTab: (tab: SidebarTab) => void;
   darkPages: boolean;
   keepImages: boolean;
   requestPassword: (fileName: string, incorrect: boolean) => Promise<string | null>;
@@ -38,12 +40,13 @@ type DocumentTabProps = {
 };
 
 export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function DocumentTab(
-  { id, source, active, sidebarOpen, darkPages, keepImages, requestPassword, onSnapshot, onLoaded, onFailed, onOpenUrl },
+  { id, source, active, sidebarOpen, sidebarTab, onSidebarTab, darkPages, keepImages, requestPassword, onSnapshot, onLoaded, onFailed, onOpenUrl },
   ref,
 ) {
   const viewer = usePdfViewer();
   const [findOpen, setFindOpen] = useState(false);
   const [findFocusToken, setFindFocusToken] = useState(0);
+  const [findSeed, setFindSeed] = useState<string | null>(null);
   const lastQuery = useRef<FindQuery | null>(null);
   const loaded = !!viewer.pdfDocument;
 
@@ -103,7 +106,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     ref,
     () => ({
       viewer,
-      openFind: () => {
+      openFind: (query) => {
+        setFindSeed(query ?? null);
         setFindOpen(true);
         setFindFocusToken((token) => token + 1);
       },
@@ -139,6 +143,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     <div className={`document-tab${active ? "" : " inactive"}`} inert={!active}>
       {loaded && sidebarOpen && viewer.pdfDocument && (
         <Sidebar
+          tab={sidebarTab}
+          onTab={onSidebarTab}
           pdfDocument={viewer.pdfDocument}
           currentPage={viewer.pageNumber}
           onSelectPage={viewer.goToPage}
@@ -151,6 +157,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           <FindBar
             status={viewer.findStatus}
             focusToken={findFocusToken}
+            seed={findSeed}
             onFind={(query, type, previous) => {
               lastQuery.current = query;
               viewer.find(query, type, previous);
