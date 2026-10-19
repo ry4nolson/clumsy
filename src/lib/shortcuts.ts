@@ -19,6 +19,11 @@ export type ShortcutAction =
   | "toolHighlight"
   | "toolText"
   | "toolDraw"
+  | "newTab"
+  | "closeTab"
+  | "nextTab"
+  | "previousTab"
+  | `tab${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
   | "escape";
 
 export type KeyInput = Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey">;
@@ -35,12 +40,26 @@ const commandKeys: Record<string, ShortcutAction> = {
   "9": "fitWidth",
   r: "rotate",
   "\\": "toggleSidebar",
+  t: "newTab",
+  w: "closeTab",
+  "1": "tab1",
+  "2": "tab2",
+  "3": "tab3",
+  "4": "tab4",
+  "5": "tab5",
+  "6": "tab6",
+  "7": "tab7",
+  "8": "tab8",
 };
 
 const shiftedCommandKeys: Record<string, ShortcutAction> = {
   s: "saveAs",
   g: "findPrevious",
   "+": "zoomIn",
+  "}": "nextTab",
+  "]": "nextTab",
+  "{": "previousTab",
+  "[": "previousTab",
 };
 
 const plainKeys: Record<string, ShortcutAction> = {
@@ -59,6 +78,10 @@ const plainKeys: Record<string, ShortcutAction> = {
 export function resolveShortcut(event: KeyInput, isMac: boolean, isTyping: boolean): ShortcutAction | null {
   if (event.key === "Escape") {
     return "escape";
+  }
+
+  if (event.key === "Tab" && event.ctrlKey && !event.metaKey && !event.altKey) {
+    return event.shiftKey ? "previousTab" : "nextTab";
   }
 
   const mod = isMac ? event.metaKey : event.ctrlKey;

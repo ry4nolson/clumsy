@@ -1,4 +1,5 @@
 mod default_app;
+mod recent;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -7,6 +8,8 @@ use std::sync::Mutex;
 use percent_encoding::percent_decode_str;
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Emitter, Manager};
+
+use recent::RecentFiles;
 
 #[derive(Default)]
 struct PendingFiles(Mutex<Vec<String>>);
@@ -35,10 +38,33 @@ fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
 
 #[cfg(target_os = "macos")]
 fn install_app_menu(app: &AppHandle) -> tauri::Result<()> {
-    use tauri::menu::{Menu, MenuItem, MenuItemKind};
+    use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 
     let menu = Menu::default(app)?;
-    if let Some(MenuItemKind::Submenu(app_menu)) = menu.items()?.into_iter().next() {
+    let submenus: Vec<Submenu<tauri::Wry>> = menu
+        .items()?
+        .into_iter()
+        .filter_map(|item| match item {
+            MenuItemKind::Submenu(submenu) => Some(submenu),
+            _ => None,
+        })
+        .collect();
+    if let Some(file_menu) = submenus.iter().find(|submenu| submenu.text().is_ok_and(|text| text == "File")) {
+        let open_recent = Submenu::with_id(app, "open-recent", "Open Recent", true)?;
+        for item in file_menu.items()? {
+            file_menu.remove(&item)?;
+        }
+        file_menu.append_items(&[
+            &MenuItem::with_id(app, "new-tab", "New Tab", true, Some("CmdOrCtrl+T"))?,
+            &MenuItem::with_id(app, "open", "Open…", true, Some("CmdOrCtrl+O"))?,
+            &open_recent,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "close-tab", "Close Tab", true, Some("CmdOrCtrl+W"))?,
+            &MenuItem::with_id(app, "close-window", "Close Window", true, Some("CmdOrCtrl+Shift+W"))?,
+        ])?;
+        app.state::<RecentFiles>().attach_menu(app, open_recent);
+    }
+    if let Some(app_menu) = submenus.first() {
         app_menu.remove_at(0)?;
         app_menu.insert_items(
             &[
@@ -61,6 +87,39 @@ fn default_pdf_app(app: AppHandle) -> default_app::DefaultAppStatus {
 #[tauri::command]
 fn make_default_pdf_app(app: AppHandle) -> Result<default_app::DefaultAppStatus, String> {
     default_app::make_default(&app.config().identifier)
+}
+
+#[tauri::command]
+fn recent_files(app: AppHandle) -> Vec<recent::RecentEntry> {
+    app.state::<RecentFiles>().entries(&app)
+}
+
+#[tauri::command]
+fn record_recent_file(app: AppHandle, path: String) {
+    app.state::<RecentFiles>().add(&app, &path);
+}
+
+#[tauri::command]
+fn remove_recent_file(app: AppHandle, path: String) {
+    app.state::<RecentFiles>().remove(&app, &path);
+}
+
+#[tauri::command]
+fn clear_recent_files(app: AppHandle) {
+    app.state::<RecentFiles>().clear(&app);
+}
+
+fn open_recent_from_menu(app: &AppHandle, index: usize) {
+    let recent = app.state::<RecentFiles>();
+    let Some(path) = recent.path_at(index) else {
+        return;
+    };
+    if Path::new(&path).is_file() {
+        let _ = app.emit("open-recent", path);
+    } else {
+        recent.remove(app, &path);
+        let _ = app.emit("recent-missing", path);
+    }
 }
 
 #[tauri::command]
@@ -110,7 +169,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(PendingFiles::default())
+        .manage(RecentFiles::default())
         .setup(|app| {
+            app.state::<RecentFiles>().load(app.handle());
             #[cfg(target_os = "macos")]
             install_app_menu(app.handle())?;
             let args = std::env::args().skip(1).map(PathBuf::from).collect();
@@ -118,10 +179,23 @@ pub fn run() {
             Ok(())
         })
         .on_menu_event(|app, event| {
-            let _ = match event.id().as_ref() {
+            let id = event.id().as_ref();
+            if let Some(index) = id.strip_prefix(recent::MENU_PREFIX).and_then(|index| index.parse().ok()) {
+                open_recent_from_menu(app, index);
+                return;
+            }
+            let _ = match id {
+                "open" => app.emit("menu-open", ()),
+                "new-tab" => app.emit("menu-new-tab", ()),
+                "close-tab" => app.emit("menu-close-tab", ()),
+                "close-window" => app.emit("menu-close-window", ()),
                 "about" => app.emit("menu-about", "about"),
                 "check-updates" => app.emit("menu-about", "updates"),
                 "make-default" => app.emit("menu-make-default", ()),
+                recent::CLEAR_MENU_ID => {
+                    app.state::<RecentFiles>().clear(app);
+                    Ok(())
+                }
                 _ => return,
             };
         })
@@ -130,7 +204,11 @@ pub fn run() {
             read_pdf,
             write_pdf,
             default_pdf_app,
-            make_default_pdf_app
+            make_default_pdf_app,
+            recent_files,
+            record_recent_file,
+            remove_recent_file,
+            clear_recent_files
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

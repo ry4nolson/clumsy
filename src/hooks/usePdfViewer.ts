@@ -41,6 +41,8 @@ const findStates: Record<number, FindStatus["state"]> = {
   [FindState.WRAPPED]: "wrapped",
 };
 
+const presetScales = new Set(["page-width", "page-fit", "auto"]);
+
 type RenderedPageView = {
   div: HTMLDivElement;
   canvas: HTMLCanvasElement | null;
@@ -166,7 +168,22 @@ export function usePdfViewer() {
     };
     container.addEventListener("wheel", onWheel, { passive: false });
 
+    let lastWidth = 0;
+    const resizeObserver = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      if (!width || width === lastWidth) {
+        return;
+      }
+      lastWidth = width;
+      const preset = viewer.currentScaleValue;
+      if (viewer.pdfDocument && presetScales.has(preset)) {
+        viewer.currentScaleValue = preset;
+      }
+    });
+    resizeObserver.observe(container);
+
     return () => {
+      resizeObserver.disconnect();
       container.removeEventListener("wheel", onWheel);
       partsRef.current = null;
     };

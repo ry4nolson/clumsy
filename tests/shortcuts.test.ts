@@ -48,4 +48,19 @@ describe("resolveShortcut", () => {
   it("always resolves escape", () => {
     expect(resolveShortcut(key("Escape"), true, true)).toBe("escape");
   });
+
+  it("maps tab shortcuts", () => {
+    expect(resolveShortcut(key("t", { metaKey: true }), true, false)).toBe("newTab");
+    expect(resolveShortcut(key("w", { metaKey: true }), true, true)).toBe("closeTab");
+    expect(resolveShortcut(key("3", { metaKey: true }), true, false)).toBe("tab3");
+    expect(resolveShortcut(key("9", { metaKey: true }), true, false)).toBe("fitWidth");
+    expect(resolveShortcut(key("}", { metaKey: true, shiftKey: true }), true, false)).toBe("nextTab");
+    expect(resolveShortcut(key("{", { metaKey: true, shiftKey: true }), true, false)).toBe("previousTab");
+  });
+
+  it("cycles tabs with control-tab on every platform", () => {
+    expect(resolveShortcut(key("Tab", { ctrlKey: true }), true, true)).toBe("nextTab");
+    expect(resolveShortcut(key("Tab", { ctrlKey: true, shiftKey: true }), false, false)).toBe("previousTab");
+    expect(resolveShortcut(key("Tab"), true, false)).toBeNull();
+  });
 });

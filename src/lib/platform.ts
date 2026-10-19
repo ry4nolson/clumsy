@@ -5,6 +5,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { DefaultAppStatus } from "./defaultApp";
+import type { RecentEntry } from "./recent";
 
 export type PdfSource = {
   name: string;
@@ -76,8 +77,11 @@ export function downloadPdf(name: string, data: Uint8Array) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function confirmDiscard(name: string) {
-  const prompt = `“${name}” has unsaved changes. Discard them?`;
+export async function confirmDiscard(names: string[]) {
+  const prompt =
+    names.length === 1
+      ? `“${names[0]}” has unsaved changes. Discard them?`
+      : `${names.length} documents have unsaved changes (${names.join(", ")}). Discard them?`;
   if (!isDesktop) {
     return window.confirm(prompt);
   }
@@ -144,6 +148,44 @@ export async function onMakeDefaultRequested(handler: () => void) {
   return listen("menu-make-default", handler);
 }
 
+export async function getRecentFiles(): Promise<RecentEntry[] | null> {
+  return isDesktop ? invoke<RecentEntry[]>("recent_files") : null;
+}
+
+export async function recordRecentFile(path: string) {
+  if (isDesktop) {
+    await invoke("record_recent_file", { path });
+  }
+}
+
+export async function removeRecentFile(path: string) {
+  await invoke("remove_recent_file", { path });
+}
+
+export async function clearRecentFiles() {
+  await invoke("clear_recent_files");
+}
+
+type RecentHandlers = {
+  onChanged: () => void;
+  onOpen: () => void;
+  onOpenRecent: (path: string) => void;
+  onMissing: (path: string) => void;
+};
+
+export async function onRecentFileEvents(handlers: RecentHandlers) {
+  if (!isDesktop) {
+    return () => {};
+  }
+  const unlisten = await Promise.all([
+    listen("recent-files-changed", handlers.onChanged),
+    listen("menu-open", handlers.onOpen),
+    listen<string>("open-recent", ({ payload }) => handlers.onOpenRecent(payload)),
+    listen<string>("recent-missing", ({ payload }) => handlers.onMissing(payload)),
+  ]);
+  return () => unlisten.forEach((dispose) => dispose());
+}
+
 export async function onOpenedFiles(handler: (paths: string[]) => void) {
   if (!isDesktop) {
     return () => {};
@@ -168,10 +210,7 @@ export async function onFileDrop(handler: (source: Promise<PdfSource>) => void, 
       }
       onHover(false);
       if (payload.type === "drop") {
-        const path = payload.paths.find((candidate) => /\.pdf$/i.test(candidate));
-        if (path) {
-          handler(readPdfFromPath(path));
-        }
+        payload.paths.filter((candidate) => /\.pdf$/i.test(candidate)).forEach((path) => handler(readPdfFromPath(path)));
       }
     });
   }
@@ -188,12 +227,9 @@ export async function onFileDrop(handler: (source: Promise<PdfSource>) => void, 
   const drop = (event: DragEvent) => {
     event.preventDefault();
     onHover(false);
-    const file = Array.from(event.dataTransfer?.files ?? []).find(
-      (candidate) => candidate.type === "application/pdf" || /\.pdf$/i.test(candidate.name),
-    );
-    if (file) {
-      handler(readPdfFromFile(file));
-    }
+    Array.from(event.dataTransfer?.files ?? [])
+      .filter((candidate) => candidate.type === "application/pdf" || /\.pdf$/i.test(candidate.name))
+      .forEach((file) => handler(readPdfFromFile(file)));
   };
   window.addEventListener("dragover", over);
   window.addEventListener("dragleave", leave);
@@ -205,7 +241,31 @@ export async function onFileDrop(handler: (source: Promise<PdfSource>) => void, 
   };
 }
 
-export async function onCloseRequested(isDirty: () => boolean, documentName: () => string) {
+export async function closeWindow() {
+  if (isDesktop) {
+    await getCurrentWindow().close();
+  }
+}
+
+type TabMenuHandlers = {
+  onNewTab: () => void;
+  onCloseTab: () => void;
+  onCloseWindow: () => void;
+};
+
+export async function onTabMenuEvents(handlers: TabMenuHandlers) {
+  if (!isDesktop) {
+    return () => {};
+  }
+  const unlisten = await Promise.all([
+    listen("menu-new-tab", handlers.onNewTab),
+    listen("menu-close-tab", handlers.onCloseTab),
+    listen("menu-close-window", handlers.onCloseWindow),
+  ]);
+  return () => unlisten.forEach((dispose) => dispose());
+}
+
+export async function onCloseRequested(isDirty: () => boolean, documentNames: () => string[]) {
   if (!isDesktop) {
     const handler = (event: BeforeUnloadEvent) => {
       if (isDirty()) {
@@ -216,7 +276,7 @@ export async function onCloseRequested(isDirty: () => boolean, documentName: () 
     return () => window.removeEventListener("beforeunload", handler);
   }
   return getCurrentWindow().onCloseRequested(async (event) => {
-    if (isDirty() && !(await confirmDiscard(documentName()))) {
+    if (isDirty() && !(await confirmDiscard(documentNames()))) {
       event.preventDefault();
     }
   });

@@ -36,7 +36,6 @@ const zoomPresets = [
 ];
 
 type ToolbarProps = {
-  documentTitle: string | null;
   titlebarInset: boolean;
   hasDocument: boolean;
   sidebarOpen: boolean;
@@ -94,11 +93,6 @@ export function Toolbar(props: ToolbarProps) {
         <IconButton title="Save (⌘S)" disabled={!hasDocument} onClick={props.onSave}>
           <Save size={18} />
         </IconButton>
-        {props.documentTitle && (
-          <span className="document-title" title={props.documentTitle} data-tauri-drag-region>
-            {props.documentTitle}
-          </span>
-        )}
       </div>
 
       {hasDocument && (
