@@ -86,6 +86,10 @@ impl RecentFiles {
             .collect()
     }
 
+    pub fn paths(&self) -> Vec<PathBuf> {
+        self.list.lock().unwrap().iter().map(|entry| PathBuf::from(&entry.path)).collect()
+    }
+
     pub fn add(&self, app: &AppHandle, path: &str) {
         record(&mut self.list.lock().unwrap(), path, now_millis());
         self.changed(app);

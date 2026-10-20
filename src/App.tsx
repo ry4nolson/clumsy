@@ -19,9 +19,11 @@ import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./l
 import { openDocumentWindow } from "./lib/documentWindows";
 import type { RecentEntry } from "./lib/recent";
 import {
+  CHANGED_ON_DISK,
   clearRecentFiles,
   closeFocusedAuxWindow,
   closeWindow,
+  confirmOverwrite,
   downloadPdf,
   fileNameFromPath,
   getRecentFiles,
@@ -32,6 +34,7 @@ import {
   onFullscreenChange,
   onOpenedFiles,
   onRecentFilesChanged,
+  onShowDocument,
   openAuxWindow,
   openExternal,
   pickImage,
@@ -40,6 +43,8 @@ import {
   readPdfFromPath,
   recordRecentFile,
   removeRecentFile,
+  reportDocuments,
+  requestQuit,
   revealInFinder,
   setWindowTitle,
   showError,
@@ -73,6 +78,7 @@ export default function App() {
     newTab,
     closeTab,
     openSource,
+    showPath,
     handleLoaded,
     handleFailed,
     handleSnapshot,
@@ -105,13 +111,16 @@ export default function App() {
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
+  const savingRef = useRef(new Set<string>());
+
   const save = useCallback(async (saveAs: boolean) => {
     const tab = ws.focusedTab(workspaceRef.current);
     const handle = handles.current.get(tab.id);
-    if (tab?.kind !== "document" || !handle) {
+    if (tab.kind !== "document" || !handle || savingRef.current.has(tab.id)) {
       return;
     }
     (document.activeElement as HTMLElement | null)?.blur();
+    savingRef.current.add(tab.id);
     try {
       const bytes = await handle.viewer.save();
       if (!bytes) {
@@ -126,12 +135,30 @@ export default function App() {
       if (!path) {
         return;
       }
-      await writePdf(path, bytes);
+      let stamp: string;
+      try {
+        stamp = await writePdf(path, bytes, path === tab.path ? tab.stamp : null);
+      } catch (error) {
+        if (error !== CHANGED_ON_DISK) {
+          throw error;
+        }
+        if (!(await confirmOverwrite(tab.name))) {
+          return;
+        }
+        stamp = await writePdf(path, bytes);
+      }
       handle.viewer.markSaved();
-      update((current) => ws.replaceTab(current, { ...tab, name: fileNameFromPath(path), path, carriedChanges: false }));
+      update((current) => {
+        const latest = current.tabs[tab.id];
+        return latest?.kind === "document"
+          ? ws.replaceTab(current, { ...latest, name: fileNameFromPath(path), path, carriedChanges: false, stamp })
+          : current;
+      });
       recordRecentFile(path);
     } catch (error) {
       await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      savingRef.current.delete(tab.id);
     }
   }, [handles, update, workspaceRef]);
 
@@ -181,6 +208,16 @@ export default function App() {
     setWindowTitle(windowTitle);
   }, [windowTitle]);
 
+  const documentTabs = ws.orderedTabs(workspace).flatMap((tab) => (tab.kind === "document" ? [tab] : []));
+  const openPaths = documentTabs.flatMap((tab) => (tab.path ? [tab.path] : []));
+  const unsavedNames = documentTabs.filter((tab) => isModified(tab, snapshots)).map((tab) => tab.name);
+  const documentReport = JSON.stringify([openPaths, unsavedNames]);
+
+  useEffect(() => {
+    const [paths, unsaved] = JSON.parse(documentReport) as [string[], string[]];
+    reportDocuments(paths, unsaved);
+  }, [documentReport]);
+
   useEffect(() => {
     refreshRecentFiles();
     const modifiedNames = () =>
@@ -194,6 +231,7 @@ export default function App() {
       onFileDrop((source) => openSourceRef.current(source), setDragging),
       onFullscreenChange(setFullscreen),
       onRecentFilesChanged(refreshRecentFiles),
+      onShowDocument(showPath),
       onCloseRequested(() => modifiedNames().length > 0, modifiedNames),
     ];
     return () => {
@@ -235,6 +273,12 @@ export default function App() {
         if (!(await closeFocusedAuxWindow())) {
           closeTab(ws.focusedTab(workspaceRef.current).id);
         }
+      },
+      quit: async () => {
+        const tabs = ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" ? [tab] : []));
+        const unsaved = tabs.filter((tab) => hasUnsavedChanges(tab)).map((tab) => tab.name);
+        await reportDocuments(tabs.flatMap((tab) => (tab.path ? [tab.path] : [])), unsaved);
+        await requestQuit();
       },
       closeWindow: async () => {
         if (!(await closeFocusedAuxWindow())) {

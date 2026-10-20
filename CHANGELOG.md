@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **Quit** (⌘Q) asks before discarding unsaved changes in any window instead of quitting right away
+- Opening a PDF that's already open in another window switches to it there instead of opening a second, separately saved copy
+- Saving warns when the file was changed by another app since you opened it, instead of silently replacing those changes
+- Saving a PDF through a symlink updates the linked file and keeps its permissions instead of replacing the link
+- Opening and saving large PDFs no longer freezes menus and the window while the file is read or written
+
+### Changed
+- Clumsy only reads and writes files you opened, dropped, picked, or recently used, and pages run under a content security policy
+
 ## [0.2.0] - 2026-10-20
 
 ### Added

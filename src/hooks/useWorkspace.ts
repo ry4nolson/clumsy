@@ -1,9 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import type { DocumentHandle, TabSnapshot } from "../components/DocumentTab";
 import type { TabDropTarget } from "../components/PaneGrid";
-import { confirmDiscard, recordRecentFile, showError, type PdfSource } from "../lib/platform";
+import { confirmDiscard, documentWindowFor, recordRecentFile, showDocumentInWindow, showError, type PdfSource } from "../lib/platform";
 import { createPaneId, createStartTab, createTabId, type DocTab, type OpenOptions, type Tab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
+
+const tabWithPath = (workspace: ws.Workspace<Tab>, path: string) =>
+  ws.orderedTabs(workspace).find((tab) => tab.kind === "document" && tab.path === path);
 
 export function useWorkspace() {
   const [workspace, setWorkspace] = useState(() => ws.createWorkspace<Tab>(createStartTab(), createPaneId()));
@@ -84,15 +87,20 @@ export function useWorkspace() {
       if (!resolved) {
         return;
       }
-      const current = workspaceRef.current;
-      const split = options.split && current.panes.length < ws.MAX_PANES;
-      const existing = resolved.path && !split && !options.allowDuplicate
-        ? ws.orderedTabs(current).find((tab) => tab.kind === "document" && tab.path === resolved.path)
-        : undefined;
-      if (existing) {
-        selectTab(existing.id);
-        return;
+      const split = options.split && workspaceRef.current.panes.length < ws.MAX_PANES;
+      if (resolved.path && !split && !options.allowDuplicate) {
+        const existing = tabWithPath(workspaceRef.current, resolved.path);
+        if (existing) {
+          selectTab(existing.id);
+          return;
+        }
+        const owner = await documentWindowFor(resolved.path);
+        if (owner) {
+          await showDocumentInWindow(owner, resolved.path);
+          return;
+        }
       }
+      const current = workspaceRef.current;
       const focused = ws.focusedTab(current);
       const tab: DocTab = {
         id: createTabId(),
@@ -104,10 +112,21 @@ export function useWorkspace() {
         returnTo: focused.id,
         view: options.view,
         carriedChanges: !!options.carriedChanges,
+        stamp: resolved.stamp ?? null,
       };
       commit(split ? ws.splitWithTab(current, tab, createPaneId()) : ws.addTab(current, tab));
     },
     [commit, selectTab],
+  );
+
+  const showPath = useCallback(
+    (path: string) => {
+      const tab = tabWithPath(workspaceRef.current, path);
+      if (tab) {
+        selectTab(tab.id);
+      }
+    },
+    [selectTab],
   );
 
   const handleLoaded = useCallback(
@@ -169,6 +188,7 @@ export function useWorkspace() {
     dropTab,
     closeTab,
     openSource,
+    showPath,
     handleLoaded,
     handleFailed,
     handleSnapshot,

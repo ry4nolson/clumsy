@@ -26,7 +26,7 @@ export function useTabTransfer({ workspaceRef, snapshotsRef, handles, hasUnsaved
       try {
         const data = await takeTransferBytes(transfer.transferId);
         await openSource(
-          { name: transfer.name, path: transfer.path, data },
+          { name: transfer.name, path: transfer.path, data, stamp: transfer.stamp },
           { view: transfer.view, carriedChanges: transfer.modified, allowDuplicate: true },
         );
       } catch (error) {
@@ -73,6 +73,7 @@ export function useTabTransfer({ workspaceRef, snapshotsRef, handles, hasUnsaved
       transferId: await stashTransferBytes(bytes),
       name: tab.name,
       path: tab.path,
+      stamp: tab.stamp,
       modified,
       view: handle.viewer.viewState() ?? undefined,
     };

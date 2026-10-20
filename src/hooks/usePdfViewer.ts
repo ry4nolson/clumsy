@@ -25,7 +25,9 @@ const toolModes: Record<EditorTool, number> = {
 
 type ViewLocation = { pageNumber: number; left: number; top: number; rotation: number };
 
-type EditorHost = { _layerProperties: { annotationEditorUIManager: { endCurrentEditing(): void } | null } };
+type EditorHost = { _layerProperties?: { annotationEditorUIManager?: { endCurrentEditing?(): void } | null } };
+
+let warnedAboutEditorHost = false;
 
 export type FindStatus = {
   state: "idle" | "found" | "notFound" | "pending" | "wrapped";
@@ -338,7 +340,13 @@ export function usePdfViewer() {
 
   const commitEdits = useCallback(() => {
     const viewer = partsRef.current?.viewer as unknown as EditorHost | undefined;
-    viewer?._layerProperties.annotationEditorUIManager?.endCurrentEditing();
+    const manager = viewer?._layerProperties?.annotationEditorUIManager;
+    if (viewer && manager?.endCurrentEditing) {
+      manager.endCurrentEditing();
+    } else if (viewer && manager !== null && !warnedAboutEditorHost) {
+      warnedAboutEditorHost = true;
+      console.warn("pdf.js changed: can't finish in-progress edits before saving");
+    }
     return modifiedRef.current;
   }, []);
 
