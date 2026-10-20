@@ -16,7 +16,10 @@ import type { WorkspaceApi } from "./useWorkspace";
 
 type Destination = { label: string } | { at?: { x: number; y: number } };
 
-export function useTabTransfer({ workspaceRef, snapshotsRef, handles, hasUnsavedChanges, update, dropTab, openSource }: WorkspaceApi) {
+export function useTabTransfer(
+  { workspaceRef, snapshotsRef, handles, hasUnsavedChanges, update, dropTab, openSource }: WorkspaceApi,
+  settled: (tabId: string) => Promise<void>,
+) {
   const receiveTab = useCallback(
     async (transfer: TabTransfer) => {
       if (transfer.kind === "start") {
@@ -51,6 +54,7 @@ export function useTabTransfer({ workspaceRef, snapshotsRef, handles, hasUnsaved
   }, []);
 
   const prepareTransfer = async (tabId: string, allowLastTab: boolean): Promise<TabTransfer | null> => {
+    await settled(tabId);
     const current = workspaceRef.current;
     const tab = current.tabs[tabId];
     if (!tab || (!allowLastTab && Object.keys(current.tabs).length < 2)) {

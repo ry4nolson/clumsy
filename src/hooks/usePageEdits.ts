@@ -1,8 +1,10 @@
 import { useCallback, useRef } from "react";
 import type { PageAction } from "../components/DocumentTab";
 import type { CommandId } from "../lib/commands";
+import { dropTargetAt } from "../lib/dropTarget";
 import {
   applyPageEdit,
+  changesDocument,
   combinePdfs,
   countAfterEdit,
   extractPages,
@@ -12,74 +14,89 @@ import {
   selectionAfterEdit,
   type PageEdit,
 } from "../lib/pageEdits";
+import { trimHistory, type Version } from "../lib/pageHistory";
 import { pickPdf, pickPdfs, showContextMenu, showError, type DropPoint, type PdfSource } from "../lib/platform";
-import { slotAt } from "../components/Thumbnails";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
-const HISTORY_LIMIT = 20;
+type TabEdits = {
+  source: PdfSource | null;
+  generation: number;
+  undo: Version[];
+  redo: Version[];
+  pending: Version | null;
+  queue: Promise<void> | null;
+  waiters: Array<() => void>;
+  restoring: boolean;
+};
 
-type Version = { bytes: Uint8Array; page: number; count: number };
-type History = { undo: Version[]; redo: Version[] };
-type DropTarget = { tabId: string; slot: number };
+class StaleEditError extends Error {}
 
 const baseName = (name: string) => name.replace(/\.pdf$/i, "");
 
-export function dropTargetAt(point: DropPoint): DropTarget | null {
-  const element = document.elementFromPoint(point.x, point.y);
-  const thumbnails = element?.closest<HTMLElement>(".thumbnails");
-  const tabId = thumbnails?.closest<HTMLElement>(".document-tab:not(.inactive)")?.dataset.tabId;
-  return thumbnails && tabId ? { tabId, slot: slotAt(thumbnails, point.y) } : null;
-}
-
-export function showDropTarget(target: DropTarget | null) {
-  document.querySelectorAll("[data-drop-target], [data-drop-slot]").forEach((element) => {
-    element.removeAttribute("data-drop-target");
-    element.removeAttribute("data-drop-slot");
-  });
-  if (!target) {
-    return;
+const report = (error: unknown) => {
+  if (!(error instanceof StaleEditError)) {
+    showError(`Couldn't change pages.\n\n${error instanceof Error ? error.message : String(error)}`);
   }
-  const container = document.querySelector(`.document-tab[data-tab-id="${target.tabId}"] .thumbnails`);
-  container?.setAttribute("data-drop-target", "");
-  const thumbnails = container?.querySelectorAll(".thumbnail");
-  const marked = thumbnails?.[target.slot] ?? thumbnails?.[thumbnails.length - 1];
-  marked?.setAttribute("data-drop-slot", target.slot < (thumbnails?.length ?? 0) ? "before" : "after");
-}
-
-const report = (error: unknown) => showError(`Couldn't change pages.\n\n${error instanceof Error ? error.message : String(error)}`);
+};
 
 export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, openSource }: WorkspaceApi) {
-  const histories = useRef(new Map<string, History>());
-  const pending = useRef(new Map<string, Version>());
-  const queues = useRef(new Map<string, Promise<unknown>>());
+  const tabs = useRef(new Map<string, TabEdits>());
 
-  const historyFor = (tabId: string) => {
-    for (const id of histories.current.keys()) {
+  const docTab = (tabId: string) => {
+    const tab = workspaceRef.current.tabs[tabId];
+    return tab?.kind === "document" ? tab : null;
+  };
+
+  const editsFor = (tabId: string) => {
+    for (const id of tabs.current.keys()) {
       if (!workspaceRef.current.tabs[id]) {
-        histories.current.delete(id);
+        tabs.current.delete(id);
       }
     }
-    const existing = histories.current.get(tabId) ?? { undo: [], redo: [] };
-    histories.current.set(tabId, existing);
-    return existing;
+    let edits = tabs.current.get(tabId);
+    if (!edits) {
+      edits = { source: null, generation: 0, undo: [], redo: [], pending: null, queue: null, waiters: [], restoring: false };
+      tabs.current.set(tabId, edits);
+    }
+    const source = docTab(tabId)?.source ?? null;
+    if (!edits.pending && edits.source !== source) {
+      edits.source = source;
+      edits.undo = [];
+      edits.redo = [];
+    }
+    return edits;
   };
 
   const enqueue = useCallback((tabId: string, task: () => Promise<void>) => {
-    const next = (queues.current.get(tabId) ?? Promise.resolve()).then(task).catch(report);
-    queues.current.set(tabId, next);
+    const edits = editsFor(tabId);
+    const next = (edits.queue ?? Promise.resolve()).then(task).catch(report);
+    edits.queue = next;
     next.finally(() => {
-      if (queues.current.get(tabId) === next) {
-        queues.current.delete(tabId);
+      if (edits.queue === next) {
+        edits.queue = null;
       }
     });
     return next;
   }, []);
 
+  const settled = useCallback(async (tabId: string) => {
+    for (;;) {
+      const edits = tabs.current.get(tabId);
+      if (edits?.queue) {
+        await edits.queue;
+      } else if (edits?.pending) {
+        await new Promise<void>((resolve) => edits.waiters.push(resolve));
+      } else {
+        return;
+      }
+    }
+  }, []);
+
   const currentVersion = async (tabId: string): Promise<Version | null> => {
-    const waiting = pending.current.get(tabId);
-    if (waiting) {
-      return { ...waiting, bytes: waiting.bytes.slice() };
+    const edits = editsFor(tabId);
+    if (edits.pending) {
+      return { ...edits.pending, bytes: edits.pending.bytes.slice() };
     }
     const handle = handles.current.get(tabId);
     const snapshot = snapshotsRef.current[tabId];
@@ -90,63 +107,95 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     return bytes ? { bytes, page: snapshot.pageNumber - 1, count: snapshot.pagesCount } : null;
   };
 
-  const show = (tabId: string, version: Version, selection: number[]) => {
-    pending.current.set(tabId, { ...version, bytes: version.bytes.slice() });
+  const show = (tabId: string, version: Version, selection: number[], baseline: PdfSource | null) => {
+    const edits = editsFor(tabId);
+    const tab = docTab(tabId);
+    if (!tab || tab.source !== baseline) {
+      throw new StaleEditError();
+    }
     const previous = handles.current.get(tabId)?.viewer.viewState();
     const page = Math.min(Math.max(0, selection[0] ?? version.page), version.count - 1);
-    update((current) => {
-      const tab = current.tabs[tabId];
-      if (tab?.kind !== "document") {
-        return current;
-      }
-      const samePage = previous?.page === page + 1;
-      const view = {
-        page: page + 1,
-        scaleValue: previous?.scaleValue ?? "page-width",
-        left: samePage ? previous.left : null,
-        top: samePage ? previous.top : null,
-        rotation: previous?.rotation ?? 0,
-      };
-      return ws.replaceTab(current, { ...tab, source: { ...tab.source, data: version.bytes }, carriedChanges: true, view, selection });
-    });
+    const samePage = previous?.page === page + 1;
+    const view = {
+      page: page + 1,
+      scaleValue: previous?.scaleValue ?? "page-width",
+      left: samePage ? previous.left : null,
+      top: samePage ? previous.top : null,
+      rotation: previous?.rotation ?? 0,
+    };
+    const source = { ...tab.source, data: version.bytes };
+    edits.pending = { ...version, bytes: version.bytes.slice() };
+    edits.source = source;
+    edits.generation += 1;
+    update((current) => ws.replaceTab(current, { ...tab, source, carriedChanges: true, view, selection }));
   };
 
-  const performEdit = async (tabId: string, edit: PageEdit) => {
+  const performEdit = async (tabId: string, edit: PageEdit, generation: number) => {
+    const edits = editsFor(tabId);
+    if (edits.generation !== generation) {
+      throw new StaleEditError();
+    }
+    const baseline = edits.source;
     const before = await currentVersion(tabId);
-    if (!before) {
+    if (!before || !changesDocument(edit, before.count)) {
       return;
     }
     const inserted = edit.kind === "insert" ? await pageCount(edit.data) : 0;
     const bytes = await applyPageEdit(before.bytes, edit);
-    const history = historyFor(tabId);
-    history.undo = [...history.undo, before].slice(-HISTORY_LIMIT);
-    history.redo = [];
     const page = pageAfterEdit(edit, before.page, before.count, inserted);
-    show(tabId, { bytes, page, count: countAfterEdit(edit, before.count, inserted) }, selectionAfterEdit(edit, before.count, inserted));
+    show(tabId, { bytes, page, count: countAfterEdit(edit, before.count, inserted) }, selectionAfterEdit(edit, before.count, inserted), baseline);
+    edits.undo = trimHistory([...edits.undo, before]);
+    edits.redo = [];
   };
 
-  const editPages = useCallback((tabId: string, edit: PageEdit) => enqueue(tabId, () => performEdit(tabId, edit)), [enqueue]);
+  const editPages = useCallback(
+    (tabId: string, edit: PageEdit) => {
+      const generation = editsFor(tabId).generation;
+      return enqueue(tabId, () => performEdit(tabId, edit, generation));
+    },
+    [enqueue],
+  );
 
   const documentLoaded = useCallback((tabId: string) => {
-    pending.current.delete(tabId);
+    const edits = tabs.current.get(tabId);
+    if (edits) {
+      edits.pending = null;
+      edits.restoring = false;
+      edits.waiters.splice(0).forEach((resolve) => resolve());
+    }
+  }, []);
+
+  const documentFailed = useCallback((tabId: string) => {
+    const edits = tabs.current.get(tabId);
+    const previous = edits?.undo.at(-1);
+    if (!edits?.pending || !previous || edits.restoring) {
+      return false;
+    }
+    edits.pending = null;
+    edits.restoring = true;
+    edits.undo.pop();
+    edits.redo = [];
+    show(tabId, previous, [], docTab(tabId)?.source ?? null);
+    showError("Couldn't open the changed pages, so that change was undone.");
+    return true;
   }, []);
 
   const stepHistory = useCallback(
     (direction: "undo" | "redo") => {
       const tab = ws.focusedTab(workspaceRef.current);
-      const history = histories.current.get(tab.id);
-      const snapshot = snapshotsRef.current[tab.id];
-      if (!history?.[direction].length || (snapshot?.modified && !pending.current.has(tab.id))) {
+      const edits = editsFor(tab.id);
+      if (!edits[direction].length || (!edits.pending && handles.current.get(tab.id)?.viewer.commitEdits())) {
         return false;
       }
       enqueue(tab.id, async () => {
-        const target = history[direction].pop();
+        const baseline = edits.source;
+        const target = edits[direction].pop();
         const current = target && (await currentVersion(tab.id));
         if (!target || !current) {
           return;
         }
-        history[direction === "undo" ? "redo" : "undo"].push(current);
-        show(tab.id, target, []);
+        show(tab.id, target, [], baseline);
+        edits[direction === "undo" ? "redo" : "undo"].push(current);
       });
       return true;
     },
@@ -154,40 +203,45 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
   );
 
   const insertSources = useCallback(
-    (tabId: string, sources: Array<Promise<PdfSource | null>>, at: number) =>
-      enqueue(tabId, async () => {
+    (tabId: string, sources: Array<Promise<PdfSource | null>>, at: number) => {
+      const generation = editsFor(tabId).generation;
+      return enqueue(tabId, async () => {
         const files = (await Promise.all(sources)).filter((source): source is PdfSource => !!source);
-        if (!files.length) {
-          return;
+        if (files.length) {
+          const data = files.length === 1 ? files[0].data : await combinePdfs(files.map((file) => file.data));
+          await performEdit(tabId, { kind: "insert", data, at }, generation);
         }
-        const data = files.length === 1 ? files[0].data : await combinePdfs(files.map((file) => file.data));
-        await performEdit(tabId, { kind: "insert", data, at });
-      }),
+      });
+    },
     [enqueue],
   );
 
+  const combineFiles = () =>
+    pickPdfs()
+      .then(async (sources) => {
+        const files = await Promise.all(sources);
+        if (files.length === 1) {
+          await openSource(files[0]);
+        } else if (files.length > 1) {
+          const data = await combinePdfs(files.map((file) => file.data));
+          await openSource({ name: `${baseName(files[0].name)} and ${files.length - 1} more.pdf`, path: null, data }, { carriedChanges: true });
+        }
+      })
+      .catch(report);
+
   const runPageCommand = useCallback(
     (id: CommandId) => {
-      const tab = ws.focusedTab(workspaceRef.current);
-      const handle = handles.current.get(tab.id);
       if (id === "combineFiles") {
-        pickPdfs()
-          .then(async (sources) => {
-            const files = await Promise.all(sources);
-            if (files.length === 1) {
-              await openSource(files[0]);
-            } else if (files.length > 1) {
-              const data = await combinePdfs(files.map((file) => file.data));
-              await openSource({ name: `${baseName(files[0].name)} and ${files.length - 1} more.pdf`, path: null, data }, { carriedChanges: true });
-            }
-          })
-          .catch(report);
+        combineFiles();
         return true;
       }
+      const tab = ws.focusedTab(workspaceRef.current);
+      const handle = handles.current.get(tab.id);
       if (tab.kind !== "document" || !handle) {
         return false;
       }
       const pages = handle.selectedPages();
+      const generation = editsFor(tab.id).generation;
       const actions: Partial<Record<CommandId, () => unknown>> = {
         rotatePagesLeft: () => editPages(tab.id, { kind: "rotate", pages, by: -90 }),
         rotatePagesRight: () => editPages(tab.id, { kind: "rotate", pages, by: 90 }),
@@ -195,6 +249,9 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         insertPages: () => insertSources(tab.id, [pickPdf()], Math.max(...pages) + 1),
         extractPages: () =>
           enqueue(tab.id, async () => {
+            if (editsFor(tab.id).generation !== generation) {
+              throw new StaleEditError();
+            }
             const current = await currentVersion(tab.id);
             if (current) {
               const data = await extractPages(current.bytes, pages);
@@ -217,7 +274,8 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
       } else if (action.kind === "delete") {
         runCommand("deletePages");
       } else {
-        const count = handles.current.get(tabId)?.selectedPages().length ?? 1;
+        const selected = handles.current.get(tabId)?.selectedPages() ?? [];
+        const count = selected.includes(action.page) ? selected.length : 1;
         const plural = count > 1 ? `${count} Pages` : "Page";
         showContextMenu([
           { label: `Rotate ${plural} Left`, run: () => runCommand("rotatePagesLeft") },
@@ -245,5 +303,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     [insertSources],
   );
 
-  return { runPageCommand, pageAction, stepHistory, documentLoaded, dropFiles };
+  return { runPageCommand, pageAction, stepHistory, documentLoaded, documentFailed, dropFiles, settled };
 }
+
+export type PageEditsApi = ReturnType<typeof usePageEdits>;

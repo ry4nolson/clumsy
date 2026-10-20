@@ -13,18 +13,23 @@ import {
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
-export function useSaveDocument({ workspaceRef, handles, update }: WorkspaceApi) {
+export function useSaveDocument({ workspaceRef, handles, update }: WorkspaceApi, settled: (tabId: string) => Promise<void>) {
   const savingRef = useRef(new Set<string>());
 
   return useCallback(async (saveAs: boolean) => {
-    const tab = ws.focusedTab(workspaceRef.current);
-    const handle = handles.current.get(tab.id);
-    if (tab.kind !== "document" || !handle || savingRef.current.has(tab.id)) {
+    const focused = ws.focusedTab(workspaceRef.current);
+    if (focused.kind !== "document" || savingRef.current.has(focused.id)) {
       return;
     }
     (document.activeElement as HTMLElement | null)?.blur();
-    savingRef.current.add(tab.id);
+    savingRef.current.add(focused.id);
     try {
+      await settled(focused.id);
+      const tab = workspaceRef.current.tabs[focused.id];
+      const handle = handles.current.get(focused.id);
+      if (tab?.kind !== "document" || !handle) {
+        return;
+      }
       const bytes = await handle.viewer.save();
       if (!bytes) {
         return;
@@ -50,18 +55,22 @@ export function useSaveDocument({ workspaceRef, handles, update }: WorkspaceApi)
         }
         stamp = await writePdf(path, bytes);
       }
-      handle.viewer.markSaved();
+      const latestTab = workspaceRef.current.tabs[tab.id];
+      const unchanged = latestTab?.kind === "document" && latestTab.source === tab.source;
+      if (unchanged) {
+        handle.viewer.markSaved();
+      }
       update((current) => {
         const latest = current.tabs[tab.id];
         return latest?.kind === "document"
-          ? ws.replaceTab(current, { ...latest, name: fileNameFromPath(path), path, carriedChanges: false, stamp })
+          ? ws.replaceTab(current, { ...latest, name: fileNameFromPath(path), path, carriedChanges: latest.carriedChanges && !unchanged, stamp })
           : current;
       });
       recordRecentFile(path);
     } catch (error) {
       await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      savingRef.current.delete(tab.id);
+      savingRef.current.delete(focused.id);
     }
-  }, [handles, update, workspaceRef]);
+  }, [handles, settled, update, workspaceRef]);
 }

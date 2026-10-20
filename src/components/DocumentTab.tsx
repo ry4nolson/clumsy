@@ -18,7 +18,7 @@ export type TabSnapshot = {
   findOpen: boolean;
 };
 
-export type PageAction = { kind: "move"; pages: number[]; slot: number } | { kind: "menu" } | { kind: "delete" };
+export type PageAction = { kind: "move"; pages: number[]; slot: number } | { kind: "menu"; page: number } | { kind: "delete" };
 
 export type DocumentHandle = {
   viewer: PdfViewerApi;
@@ -200,7 +200,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           onMovePages={(page, slot) =>
             onPageAction(id, { kind: "move", pages: shownSelection.pages.includes(page) ? shownSelection.pages : [page], slot })
           }
-          onPageMenu={() => onPageAction(id, { kind: "menu" })}
+          onPageMenu={(page) => onPageAction(id, { kind: "menu", page })}
           onDeletePages={() => onPageAction(id, { kind: "delete" })}
           onNavigate={viewer.goToDestination}
           onOpenUrl={onOpenUrl}
