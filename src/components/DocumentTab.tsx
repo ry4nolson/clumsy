@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { usePdfViewer, type FindQuery, type PdfViewerApi } from "../hooks/usePdfViewer";
 import type { ViewState } from "../lib/documentWindows";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
-import type { PdfSource } from "../lib/platform";
+import { readPdfFromPath, type PdfSource } from "../lib/platform";
 import { FindBar } from "./FindBar";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 
@@ -60,7 +60,10 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   useEffect(() => {
     let cancelled = false;
     let loadedDocument: Awaited<ReturnType<typeof loadPdf>> | null = null;
-    loadPdf(source.data, (incorrect) => callbacks.current.requestPassword(source.name, incorrect))
+    const reread = !source.data.byteLength && source.path;
+    const bytes = reread ? readPdfFromPath(reread).then((fresh) => fresh.data) : Promise.resolve(source.data);
+    bytes
+      .then((data) => loadPdf(data, (incorrect) => callbacks.current.requestPassword(source.name, incorrect)))
       .then((doc) => {
         loadedDocument = doc;
         if (cancelled) {

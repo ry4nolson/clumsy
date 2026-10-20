@@ -2,7 +2,7 @@ import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tau
 import { acceleratorFor, commandById, type CommandId, type MenuName } from "./commands";
 import type { RecentEntry } from "./recent";
 
-type Predefined = "Services" | "Hide" | "HideOthers" | "ShowAll" | "Quit" | "Cut" | "Copy" | "Paste" | "SelectAll" | "Fullscreen" | "Minimize" | "Maximize" | "BringAllToFront";
+type Predefined = "Services" | "Hide" | "HideOthers" | "ShowAll" | "Cut" | "Copy" | "Paste" | "SelectAll" | "Fullscreen" | "Minimize" | "Maximize" | "BringAllToFront";
 type Slot = CommandId | "-" | "recent" | { predefined: Predefined };
 
 const RECENT_LIMIT = 10;
@@ -21,7 +21,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       { predefined: "HideOthers" },
       { predefined: "ShowAll" },
       "-",
-      { predefined: "Quit" },
+      "quit",
     ],
   ],
   ["File", ["newTab", "newWindow", "open", "recent", "-", "closeTab", "closeWindow", "-", "save", "saveAs", "-", "revealInFinder"]],

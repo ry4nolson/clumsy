@@ -53,6 +53,7 @@ export type CommandId =
   | "whatsNew"
   | "openGitHub"
   | "reportIssue"
+  | "quit"
   | "escape";
 
 export type MenuName = "Clumsy" | "File" | "Edit" | "View" | "Go" | "Tools" | "Window" | "Help";
@@ -76,6 +77,7 @@ export const commands: Command[] = [
   { id: "about", label: "About Clumsy", menu: "Clumsy", combos: [] },
   { id: "checkUpdates", label: "Check for Updates…", menu: "Clumsy", combos: [] },
   { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [] },
+  { id: "quit", label: "Quit Clumsy", menu: "Clumsy", combos: ["mod+q"] },
 
   { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+t"] },
   { id: "newWindow", label: "New Window", menu: "File", combos: ["mod+n"] },

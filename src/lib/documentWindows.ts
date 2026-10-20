@@ -10,7 +10,7 @@ export type ViewState = { page: number; scaleValue: string; left: number; top: n
 
 export type TabTransfer =
   | { kind: "start" }
-  | { kind: "document"; transferId: string; name: string; path: string | null; modified: boolean; view?: ViewState };
+  | { kind: "document"; transferId: string; name: string; path: string | null; stamp: string | null; modified: boolean; view?: ViewState };
 
 const auxiliaryWindows = new Set(["about", "shortcuts"]);
 const CASCADE = 28;

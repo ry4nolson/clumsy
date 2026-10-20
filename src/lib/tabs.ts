@@ -13,6 +13,7 @@ export type DocTab = {
   returnTo: string | null;
   view?: ViewState;
   carriedChanges: boolean;
+  stamp: string | null;
 };
 
 export type Tab = StartTab | DocTab;

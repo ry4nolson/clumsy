@@ -3,7 +3,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { WebviewWindow, getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
-import { ask, message, open, save } from "@tauri-apps/plugin-dialog";
+import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppStatus } from "./defaultApp";
 import type { RecentEntry } from "./recent";
@@ -13,7 +13,10 @@ export type PdfSource = {
   name: string;
   path: string | null;
   data: Uint8Array;
+  stamp?: string | null;
 };
+
+export const CHANGED_ON_DISK = "changed-on-disk";
 
 export const isDesktop = isTauri();
 
@@ -26,8 +29,9 @@ export function ensurePdfExtension(name: string) {
 }
 
 export async function readPdfFromPath(path: string): Promise<PdfSource> {
+  const stamp = await invoke<string | null>("file_stamp", { path });
   const buffer = await invoke<ArrayBuffer>("read_pdf", { path });
-  return { name: fileNameFromPath(path), path, data: new Uint8Array(buffer) };
+  return { name: fileNameFromPath(path), path, data: new Uint8Array(buffer), stamp };
 }
 
 export async function readPdfFromFile(file: File): Promise<PdfSource> {
@@ -50,24 +54,25 @@ export async function pickPdf(): Promise<PdfSource | null> {
     const file = await pickFileInBrowser();
     return file ? readPdfFromFile(file) : null;
   }
-  const selected = await open({
-    multiple: false,
-    directory: false,
-    filters: [{ name: "PDF", extensions: ["pdf"] }],
-  });
+  const selected = await invoke<string | null>("pick_pdf");
   return selected ? readPdfFromPath(selected) : null;
 }
 
-export async function writePdf(path: string, data: Uint8Array) {
-  await invoke("write_pdf", data, { headers: { "x-path": encodeURIComponent(path) } });
+export async function writePdf(path: string, data: Uint8Array, expectedStamp?: string | null) {
+  const headers: Record<string, string> = { "x-path": encodeURIComponent(path) };
+  if (expectedStamp) {
+    headers["x-expected-stamp"] = expectedStamp;
+  }
+  return invoke<string>("write_pdf", data, { headers });
 }
 
 export async function pickSavePath(suggestedName: string) {
-  const path = await save({
-    defaultPath: ensurePdfExtension(suggestedName),
-    filters: [{ name: "PDF", extensions: ["pdf"] }],
-  });
-  return path ? ensurePdfExtension(path) : null;
+  return invoke<string | null>("pick_save_path", { suggestedName: ensurePdfExtension(suggestedName) });
+}
+
+export async function confirmOverwrite(name: string) {
+  const prompt = `“${name}” was changed by another app since you opened it. Saving will replace those changes.`;
+  return ask(prompt, { title: "File changed on disk", kind: "warning", okLabel: "Save Anyway", cancelLabel: "Cancel" });
 }
 
 export function downloadPdf(name: string, data: Uint8Array) {
@@ -191,14 +196,42 @@ export async function pickImage(): Promise<File | null> {
   if (!isDesktop) {
     return pickImageInBrowser();
   }
-  const path = await open({ multiple: false, directory: false, filters: [{ name: "Images", extensions: Object.keys(imageTypes) }] });
+  const path = await invoke<string | null>("pick_image");
   if (!path) {
     return null;
   }
-  const buffer = await invoke<ArrayBuffer>("read_pdf", { path });
+  const buffer = await invoke<ArrayBuffer>("read_image", { path });
   const name = fileNameFromPath(path);
   const extension = name.split(".").pop()?.toLowerCase() ?? "";
   return new File([buffer], name, { type: imageTypes[extension] ?? "application/octet-stream" });
+}
+
+export async function reportDocuments(paths: string[], unsaved: string[]) {
+  if (isDesktop) {
+    await invoke("report_documents", { paths, unsaved });
+  }
+}
+
+export async function documentWindowFor(path: string) {
+  return isDesktop ? invoke<string | null>("document_window", { path }) : null;
+}
+
+export async function showDocumentInWindow(label: string, path: string) {
+  await emitTo(label, "show-document", path);
+  await (await WebviewWindow.getByLabel(label))?.setFocus();
+}
+
+export async function onShowDocument(handler: (path: string) => void) {
+  if (!isDesktop) {
+    return () => {};
+  }
+  return getCurrentWebview().listen<string>("show-document", ({ payload }) => handler(payload));
+}
+
+export async function requestQuit() {
+  if (isDesktop) {
+    await invoke("request_quit");
+  }
 }
 
 export async function onOpenedFiles(handler: (paths: string[]) => void) {
