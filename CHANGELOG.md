@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-20
+
 ### Added
 - **Multiple windows**: **New Window** (⌘N), **Move Tab to New Window** (⌥⌘N), drag a tab out of the window to open it in its own window, or drop it on another Clumsy window to move it there; a window whose last tab moves away closes
 - Moved documents keep their page, scroll position, zoom, rotation, and unsaved changes; menus and shortcuts always act on the window in front, and PDFs opened from Finder go to the most recently used window
