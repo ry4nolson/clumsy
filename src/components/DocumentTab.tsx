@@ -43,8 +43,8 @@ type DocumentTabProps = {
   keepImages: boolean;
   requestPassword: (fileName: string, incorrect: boolean) => Promise<string | null>;
   onSnapshot: (id: string, snapshot: TabSnapshot) => void;
-  onLoaded: (id: string) => void;
-  onFailed: (id: string, error: unknown) => void;
+  onLoaded: (id: string, source: PdfSource) => void;
+  onFailed: (id: string, error: unknown, source: PdfSource) => void;
   onOpenUrl: (url: string) => void;
   onPageAction: (id: string, action: PageAction) => void;
 };
@@ -101,11 +101,11 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         const pages = callbacks.current.initialSelection ?? [];
         setSelection({ pages, anchor: pages[0] ?? null });
         viewer.setDocument(doc, callbacks.current.initialView);
-        callbacks.current.onLoaded(id);
+        callbacks.current.onLoaded(id, source);
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          callbacks.current.onFailed(id, error instanceof PasswordCancelledError ? null : error);
+          callbacks.current.onFailed(id, error instanceof PasswordCancelledError ? null : error, source);
         }
       });
     return () => {

@@ -100,6 +100,7 @@ export function usePdfViewer() {
   const initialViewRef = useRef<ViewState | null>(null);
   const locationRef = useRef<ViewLocation | null>(null);
   const modifiedRef = useRef(false);
+  const editHistoryRef = useRef({ canUndo: false, canRedo: false, changed: false });
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pagesCount, setPagesCount] = useState(0);
@@ -166,6 +167,10 @@ export function usePdfViewer() {
       setScale(scale);
       setScaleValue(presetValue ?? String(scale));
     });
+    eventBus.on("editingstateschanged", ({ details }: { details: { hasSomethingToUndo?: boolean; hasSomethingToRedo?: boolean } }) => {
+      editHistoryRef.current.canUndo = !!details.hasSomethingToUndo;
+      editHistoryRef.current.canRedo = !!details.hasSomethingToRedo;
+    });
     eventBus.on("annotationeditormodechanged", ({ mode }: { mode: number }) => {
       const match = (Object.keys(toolModes) as EditorTool[]).find((key) => toolModes[key] === mode);
       setToolState(match ?? "select");
@@ -229,6 +234,7 @@ export function usePdfViewer() {
     }
     initialViewRef.current = initialView ?? null;
     locationRef.current = null;
+    editHistoryRef.current = { canUndo: false, canRedo: false, changed: false };
     setModified(false);
     setPageNumber(1);
     setPagesCount(doc?.numPages ?? 0);
@@ -236,7 +242,10 @@ export function usePdfViewer() {
     setFindStatus({ state: "idle", current: 0, total: 0 });
     if (doc) {
       Object.assign(doc.annotationStorage, {
-        onSetModified: () => setModified(true),
+        onSetModified: () => {
+          editHistoryRef.current.changed = true;
+          setModified(true);
+        },
         onResetModified: () => setModified(false),
       });
     }
@@ -350,6 +359,11 @@ export function usePdfViewer() {
     return modifiedRef.current;
   }, []);
 
+  const editHistory = useCallback(() => {
+    commitEdits();
+    return { ...editHistoryRef.current };
+  }, [commitEdits]);
+
   const viewState = useCallback((): ViewState | null => {
     const viewer = partsRef.current?.viewer;
     const location = locationRef.current;
@@ -396,6 +410,7 @@ export function usePdfViewer() {
     find,
     closeFind,
     commitEdits,
+    editHistory,
     viewState,
     save,
     markSaved,

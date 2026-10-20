@@ -156,16 +156,19 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     [enqueue],
   );
 
-  const documentLoaded = useCallback((tabId: string) => {
+  const documentLoaded = useCallback((tabId: string, source: PdfSource) => {
     const edits = tabs.current.get(tabId);
-    if (edits) {
+    if (edits && edits.source === source) {
       edits.pending = null;
       edits.restoring = false;
       edits.waiters.splice(0).forEach((resolve) => resolve());
     }
   }, []);
 
-  const documentFailed = useCallback((tabId: string) => {
+  const documentFailed = useCallback((tabId: string, source: PdfSource) => {
+    if (docTab(tabId)?.source !== source) {
+      return true;
+    }
     const edits = tabs.current.get(tabId);
     const previous = edits?.undo.at(-1);
     if (!edits?.pending || !previous || edits.restoring) {
@@ -180,14 +183,42 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     return true;
   }, []);
 
+  const routeStep = (tabId: string, direction: "undo" | "redo") => {
+    const edits = editsFor(tabId);
+    if (edits.pending) {
+      return edits[direction].length ? "page" : "none";
+    }
+    const markup = handles.current.get(tabId)?.viewer.editHistory();
+    if (direction === "undo") {
+      return markup?.canUndo || !edits.undo.length ? "viewer" : "page";
+    }
+    if (markup?.canRedo) {
+      return "viewer";
+    }
+    if (markup?.changed) {
+      edits.redo = [];
+    }
+    return edits.redo.length ? "page" : "viewer";
+  };
+
   const stepHistory = useCallback(
     (direction: "undo" | "redo") => {
       const tab = ws.focusedTab(workspaceRef.current);
+      if (tab.kind !== "document") {
+        return false;
+      }
       const edits = editsFor(tab.id);
-      if (!edits[direction].length || (!edits.pending && handles.current.get(tab.id)?.viewer.commitEdits())) {
+      if (!edits.queue && !edits.pending && routeStep(tab.id, direction) !== "page") {
         return false;
       }
       enqueue(tab.id, async () => {
+        const route = routeStep(tab.id, direction);
+        if (route === "viewer") {
+          handles.current.get(tab.id)?.viewer.editingAction(direction);
+        }
+        if (route !== "page") {
+          return;
+        }
         const baseline = edits.source;
         const target = edits[direction].pop();
         const current = target && (await currentVersion(tab.id));

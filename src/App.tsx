@@ -453,12 +453,12 @@ export default function App() {
                 keepImages={darkPagesImages === "keep"}
                 requestPassword={passwords.requestPassword}
                 onSnapshot={handleSnapshot}
-                onLoaded={(id) => {
+                onLoaded={(id, source) => {
                   handleLoaded(id);
-                  pageEdits.documentLoaded(id);
+                  pageEdits.documentLoaded(id, source);
                 }}
-                onFailed={(id, error) => {
-                  if (!pageEdits.documentFailed(id)) {
+                onFailed={(id, error, source) => {
+                  if (!pageEdits.documentFailed(id, source)) {
                     handleFailed(id, error);
                   }
                 }}

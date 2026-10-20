@@ -1,4 +1,19 @@
-import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNull, PDFNumber, PDFObject, PDFObjectCopier, PDFPageLeaf, PDFRef, PDFStream } from "@cantoo/pdf-lib";
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFHexString,
+  PDFName,
+  PDFNull,
+  PDFNumber,
+  PDFObject,
+  PDFObjectCopier,
+  PDFPageLeaf,
+  PDFRef,
+  PDFStream,
+  PDFString,
+} from "@cantoo/pdf-lib";
+import { dropStructParents, pruneIdTree, pruneStructTree } from "./pdfStructTree";
 
 const key = PDFName.of;
 
@@ -48,7 +63,9 @@ export function importPageRefs(target: PDFDocument, source: PDFDocument) {
   flattenPageTree(source);
   const copier = PDFObjectCopier.for(source.context, target.context);
   const copiedRoot = target.context.lookup(copier.copy(rootRef(source)), PDFDict);
-  return copiedRoot.lookup(key("Kids"), PDFArray).asArray() as PDFRef[];
+  const refs = copiedRoot.lookup(key("Kids"), PDFArray).asArray() as PDFRef[];
+  dropStructParents(target, refs);
+  return refs;
 }
 
 function annotationRefs(doc: PDFDocument, pageRef: PDFRef) {
@@ -64,25 +81,41 @@ function removeEntries(array: PDFArray, shouldRemove: (entry: PDFObject) => bool
   }
 }
 
+function acroForm(doc: PDFDocument) {
+  const form = doc.catalog.lookup(key("AcroForm"));
+  return form instanceof PDFDict ? form : null;
+}
+
 function pruneFields(doc: PDFDocument, doomed: Set<PDFRef>) {
+  const removed = new Set<PDFRef>();
   const prune = (array: PDFArray) =>
     removeEntries(array, (entry) => {
-      if (entry instanceof PDFRef && doomed.has(entry)) {
-        return true;
-      }
       const field = doc.context.lookup(entry);
       const kids = field instanceof PDFDict ? field.lookup(key("Kids")) : undefined;
-      if (kids instanceof PDFArray && kids.size()) {
+      let remove = entry instanceof PDFRef && doomed.has(entry);
+      if (!remove && kids instanceof PDFArray && kids.size()) {
         prune(kids);
-        return kids.size() === 0;
+        remove = kids.size() === 0;
       }
-      return false;
+      if (remove && entry instanceof PDFRef) {
+        removed.add(entry);
+      }
+      return remove;
     });
-  const form = doc.catalog.lookup(key("AcroForm"));
-  const fields = form instanceof PDFDict ? form.lookup(key("Fields")) : undefined;
+  const fields = acroForm(doc)?.lookup(key("Fields"));
   if (fields instanceof PDFArray) {
     prune(fields);
   }
+  const order = acroForm(doc)?.lookup(key("CO"));
+  if (order instanceof PDFArray) {
+    removeEntries(order, (entry) => entry instanceof PDFRef && (removed.has(entry) || doomed.has(entry)));
+  }
+  return removed;
+}
+
+export function dropXfa(doc: PDFDocument) {
+  acroForm(doc)?.delete(key("XFA"));
+  doc.catalog.delete(key("NeedsRendering"));
 }
 
 function detach(doc: PDFDocument, doomed: Set<PDFRef>) {
@@ -130,14 +163,65 @@ function destinationOf(holder: PDFDict) {
   return holder.lookup(key("Dest")) ?? holder.lookup(key("D"));
 }
 
-function isDeadDestination(doc: PDFDocument, destination: PDFObject | undefined): boolean {
-  if (destination instanceof PDFDict) {
-    return isDeadDestination(doc, destination.lookup(key("D")));
+type ResolveName = (name: PDFObject) => PDFObject | undefined;
+
+const nameText = (object: PDFObject) =>
+  object instanceof PDFName || object instanceof PDFString || object instanceof PDFHexString ? object.decodeText() : null;
+
+function namedDestinations(doc: PDFDocument): ResolveName {
+  const named = new Map<string, PDFObject>();
+  const legacy = doc.catalog.lookup(key("Dests"));
+  if (legacy instanceof PDFDict) {
+    for (const [name, value] of legacy.entries()) {
+      named.set(name.decodeText(), value);
+    }
   }
-  return destination instanceof PDFArray && destination.size() > 0 && doc.context.lookup(destination.get(0)) === PDFNull;
+  const seen = new Set<PDFDict>();
+  const walk = (node: PDFObject | undefined) => {
+    if (!(node instanceof PDFDict) || seen.has(node)) {
+      return;
+    }
+    seen.add(node);
+    const names = node.lookup(key("Names"));
+    if (names instanceof PDFArray) {
+      for (let index = 0; index + 1 < names.size(); index += 2) {
+        const name = nameText(names.lookup(index) ?? PDFNull);
+        if (name !== null && !named.has(name)) {
+          named.set(name, names.get(index + 1));
+        }
+      }
+    }
+    const kids = node.lookup(key("Kids"));
+    if (kids instanceof PDFArray) {
+      kids.asArray().forEach((kid) => walk(doc.context.lookup(kid)));
+    }
+  };
+  const trees = doc.catalog.lookup(key("Names"));
+  if (trees instanceof PDFDict) {
+    walk(trees.lookup(key("Dests")));
+  }
+  return (name) => {
+    const text = nameText(name);
+    return text === null ? undefined : named.get(text);
+  };
 }
 
-function pruneLinks(doc: PDFDocument, pageRefs: PDFRef[]) {
+function isDeadDestination(doc: PDFDocument, destination: PDFObject | undefined, resolveName?: ResolveName, depth = 0): boolean {
+  const value = destination instanceof PDFRef ? doc.context.lookup(destination) : destination;
+  if (!value || depth > 8) {
+    return false;
+  }
+  if (value instanceof PDFDict) {
+    return isDeadDestination(doc, value.get(key("D")), resolveName, depth + 1);
+  }
+  if (value instanceof PDFArray) {
+    return value.size() > 0 && doc.context.lookup(value.get(0)) === PDFNull;
+  }
+  const target = resolveName?.(value);
+  return target !== undefined && isDeadDestination(doc, target, resolveName, depth + 1);
+}
+
+function pruneLinks(doc: PDFDocument, pageRefs: PDFRef[], resolveName: ResolveName) {
   for (const pageRef of pageRefs) {
     const annots = doc.context.lookup(pageRef, PDFDict).lookup(key("Annots"));
     if (annots instanceof PDFArray) {
@@ -147,14 +231,14 @@ function pruneLinks(doc: PDFDocument, pageRefs: PDFRef[]) {
           annotation === PDFNull ||
           (annotation instanceof PDFDict &&
             annotation.lookup(key("Subtype")) === key("Link") &&
-            isDeadDestination(doc, destinationOf(annotation)))
+            isDeadDestination(doc, destinationOf(annotation), resolveName))
         );
       });
     }
   }
 }
 
-function pruneOutline(doc: PDFDocument) {
+function pruneOutline(doc: PDFDocument, resolveName: ResolveName) {
   const seen = new Set<PDFDict>();
   const prune = (parent: PDFDict): number => {
     const kept: Array<{ ref: PDFObject; item: PDFDict; visible: number }> = [];
@@ -167,7 +251,7 @@ function pruneOutline(doc: PDFDocument) {
       seen.add(item);
       const next = item.get(key("Next"));
       const visible = prune(item);
-      const dead = isDeadDestination(doc, destinationOf(item));
+      const dead = isDeadDestination(doc, destinationOf(item), resolveName);
       if (!dead || item.get(key("First"))) {
         if (dead) {
           item.delete(key("A"));
@@ -253,15 +337,27 @@ function pruneNamedDestinations(doc: PDFDocument) {
   }
 }
 
+function pruneOpenAction(doc: PDFDocument, resolveName: ResolveName) {
+  const open = doc.catalog.lookup(key("OpenAction"));
+  const destination = open instanceof PDFDict ? destinationOf(open) : open;
+  if (isDeadDestination(doc, destination, resolveName)) {
+    doc.catalog.delete(key("OpenAction"));
+  }
+}
+
 export function removePageRefs(doc: PDFDocument, pageRefs: PDFRef[], removed: Set<PDFRef>) {
   const doomedAnnotations = [...removed].flatMap((ref) => annotationRefs(doc, ref));
   const doomed = new Set<PDFRef>([...removed, ...doomedAnnotations]);
   const remaining = pageRefs.filter((ref) => !removed.has(ref));
+  const removedElements = pruneStructTree(doc, doomed);
+  pruneIdTree(doc, removedElements);
   setPageRefs(doc, remaining);
-  pruneFields(doc, doomed);
-  detach(doc, doomed);
-  pruneLinks(doc, remaining);
-  pruneOutline(doc);
+  const removedFields = pruneFields(doc, doomed);
+  detach(doc, new Set([...doomed, ...removedFields, ...removedElements]));
+  const resolveName = namedDestinations(doc);
+  pruneLinks(doc, remaining, resolveName);
+  pruneOutline(doc, resolveName);
+  pruneOpenAction(doc, resolveName);
   pruneNamedDestinations(doc);
 }
 
