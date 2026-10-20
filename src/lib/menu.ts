@@ -116,7 +116,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const commandItem = async (id: CommandId) => {
     const command = commandById.get(id)!;
     const accelerator = command.combos.map(acceleratorFor).find(Boolean) ?? undefined;
-    const options = { id: `command:${id}`, text: command.label, accelerator, action: () => callbacks.onCommand(id) };
+    const options = { text: command.label, accelerator, action: () => callbacks.onCommand(id) };
     const item = checkCommands.has(id) ? await CheckMenuItem.new({ ...options, checked: false }) : await MenuItem.new(options);
     if (item instanceof CheckMenuItem) {
       checkItems.set(id, item);

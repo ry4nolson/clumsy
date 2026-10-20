@@ -7,7 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- PDFs reload automatically when another app changes them, keeping your page, zoom, and scroll position, as long as you haven't edited them in Clumsy
+
 ### Fixed
+- Clicking a menu item acted on the most recently opened window instead of the one in front
 - **Quit** (⌘Q) asks before discarding unsaved changes in any window instead of quitting right away
 - Opening a PDF that's already open in another window switches to it there instead of opening a second, separately saved copy
 - Saving warns when the file was changed by another app since you opened it, instead of silently replacing those changes
