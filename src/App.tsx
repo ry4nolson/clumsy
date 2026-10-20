@@ -1,41 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType } from "pdfjs-dist";
 import type { AboutTab } from "./components/AboutWindow";
-import { DocumentTab, type DocumentHandle, type TabSnapshot } from "./components/DocumentTab";
-import { PaneGrid, type TabDropTarget } from "./components/PaneGrid";
+import { DocumentTab } from "./components/DocumentTab";
+import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
 import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
 import type { TabItem } from "./components/TabStrip";
 import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
+import { useAppMenu } from "./hooks/useAppMenu";
+import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
+import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
+import { useTabTransfer } from "./hooks/useTabTransfer";
+import { useWorkspace } from "./hooks/useWorkspace";
 import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./lib/commands";
-import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppPreference } from "./lib/defaultApp";
-import {
-  documentWindowAt,
-  initialTransfer,
-  isMainWindow,
-  onReceiveTab,
-  onWindowFocused,
-  openDocumentWindow,
-  sendTabToWindow,
-  stashTransferBytes,
-  takeTransferBytes,
-  type TabTransfer,
-  type ViewState,
-} from "./lib/documentWindows";
-import { promptForDefaultApp } from "./lib/defaultAppPrompt";
-import { installAppMenu, type AppMenu } from "./lib/menu";
+import { openDocumentWindow } from "./lib/documentWindows";
 import type { RecentEntry } from "./lib/recent";
 import {
   clearRecentFiles,
   closeFocusedAuxWindow,
   closeWindow,
-  confirmDiscard,
   downloadPdf,
   fileNameFromPath,
-  getDefaultAppStatus,
   getRecentFiles,
   hasOverlayTitlebar,
   isDesktop,
@@ -56,32 +44,11 @@ import {
   setWindowTitle,
   showError,
   writePdf,
-  type PdfSource,
 } from "./lib/platform";
 import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
+import { createPaneId, createStartTab, isModified } from "./lib/tabs";
 import * as ws from "./lib/workspace";
 import { repoUrl } from "./lib/updates";
-
-type StartTab = { id: string; kind: "start" };
-type DocTab = {
-  id: string;
-  kind: "document";
-  source: PdfSource;
-  name: string;
-  path: string | null;
-  replaces: string | null;
-  returnTo: string | null;
-  view?: ViewState;
-  carriedChanges: boolean;
-};
-type Tab = StartTab | DocTab;
-
-type OpenOptions = { split?: boolean; view?: ViewState; carriedChanges?: boolean; allowDuplicate?: boolean };
-
-const isModified = (tab: Tab | undefined, snapshots: Record<string, TabSnapshot>) =>
-  tab?.kind === "document" && (!!snapshots[tab.id]?.modified || tab.carriedChanges);
-
-type PasswordPrompt = { fileName: string; incorrect: boolean; resolve: (password: string | null) => void };
 
 const colorParams: Partial<Record<EditorTool, number>> = {
   highlight: AnnotationEditorParamsType.HIGHLIGHT_COLOR,
@@ -91,25 +58,38 @@ const colorParams: Partial<Record<EditorTool, number>> = {
 
 const isMac = navigator.userAgent.includes("Mac");
 
-let tabCounter = 0;
-let paneCounter = 0;
-const createStartTab = (): StartTab => ({ id: `tab-${++tabCounter}`, kind: "start" });
-const createPaneId = () => `pane-${++paneCounter}`;
-
 export default function App() {
-  const [workspace, setWorkspace] = useState(() => ws.createWorkspace<Tab>(createStartTab(), createPaneId()));
-  const [snapshots, setSnapshots] = useState<Record<string, TabSnapshot>>({});
+  const workspaceApi = useWorkspace();
+  const {
+    workspace,
+    snapshots,
+    workspaceRef,
+    handles,
+    activeHandle,
+    setHandle,
+    hasUnsavedChanges,
+    update,
+    selectTab,
+    newTab,
+    closeTab,
+    openSource,
+    handleLoaded,
+    handleFailed,
+    handleSnapshot,
+    moveTab,
+  } = workspaceApi;
+  const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi);
+  const passwords = usePasswordPrompts();
+  useDefaultAppPrompt();
+
   const [dragging, setDragging] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
   const [sidebarTab, setSidebarTab] = usePersistentState<SidebarTab>("clumsy.sidebarTab", "thumbnails");
-  const [menuReady, setMenuReady] = useState(false);
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
-  const [passwordPrompts, setPasswordPrompts] = useState<PasswordPrompt[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentEntry[] | null>(null);
-  const [defaultAppPreference, setDefaultAppPreference] = usePersistentState<DefaultAppPreference>("clumsy.defaultAppPrompt", null);
   const [toolColors, setToolColors] = useState<Record<string, string>>({
     highlight: Object.values(highlightColors)[0],
     text: inkColors[0],
@@ -118,152 +98,12 @@ export default function App() {
   const systemDark = useSystemDarkMode();
   const darkPages = darkPagesPreference === "on" || (darkPagesPreference === "auto" && systemDark);
 
-  const handles = useRef(new Map<string, DocumentHandle>());
-  const menuRef = useRef<AppMenu | null>(null);
-  const workspaceRef = useRef(workspace);
-  const snapshotsRef = useRef(snapshots);
-  workspaceRef.current = workspace;
-  snapshotsRef.current = snapshots;
-
   const activeTab = ws.focusedTab(workspace);
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
-  const activeHandle = () => handles.current.get(ws.focusedTab(workspaceRef.current).id);
-  const hasUnsavedChanges = useCallback(
-    (tab: Tab | undefined) => tab?.kind === "document" && (tab.carriedChanges || !!handles.current.get(tab.id)?.viewer.commitEdits()),
-    [],
-  );
-
-  const commit = useCallback((next: ws.Workspace<Tab>) => {
-    workspaceRef.current = next;
-    setWorkspace(next);
-  }, []);
-
-  const update = useCallback((change: (current: ws.Workspace<Tab>) => ws.Workspace<Tab>) => commit(change(workspaceRef.current)), [commit]);
-
-  const selectTab = useCallback((id: string) => update((current) => ws.selectTab(current, id)), [update]);
-
-  const newTab = useCallback(
-    (paneId?: string) => update((current) => ws.addTab(current, createStartTab(), paneId)),
-    [update],
-  );
-
-  const dropTab = useCallback(
-    (id: string, preferredActiveId?: string | null) => {
-      handles.current.delete(id);
-      setSnapshots((current) => {
-        const { [id]: _removed, ...rest } = current;
-        return rest;
-      });
-      update((current) => {
-        const next = ws.closeTab(current, id, createStartTab);
-        return preferredActiveId && next.tabs[preferredActiveId] ? ws.selectTab(next, preferredActiveId) : next;
-      });
-    },
-    [update],
-  );
-
-  const closeTab = useCallback(
-    async (id: string) => {
-      const tab = workspaceRef.current.tabs[id];
-      if (!tab) {
-        return;
-      }
-      if (tab.kind === "document" && hasUnsavedChanges(tab) && !(await confirmDiscard([tab.name]))) {
-        return;
-      }
-      dropTab(id);
-    },
-    [dropTab, hasUnsavedChanges],
-  );
-
-  const openSource = useCallback(
-    async (source: PdfSource | Promise<PdfSource | null>, options: OpenOptions = {}) => {
-      let resolved: PdfSource | null;
-      try {
-        resolved = await source;
-      } catch (error) {
-        await showError(`Could not open this PDF.\n\n${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-      if (!resolved) {
-        return;
-      }
-      const current = workspaceRef.current;
-      const split = options.split && current.panes.length < ws.MAX_PANES;
-      const existing = resolved.path && !split && !options.allowDuplicate
-        ? ws.orderedTabs(current).find((tab) => tab.kind === "document" && tab.path === resolved.path)
-        : undefined;
-      if (existing) {
-        selectTab(existing.id);
-        return;
-      }
-      const focused = ws.focusedTab(current);
-      const tab: DocTab = {
-        id: `tab-${++tabCounter}`,
-        kind: "document",
-        source: resolved,
-        name: resolved.name,
-        path: resolved.path,
-        replaces: !split && focused.kind === "start" ? focused.id : null,
-        returnTo: focused.id,
-        view: options.view,
-        carriedChanges: !!options.carriedChanges,
-      };
-      commit(split ? ws.splitWithTab(current, tab, createPaneId()) : ws.addTab(current, tab));
-    },
-    [commit, selectTab],
-  );
 
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
-
-  const handleLoaded = useCallback(
-    (id: string) => {
-      const tab = workspaceRef.current.tabs[id];
-      if (tab?.kind !== "document") {
-        return;
-      }
-      if (tab.path) {
-        recordRecentFile(tab.path);
-      }
-      const replaced = tab.replaces;
-      const pane = replaced ? ws.paneOfTab(workspaceRef.current, replaced) : null;
-      if (replaced && pane && pane.activeTabId !== replaced) {
-        update((current) => ws.closeTab(current, replaced, createStartTab));
-      }
-    },
-    [update],
-  );
-
-  const handleFailed = useCallback(
-    (id: string, error: unknown) => {
-      const tab = workspaceRef.current.tabs[id];
-      dropTab(id, tab?.kind === "document" ? tab.returnTo : null);
-      if (error) {
-        showError(`Could not open ${tab?.kind === "document" ? `“${tab.name}”` : "this PDF"}.\n\n${error instanceof Error ? error.message : String(error)}`);
-      }
-    },
-    [dropTab],
-  );
-
-  const handleSnapshot = useCallback((id: string, snapshot: TabSnapshot) => {
-    setSnapshots((current) => ({ ...current, [id]: snapshot }));
-  }, []);
-
-  const requestPassword = useCallback(
-    (fileName: string, incorrect: boolean) =>
-      new Promise<string | null>((resolve) => {
-        setPasswordPrompts((queue) => [...queue, { fileName, incorrect, resolve }]);
-      }),
-    [],
-  );
-
-  const resolvePassword = (password: string | null) => {
-    const [prompt, ...rest] = passwordPrompts;
-    setPasswordPrompts(rest);
-    prompt?.resolve(password);
-  };
 
   const save = useCallback(async (saveAs: boolean) => {
     const tab = ws.focusedTab(workspaceRef.current);
@@ -293,53 +133,23 @@ export default function App() {
     } catch (error) {
       await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
     }
-  }, [update]);
+  }, [handles, update, workspaceRef]);
 
   const refreshRecentFiles = useCallback(() => {
     getRecentFiles().then(setRecentFiles);
-  }, []);
-
-  const reportMissingRecent = useCallback(async (path: string) => {
-    await showError(`“${fileNameFromPath(path)}” couldn’t be found. It may have been moved or deleted, so it was removed from recent files.`);
   }, []);
 
   const openRecent = useCallback(
     async (entry: RecentEntry) => {
       if (!entry.exists) {
         await removeRecentFile(entry.path);
-        await reportMissingRecent(entry.path);
+        await showError(`“${fileNameFromPath(entry.path)}” couldn’t be found. It may have been moved or deleted, so it was removed from recent files.`);
         return;
       }
       openSource(readPdfFromPath(entry.path));
     },
-    [openSource, reportMissingRecent],
+    [openSource],
   );
-
-  const requestDefaultApp = useCallback(async () => {
-    await promptForDefaultApp(await getDefaultAppStatus(), "manual");
-  }, []);
-
-  const defaultAppPreferenceRef = useRef(defaultAppPreference);
-  defaultAppPreferenceRef.current = defaultAppPreference;
-
-  useEffect(() => {
-    if (!isDesktop || !isMainWindow()) {
-      return;
-    }
-    const timer = window.setTimeout(async () => {
-      const status = await getDefaultAppStatus();
-      if (!shouldPromptForDefault(status, defaultAppPreferenceRef.current, Date.now())) {
-        return;
-      }
-      const choice = await promptForDefaultApp(status, "launch");
-      if (choice === "never") {
-        setDefaultAppPreference({ state: "never" });
-      } else if (choice === "declined") {
-        setDefaultAppPreference({ state: "snoozed", until: Date.now() + SNOOZE_MS });
-      }
-    }, 1200);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   const changeTool = (tool: EditorTool) => activeHandle()?.viewer.setTool(tool);
 
@@ -390,91 +200,6 @@ export default function App() {
       cleanups.forEach((cleanup) => cleanup.then((dispose) => dispose()));
     };
   }, []);
-
-  const receiveTab = useCallback(
-    async (transfer: TabTransfer) => {
-      if (transfer.kind === "start") {
-        update((current) => ws.addTab(current, createStartTab()));
-        return;
-      }
-      try {
-        const data = await takeTransferBytes(transfer.transferId);
-        await openSource(
-          { name: transfer.name, path: transfer.path, data },
-          { view: transfer.view, carriedChanges: transfer.modified, allowDuplicate: true },
-        );
-      } catch (error) {
-        await showError(`Could not move “${transfer.name}” here.\n\n${error instanceof Error ? error.message : String(error)}`);
-      }
-    },
-    [openSource, update],
-  );
-
-  const receiveTabRef = useRef(receiveTab);
-  receiveTabRef.current = receiveTab;
-
-  useEffect(() => {
-    const transfer = initialTransfer();
-    if (transfer) {
-      receiveTabRef.current(transfer);
-    }
-    const listening = onReceiveTab((incoming) => receiveTabRef.current(incoming));
-    return () => {
-      listening.then((dispose) => dispose());
-    };
-  }, []);
-
-  const prepareTransfer = async (tabId: string, allowLastTab: boolean): Promise<TabTransfer | null> => {
-    const current = workspaceRef.current;
-    const tab = current.tabs[tabId];
-    if (!tab || (!allowLastTab && Object.keys(current.tabs).length < 2)) {
-      return null;
-    }
-    if (tab.kind === "start") {
-      return { kind: "start" };
-    }
-    const handle = handles.current.get(tabId);
-    const snapshot = snapshotsRef.current[tabId];
-    if (!handle || !snapshot?.loaded) {
-      return null;
-    }
-    const modified = hasUnsavedChanges(tab);
-    const bytes = await handle.viewer.save();
-    if (!bytes) {
-      return null;
-    }
-    return {
-      kind: "document",
-      transferId: await stashTransferBytes(bytes),
-      name: tab.name,
-      path: tab.path,
-      modified,
-      view: handle.viewer.viewState() ?? undefined,
-    };
-  };
-
-  const moveTabToWindow = async (tabId: string, destination: { label: string } | { at?: { x: number; y: number } }) => {
-    const merging = "label" in destination;
-    const transfer = await prepareTransfer(tabId, merging);
-    if (!transfer) {
-      return;
-    }
-    const lastTab = Object.keys(workspaceRef.current.tabs).length === 1;
-    if (merging) {
-      await sendTabToWindow(destination.label, transfer);
-    } else {
-      await openDocumentWindow(transfer, destination.at);
-    }
-    dropTab(tabId);
-    if (lastTab) {
-      await closeWindow();
-    }
-  };
-
-  const tearOffTab = async (tabId: string, screenX: number, screenY: number) => {
-    const target = await documentWindowAt(screenX, screenY);
-    await moveTabToWindow(tabId, target ? { label: target } : { at: { x: screenX - 120, y: screenY - 20 } });
-  };
 
   const editingCommand = (name: "undo" | "redo") => {
     if (isTypingTarget(document.activeElement)) {
@@ -585,41 +310,12 @@ export default function App() {
 
   const runCommandRef = useRef(runCommand);
   runCommandRef.current = runCommand;
-  const openRecentRef = useRef(openRecent);
-  openRecentRef.current = openRecent;
 
-  useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-    let cancelled = false;
-    installAppMenu({
-      onCommand: (id) => runCommandRef.current(id),
-      onOpenRecent: (entry) => openRecentRef.current(entry),
-      onClearRecent: () => clearRecentFiles(),
-    })
-      .then((menu) => {
-        if (!cancelled) {
-          menuRef.current = menu;
-          setMenuReady(true);
-        }
-        return onWindowFocused(() => menuRef.current?.activate());
-      })
-      .catch((error: unknown) => console.error("Could not build the app menu", error));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    menuRef.current?.setState({ hasDocument, split: workspace.panes.length > 1, darkPages, invertImages: darkPagesImages === "invert" });
-  }, [menuReady, hasDocument, workspace.panes.length, darkPages, darkPagesImages]);
-
-  useEffect(() => {
-    if (recentFiles) {
-      menuRef.current?.setRecent(recentFiles);
-    }
-  }, [menuReady, recentFiles]);
+  useAppMenu(
+    { onCommand: runCommand, onOpenRecent: openRecent },
+    { hasDocument, split: workspace.panes.length > 1, darkPages, invertImages: darkPagesImages === "invert" },
+    recentFiles,
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -658,13 +354,6 @@ export default function App() {
           },
     ]),
   );
-
-  const moveTab = (tabId: string, target: TabDropTarget) =>
-    update((current) =>
-      target.kind === "newPane"
-        ? ws.moveTab(current, tabId, { newPaneAfter: target.afterPaneId, paneId: createPaneId() })
-        : ws.moveTab(current, tabId, { paneId: target.paneId, index: target.index }),
-    );
 
   const viewer = activeHandle()?.viewer;
 
@@ -741,13 +430,7 @@ export default function App() {
             ) : (
               <DocumentTab
                 key={tab.id}
-                ref={(handle) => {
-                  if (handle) {
-                    handles.current.set(tab.id, handle);
-                  } else {
-                    handles.current.delete(tab.id);
-                  }
-                }}
+                ref={(handle) => setHandle(tab.id, handle)}
                 id={tab.id}
                 paneId={pane.id}
                 column={column}
@@ -759,7 +442,7 @@ export default function App() {
                 onSidebarTab={setSidebarTab}
                 darkPages={darkPages}
                 keepImages={darkPagesImages === "keep"}
-                requestPassword={requestPassword}
+                requestPassword={passwords.requestPassword}
                 onSnapshot={handleSnapshot}
                 onLoaded={handleLoaded}
                 onFailed={handleFailed}
@@ -778,8 +461,8 @@ export default function App() {
         }}
       />
       <PasswordDialog
-        request={passwordPrompts[0] ? { fileName: passwordPrompts[0].fileName, incorrect: passwordPrompts[0].incorrect } : null}
-        onSubmit={resolvePassword}
+        request={passwords.current}
+        onSubmit={passwords.resolvePassword}
       />
     </div>
   );

@@ -25,7 +25,7 @@ pnpm licenses                  # regenerate public/third-party-licenses.txt (als
 
 ```
 src/
-  App.tsx                    app shell: tab list, toolbar, menus, dialogs, keyboard routing
+  App.tsx                    app shell: toolbar, commands, keyboard routing, layout
   components/
     DocumentTab.tsx          one open PDF: its own pdf.js viewer, sidebar, find bar
     TabStrip.tsx             tab bar (start tabs + document tabs)
@@ -34,8 +34,13 @@ src/
     AboutWindow.tsx          About / What's New / Licenses (its own native window)
     ShortcutsWindow.tsx      Keyboard Shortcuts (its own native window)
     ChangelogList.tsx, LicensesView.tsx, SignatureDialog.tsx, PasswordDialog.tsx, ...
-  hooks/usePdfViewer.ts      wraps pdf.js PDFViewer, EventBus, find controller, editor modes
-  lib/                       pure logic (commands, workspace, changelog, recent, imageRegions, defaultApp) + platform.ts, menu.ts, documentWindows.ts
+  hooks/
+    usePdfViewer.ts          wraps pdf.js PDFViewer, EventBus, find controller, editor modes
+    useWorkspace.ts          tabs, panes, per-tab snapshots and viewer handles; open/close/move tabs
+    useTabTransfer.ts        moving tabs between windows (send, receive, tear off)
+    useAppMenu.ts            builds this window's native menu and keeps it in sync
+    useDefaultAppPrompt.ts, usePasswordPrompts.ts
+  lib/                       pure logic (commands, workspace, tabs, changelog, recent, imageRegions, defaultApp) + platform.ts, menu.ts, documentWindows.ts
 src-tauri/src/
   lib.rs                     IPC commands and macOS file-open events
   recent.rs                  recent files list, persisted to app data
@@ -54,7 +59,7 @@ tests/                       vitest unit tests for src/lib and scripts
 ## Architecture notes
 
 - **Tabs and panes.** `src/lib/workspace.ts` is the pure, tested model: a map of tabs plus an ordered list of panes (each with its tab order, active tab, and flex size) and the focused pane. Every open document mounts its own `DocumentTab` with its own pdf.js `PDFViewer`; never swap documents inside one viewer, because unsaved highlights and notes live in the viewer's editor layer. `PaneGrid` lays panes out as a CSS grid (row 1 tab strips, row 2 documents, 5px divider columns between panes) and renders every `DocumentTab` as a sibling in one keyed list, positioned by `gridColumn`. That is what lets a tab move between panes without remounting: only its column changes, so scroll, zoom, and unsaved markup survive. Inactive tabs stay laid out but hidden (`visibility: hidden` + `inert`); `display: none` would reset their scroll position. App keeps per-tab `TabSnapshot`s (page, zoom, tool, modified, find state); the focused pane's active tab drives the toolbar, menus, and window title. Tab dragging and divider resizing are pointer-event based in `PaneGrid` (HTML5 drag and drop is unreliable in Tauri webviews); the divider has a widened invisible grab area. At most `MAX_PANES` (4) panes.
-- **Document windows.** Every document window (label `main` or `doc-*`) runs the full `App` with its own workspace; `src/lib/documentWindows.ts` opens them, finds the window under a drop point, and hands tabs over. A live pdf.js document can't move between webviews, so moving a tab calls `saveDocument()` (unsaved markup is baked in), stashes the bytes in Rust (`stash_transfer` / `take_transfer`, raw IPC, taken once), and the receiving window reopens them with the same page and zoom. A tab that arrives with unsaved changes keeps a `carriedChanges` flag so it still reads as edited until saved; undo history from before the move is lost. Each window builds its own app menu and calls `activate()` (`setAsAppMenu`) when it gains focus, because menu callbacks run in the window that built them. Rust tracks the last focused document window (`windows.rs`) and sends Finder-opened files there with `emit_to`, which is why `files-opened` is listened for per webview. The default-app launch prompt only runs in `main`. Closing the last document window also closes About/Shortcuts. Capabilities list `doc-*`. Tab tear-off is detected in `PaneGrid` when a drag ends outside the window; drops onto another window merge into its focused pane.
+- **Document windows.** Every document window (label `main` or `doc-*`) runs the full `App` with its own workspace; `src/lib/documentWindows.ts` opens them, finds the window under a drop point, and hands tabs over; `useTabTransfer` drives it from the app. A live pdf.js document can't move between webviews, so moving a tab calls `saveDocument()` (unsaved markup is baked in), stashes the bytes in Rust (`stash_transfer` / `take_transfer`, raw IPC, taken once), and the receiving window reopens them with the same page and zoom. A tab that arrives with unsaved changes keeps a `carriedChanges` flag so it still reads as edited until saved; undo history from before the move is lost. Each window builds its own app menu and calls `activate()` (`setAsAppMenu`) when it gains focus, because menu callbacks run in the window that built them. Rust tracks the last focused document window (`windows.rs`) and sends Finder-opened files there with `emit_to`, which is why `files-opened` is listened for per webview. The default-app launch prompt only runs in `main`. Closing the last document window also closes About/Shortcuts. Capabilities list `doc-*`. Tab tear-off is detected in `PaneGrid` when a drag ends outside the window; drops onto another window merge into its focused pane.
 - **Start tabs.** Opening a file from a Start tab replaces that tab, like a browser's new-tab page. Opening a path that's already open anywhere switches to its tab, except Split Right, which deliberately opens a second copy. Closing the last tab in a pane removes the pane; closing the last tab overall leaves a Start tab.
 - **Saving.** `pdfDocument.saveDocument()` writes markup and form values as an incremental update over the original bytes held by the worker, so repeated saves don't duplicate annotations. The Rust `write_pdf` command takes raw bytes with the path in a percent-encoded `x-path` header and writes atomically (temp file + rename), `.pdf` paths only.
 - **Dark pages.** The default ("Keep images") applies `invert(0.92) hue-rotate(180deg)` to `.canvasWrapper` and the editor layer, then draws each image's original pixels into an unfiltered overlay canvas (`.image-restore`). Image rectangles come from pdf.js's image tracker (`imagesRightClickMinSize: 0`) and are rotated by `src/lib/imageRegions.ts`. pdf.js's own `pageColors` high-contrast mode recolors images too, so it isn't used. `enableDetailCanvas` is off because the detail canvas would cover the overlay.
@@ -101,6 +106,7 @@ Check legibility at 32px before committing. Keep icon sources out of `public/`, 
 - Never commit test documents. `public/` is copied into the app bundle, and `public/*.pdf` is git-ignored for that reason; keep sample PDFs outside the repo. Review `git status` for new files before every commit instead of blindly staging everything.
 
 - Match the existing style: no code comments unless the logic truly needs one, self-explanatory names, small pure helpers in `src/lib` with vitest coverage.
+- Keep source files under 500 lines. When one grows past that, split it along a real seam (a hook, a component, a pure helper in `src/lib`) rather than arbitrarily.
 - Global form-control resets use `:where(:is(button, input, select):not(.pdfViewer *))` on purpose: zero specificity so component classes win, and pdf.js's own controls (whose layers set huge font sizes) are left alone.
 - pdf.js 6 API notes: `PDFDocumentProxy.destroy()` is gone (use `loadingTask.destroy()`); `page.render({ canvas, viewport })`; editor modes are set with `viewer.annotationEditorMode = { mode }`; default colors go through the `switchannotationeditorparams` event.
 - Typecheck, test, clippy, and Rust tests must pass; the release workflow runs all of them before building.
