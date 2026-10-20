@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-20
+
 ### Added
 - PDFs reload automatically when another app changes them, keeping your page, zoom, and scroll position, as long as you haven't edited them in Clumsy
 
