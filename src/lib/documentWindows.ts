@@ -6,7 +6,7 @@ import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { isDesktop } from "./platform";
 import type { Rect } from "./windowPlacement";
 
-export type ViewState = { page: number; scaleValue: string; left: number; top: number; rotation: number };
+export type ViewState = { page: number; scaleValue: string; left: number | null; top: number | null; rotation: number };
 
 export type TabTransfer =
   | { kind: "start" }

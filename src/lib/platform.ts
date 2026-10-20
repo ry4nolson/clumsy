@@ -3,6 +3,7 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { WebviewWindow, getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
+import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppStatus } from "./defaultApp";
@@ -42,15 +43,20 @@ export async function readPdfFromFile(file: File): Promise<PdfSource> {
   return { name: file.name, path: null, data: new Uint8Array(await file.arrayBuffer()) };
 }
 
-function pickFileInBrowser(): Promise<File | null> {
+function pickFilesInBrowser(accept: string, multiple: boolean): Promise<File[]> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "application/pdf,.pdf";
-    input.addEventListener("change", () => resolve(input.files?.[0] ?? null), { once: true });
-    input.addEventListener("cancel", () => resolve(null), { once: true });
+    input.accept = accept;
+    input.multiple = multiple;
+    input.addEventListener("change", () => resolve(Array.from(input.files ?? [])), { once: true });
+    input.addEventListener("cancel", () => resolve([]), { once: true });
     input.click();
   });
+}
+
+async function pickFileInBrowser() {
+  return (await pickFilesInBrowser("application/pdf,.pdf", false))[0] ?? null;
 }
 
 export async function pickPdf(): Promise<PdfSource | null> {
@@ -60,6 +66,28 @@ export async function pickPdf(): Promise<PdfSource | null> {
   }
   const selected = await invoke<string | null>("pick_pdf");
   return selected ? readPdfFromPath(selected) : null;
+}
+
+export async function pickPdfs(): Promise<Array<Promise<PdfSource>>> {
+  if (!isDesktop) {
+    return (await pickFilesInBrowser("application/pdf,.pdf", true)).map(readPdfFromFile);
+  }
+  return (await invoke<string[]>("pick_pdfs")).map(readPdfFromPath);
+}
+
+export type ContextMenuItem = { label: string; enabled?: boolean; run: () => void } | "-";
+
+export async function showContextMenu(items: ContextMenuItem[]) {
+  if (!isDesktop) {
+    return false;
+  }
+  const entries = await Promise.all(
+    items.map((item) =>
+      item === "-" ? PredefinedMenuItem.new({ item: "Separator" }) : MenuItem.new({ text: item.label, enabled: item.enabled ?? true, action: item.run }),
+    ),
+  );
+  await (await Menu.new({ items: entries })).popup();
+  return true;
 }
 
 export async function writePdf(path: string, data: Uint8Array, expectedStamp?: string | null) {
@@ -185,15 +213,8 @@ const imageTypes: Record<string, string> = {
   svg: "image/svg+xml",
 };
 
-function pickImageInBrowser(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = Object.values(imageTypes).join(",");
-    input.addEventListener("change", () => resolve(input.files?.[0] ?? null), { once: true });
-    input.addEventListener("cancel", () => resolve(null), { once: true });
-    input.click();
-  });
+async function pickImageInBrowser() {
+  return (await pickFilesInBrowser(Object.values(imageTypes).join(","), false))[0] ?? null;
 }
 
 export async function pickImage(): Promise<File | null> {
@@ -253,35 +274,49 @@ export async function onOpenedFiles(handler: (paths: string[]) => void) {
   return unlisten;
 }
 
-export async function onFileDrop(handler: (source: Promise<PdfSource>) => void, onHover: (hovering: boolean) => void) {
+export type DropPoint = { x: number; y: number };
+
+export async function onFileDrop(
+  handler: (sources: Array<Promise<PdfSource>>, point: DropPoint | null) => void,
+  onHover: (point: DropPoint | null) => void,
+) {
   if (isDesktop) {
+    let last: DropPoint | null = null;
     return getCurrentWebview().onDragDropEvent(({ payload }) => {
       if (payload.type === "enter" || payload.type === "over") {
-        onHover(true);
+        last = { x: payload.position.x / window.devicePixelRatio, y: payload.position.y / window.devicePixelRatio };
+        onHover(last);
         return;
       }
-      onHover(false);
+      onHover(null);
       if (payload.type === "drop") {
-        payload.paths.filter((candidate) => /\.pdf$/i.test(candidate)).forEach((path) => handler(readPdfFromPath(path)));
+        const point = { x: payload.position.x / window.devicePixelRatio, y: payload.position.y / window.devicePixelRatio };
+        const paths = payload.paths.filter((candidate) => /\.pdf$/i.test(candidate));
+        if (paths.length) {
+          handler(paths.map(readPdfFromPath), point ?? last);
+        }
       }
     });
   }
 
   const over = (event: DragEvent) => {
     event.preventDefault();
-    onHover(true);
+    onHover({ x: event.clientX, y: event.clientY });
   };
   const leave = (event: DragEvent) => {
     if (!event.relatedTarget) {
-      onHover(false);
+      onHover(null);
     }
   };
   const drop = (event: DragEvent) => {
     event.preventDefault();
-    onHover(false);
-    Array.from(event.dataTransfer?.files ?? [])
-      .filter((candidate) => candidate.type === "application/pdf" || /\.pdf$/i.test(candidate.name))
-      .forEach((file) => handler(readPdfFromFile(file)));
+    onHover(null);
+    const files = Array.from(event.dataTransfer?.files ?? []).filter(
+      (candidate) => candidate.type === "application/pdf" || /\.pdf$/i.test(candidate.name),
+    );
+    if (files.length) {
+      handler(files.map(readPdfFromFile), { x: event.clientX, y: event.clientY });
+    }
   };
   window.addEventListener("dragover", over);
   window.addEventListener("dragleave", leave);

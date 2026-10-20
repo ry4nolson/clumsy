@@ -1,6 +1,6 @@
 import { commands, displayCombo, type Command, type MenuName } from "../lib/commands";
 
-const groupOrder: Array<MenuName | "Tabs"> = ["File", "Edit", "View", "Go", "Tools", "Window", "Tabs", "Help"];
+const groupOrder: Array<MenuName | "Tabs"> = ["File", "Edit", "View", "Go", "Pages", "Tools", "Window", "Tabs", "Help"];
 
 type Row = { label: string; keys: string[] };
 

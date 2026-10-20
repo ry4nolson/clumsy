@@ -1,17 +1,36 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { SelectModifiers } from "../lib/pageSelection";
 
 const THUMB_WIDTH = 120;
+const DRAG_THRESHOLD = 5;
+const AUTOSCROLL_EDGE = 40;
 
 type ThumbnailProps = {
   pdfDocument: PDFDocumentProxy;
   pageNumber: number;
   aspectRatio: number;
   active: boolean;
-  onSelect: (page: number) => void;
+  selected: boolean;
+  dropBefore: boolean;
+  dropAfter: boolean;
+  onPointerDown: (page: number, event: PointerEvent<HTMLButtonElement>) => void;
+  onClick: (page: number, event: MouseEvent<HTMLButtonElement>) => void;
+  onContextMenu: (page: number, event: MouseEvent<HTMLButtonElement>) => void;
 };
 
-const Thumbnail = memo(function Thumbnail({ pdfDocument, pageNumber, aspectRatio, active, onSelect }: ThumbnailProps) {
+const Thumbnail = memo(function Thumbnail({
+  pdfDocument,
+  pageNumber,
+  aspectRatio,
+  active,
+  selected,
+  dropBefore,
+  dropAfter,
+  onPointerDown,
+  onClick,
+  onContextMenu,
+}: ThumbnailProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [visible, setVisible] = useState(false);
@@ -46,6 +65,7 @@ const Thumbnail = memo(function Thumbnail({ pdfDocument, pageNumber, aspectRatio
       const viewport = page.getViewport({ scale: (THUMB_WIDTH * window.devicePixelRatio) / base.width });
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
+      canvas.parentElement!.style.aspectRatio = `${base.width} / ${base.height}`;
       renderTask = page.render({ canvas, viewport });
       renderTask.promise.catch(() => {});
     });
@@ -61,14 +81,20 @@ const Thumbnail = memo(function Thumbnail({ pdfDocument, pageNumber, aspectRatio
     }
   }, [active]);
 
+  const classes = ["thumbnail", active && "active", selected && "selected", dropBefore && "drop-before", dropAfter && "drop-after"];
+
   return (
     <button
       ref={buttonRef}
       type="button"
-      className={`thumbnail${active ? " active" : ""}`}
-      onClick={() => onSelect(pageNumber)}
+      className={classes.filter(Boolean).join(" ")}
+      data-page={pageNumber - 1}
+      onPointerDown={(event) => onPointerDown(pageNumber - 1, event)}
+      onClick={(event) => onClick(pageNumber - 1, event)}
+      onContextMenu={(event) => onContextMenu(pageNumber - 1, event)}
       aria-label={`Page ${pageNumber}`}
       aria-current={active ? "page" : undefined}
+      aria-pressed={selected}
     >
       <span className="thumbnail-page" style={{ aspectRatio }}>
         <canvas ref={canvasRef} />
@@ -78,14 +104,35 @@ const Thumbnail = memo(function Thumbnail({ pdfDocument, pageNumber, aspectRatio
   );
 });
 
+type Drag = { page: number; startY: number; active: boolean; slot: number | null };
+
 type ThumbnailsProps = {
   pdfDocument: PDFDocumentProxy;
   currentPage: number;
-  onSelect: (page: number) => void;
+  selection: number[];
+  onSelect: (page: number, modifiers: SelectModifiers) => void;
+  onMove: (page: number, slot: number) => void;
+  onContextMenu: (page: number) => void;
+  onDelete: () => void;
 };
 
-export function Thumbnails({ pdfDocument, currentPage, onSelect }: ThumbnailsProps) {
+export function slotAt(container: HTMLElement, y: number) {
+  const thumbnails = Array.from(container.querySelectorAll<HTMLElement>(".thumbnail"));
+  const index = thumbnails.findIndex((thumbnail) => {
+    const rect = thumbnail.getBoundingClientRect();
+    return y < rect.top + rect.height / 2;
+  });
+  return index < 0 ? thumbnails.length : index;
+}
+
+export function Thumbnails({ pdfDocument, currentPage, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState(0.77);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
+  const suppressClick = useRef(false);
+  const selected = new Set(selection);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,8 +147,91 @@ export function Thumbnails({ pdfDocument, currentPage, onSelect }: ThumbnailsPro
     };
   }, [pdfDocument]);
 
+  const startDrag = (page: number, event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    suppressClick.current = false;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointers can't be captured; the drag still works inside the sidebar.
+    }
+    setDrag({ page, startY: event.clientY, active: false, slot: null });
+  };
+
+  const moveDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const current = dragRef.current;
+    const container = containerRef.current;
+    if (!current || !container) {
+      return;
+    }
+    const active = current.active || Math.abs(event.clientY - current.startY) > DRAG_THRESHOLD;
+    if (!active) {
+      return;
+    }
+    const scroller = container.parentElement;
+    if (scroller) {
+      const bounds = scroller.getBoundingClientRect();
+      if (event.clientY < bounds.top + AUTOSCROLL_EDGE) {
+        scroller.scrollBy(0, -12);
+      } else if (event.clientY > bounds.bottom - AUTOSCROLL_EDGE) {
+        scroller.scrollBy(0, 12);
+      }
+    }
+    setDrag({ ...current, active, slot: slotAt(container, event.clientY) });
+  };
+
+  const endDrag = () => {
+    const current = dragRef.current;
+    setDrag(null);
+    if (current?.active && current.slot !== null) {
+      suppressClick.current = true;
+      onMove(current.page, current.slot);
+    }
+  };
+
+  const click = (page: number, event: MouseEvent<HTMLButtonElement>) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    onSelect(page, { toggle: event.metaKey || event.ctrlKey, range: event.shiftKey });
+  };
+
+  const contextMenu = (page: number, event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (!selected.has(page)) {
+      onSelect(page, { toggle: false, range: false });
+    }
+    onContextMenu(page);
+  };
+
+  const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      onDelete();
+    } else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && !event.metaKey && !event.altKey && !event.ctrlKey) {
+      event.preventDefault();
+      const next = currentPage - 1 + (event.key === "ArrowUp" ? -1 : 1);
+      if (next >= 0 && next < pdfDocument.numPages) {
+        onSelect(next, { toggle: false, range: event.shiftKey });
+      }
+    }
+  };
+
+  const slot = drag?.active ? drag.slot : null;
+
   return (
-    <div className="thumbnails">
+    <div
+      ref={containerRef}
+      className={`thumbnails${drag?.active ? " dragging" : ""}`}
+      tabIndex={0}
+      onKeyDown={keyDown}
+      onPointerMove={moveDrag}
+      onPointerUp={endDrag}
+      onPointerCancel={() => setDrag(null)}
+    >
       {Array.from({ length: pdfDocument.numPages }, (_, index) => (
         <Thumbnail
           key={index}
@@ -109,7 +239,12 @@ export function Thumbnails({ pdfDocument, currentPage, onSelect }: ThumbnailsPro
           pageNumber={index + 1}
           aspectRatio={aspectRatio}
           active={currentPage === index + 1}
-          onSelect={onSelect}
+          selected={selected.has(index)}
+          dropBefore={slot === index}
+          dropAfter={slot === pdfDocument.numPages && index === pdfDocument.numPages - 1}
+          onPointerDown={startDrag}
+          onClick={click}
+          onContextMenu={contextMenu}
         />
       ))}
     </div>

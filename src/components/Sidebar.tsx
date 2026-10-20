@@ -1,4 +1,5 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { SelectModifiers } from "../lib/pageSelection";
 import { Outline } from "./Outline";
 import { Thumbnails } from "./Thumbnails";
 
@@ -9,12 +10,17 @@ type SidebarProps = {
   onTab: (tab: SidebarTab) => void;
   pdfDocument: PDFDocumentProxy;
   currentPage: number;
-  onSelectPage: (page: number) => void;
+  selection: number[];
+  onSelectPage: (page: number, modifiers: SelectModifiers) => void;
+  onMovePages: (page: number, slot: number) => void;
+  onPageMenu: (page: number) => void;
+  onDeletePages: () => void;
   onNavigate: (dest: unknown) => void;
   onOpenUrl: (url: string) => void;
 };
 
-export function Sidebar({ tab, onTab, pdfDocument, currentPage, onSelectPage, onNavigate, onOpenUrl }: SidebarProps) {
+export function Sidebar(props: SidebarProps) {
+  const { tab, onTab, pdfDocument, currentPage, onNavigate, onOpenUrl } = props;
   return (
     <aside className="sidebar">
       <div className="sidebar-tabs" role="tablist">
@@ -27,7 +33,15 @@ export function Sidebar({ tab, onTab, pdfDocument, currentPage, onSelectPage, on
       </div>
       <div className="sidebar-content">
         {tab === "thumbnails" ? (
-          <Thumbnails pdfDocument={pdfDocument} currentPage={currentPage} onSelect={onSelectPage} />
+          <Thumbnails
+            pdfDocument={pdfDocument}
+            currentPage={currentPage}
+            selection={props.selection}
+            onSelect={props.onSelectPage}
+            onMove={props.onMovePages}
+            onContextMenu={props.onPageMenu}
+            onDelete={props.onDeletePages}
+          />
         ) : (
           <Outline pdfDocument={pdfDocument} onNavigate={onNavigate} onOpenUrl={onOpenUrl} />
         )}

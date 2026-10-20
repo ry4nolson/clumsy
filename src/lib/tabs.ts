@@ -12,6 +12,7 @@ export type DocTab = {
   replaces: string | null;
   returnTo: string | null;
   view?: ViewState;
+  selection?: number[];
   carriedChanges: boolean;
   stamp: string | null;
 };

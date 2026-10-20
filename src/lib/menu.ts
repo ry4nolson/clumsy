@@ -24,7 +24,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "quit",
     ],
   ],
-  ["File", ["newTab", "newWindow", "open", "recent", "-", "closeTab", "closeWindow", "-", "save", "saveAs", "-", "revealInFinder"]],
+  ["File", ["newTab", "newWindow", "open", "recent", "combineFiles", "-", "closeTab", "closeWindow", "-", "save", "saveAs", "-", "revealInFinder"]],
   [
     "Edit",
     [
@@ -68,6 +68,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
     ],
   ],
   ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "goToPage"]],
+  ["Pages", ["insertPages", "-", "rotatePagesLeft", "rotatePagesRight", "-", "deletePages", "extractPages"]],
   ["Tools", ["toolSelect", "toolHighlight", "toolText", "toolDraw", "-", "addImage", "sign"]],
   [
     "Window",
