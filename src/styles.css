@@ -522,6 +522,66 @@ body {
   font-weight: 600;
 }
 
+.thumbnails:focus {
+  outline: none;
+}
+
+.thumbnail {
+  position: relative;
+  touch-action: none;
+}
+
+.thumbnail.selected {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.thumbnail.selected .thumbnail-page {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.thumbnails:focus-visible .thumbnail.selected {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.thumbnails.dragging {
+  cursor: grabbing;
+}
+
+.thumbnails.dragging .thumbnail:hover {
+  background: transparent;
+}
+
+.thumbnails.dragging .thumbnail.selected {
+  opacity: 0.55;
+}
+
+.thumbnail.drop-before::before,
+.thumbnail.drop-after::after,
+.thumbnail[data-drop-slot="before"]::before,
+.thumbnail[data-drop-slot="after"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.thumbnail.drop-before::before,
+.thumbnail[data-drop-slot="before"]::before {
+  top: -4px;
+}
+
+.thumbnail.drop-after::after,
+.thumbnail[data-drop-slot="after"]::after {
+  bottom: -4px;
+}
+
+.thumbnails[data-drop-target] {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
 .outline,
 .outline ul {
   list-style: none;

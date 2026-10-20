@@ -76,6 +76,12 @@ async fn pick_pdf(app: AppHandle, window: Window) -> Option<String> {
 }
 
 #[tauri::command]
+async fn pick_pdfs(app: AppHandle, window: Window) -> Vec<String> {
+    let picked = file_dialog(&window).add_filter("PDF", &["pdf"]).blocking_pick_files().unwrap_or_default();
+    picked.into_iter().filter_map(|path| chosen(&app, Some(path), |path| path)).collect()
+}
+
+#[tauri::command]
 async fn pick_image(app: AppHandle, window: Window) -> Option<String> {
     let picked = file_dialog(&window)
         .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "svg"])
@@ -253,6 +259,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             take_pending_files,
             pick_pdf,
+            pick_pdfs,
             pick_image,
             pick_save_path,
             read_pdf,

@@ -6,6 +6,7 @@ export type CommandId =
   | "newWindow"
   | "moveTabToNewWindow"
   | "open"
+  | "combineFiles"
   | "closeTab"
   | "closeWindow"
   | "save"
@@ -40,6 +41,11 @@ export type CommandId =
   | "toolDraw"
   | "addImage"
   | "sign"
+  | "insertPages"
+  | "rotatePagesLeft"
+  | "rotatePagesRight"
+  | "deletePages"
+  | "extractPages"
   | "nextTab"
   | "previousTab"
   | "splitRight"
@@ -56,7 +62,7 @@ export type CommandId =
   | "quit"
   | "escape";
 
-export type MenuName = "Clumsy" | "File" | "Edit" | "View" | "Go" | "Tools" | "Window" | "Help";
+export type MenuName = "Clumsy" | "File" | "Edit" | "View" | "Go" | "Pages" | "Tools" | "Window" | "Help";
 
 export type Command = {
   id: CommandId;
@@ -82,6 +88,7 @@ export const commands: Command[] = [
   { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+t"] },
   { id: "newWindow", label: "New Window", menu: "File", combos: ["mod+n"] },
   { id: "open", label: "Open…", menu: "File", combos: ["mod+o"] },
+  { id: "combineFiles", label: "Combine Files…", menu: "File", combos: [] },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"] },
   { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true },
@@ -122,6 +129,12 @@ export const commands: Command[] = [
   { id: "toolDraw", label: "Draw", menu: "Tools", combos: ["ctrl+mod+p", "d"], needsDocument: true },
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
+
+  { id: "insertPages", label: "Insert Pages from File…", menu: "Pages", combos: ["alt+mod+i"], needsDocument: true },
+  { id: "rotatePagesLeft", label: "Rotate Pages Left", menu: "Pages", combos: [], needsDocument: true },
+  { id: "rotatePagesRight", label: "Rotate Pages Right", menu: "Pages", combos: [], needsDocument: true },
+  { id: "deletePages", label: "Delete Pages", menu: "Pages", combos: [], needsDocument: true },
+  { id: "extractPages", label: "Extract Pages to New Tab", menu: "Pages", combos: [], needsDocument: true },
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
   { id: "previousTab", label: "Show Previous Tab", menu: "Window", combos: ["mod+shift+[", "ctrl+shift+Tab"] },

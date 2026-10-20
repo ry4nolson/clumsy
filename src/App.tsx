@@ -11,6 +11,7 @@ import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useExternalChanges } from "./hooks/useExternalChanges";
+import { dropTargetAt, showDropTarget, usePageEdits } from "./hooks/usePageEdits";
 import { useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
@@ -81,10 +82,13 @@ export default function App() {
   const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi);
   useExternalChanges(workspaceApi);
   const save = useSaveDocument(workspaceApi);
+  const pageEdits = usePageEdits(workspaceApi);
+  const pageEditsRef = useRef(pageEdits);
+  pageEditsRef.current = pageEdits;
   const passwords = usePasswordPrompts();
   useDefaultAppPrompt();
 
-  const [dragging, setDragging] = useState(false);
+  const [dropHover, setDropHover] = useState<"open" | "insert" | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
   const [sidebarTab, setSidebarTab] = usePersistentState<SidebarTab>("clumsy.sidebarTab", "thumbnails");
@@ -173,7 +177,18 @@ export default function App() {
           await openSourceRef.current(readPdfFromPath(path));
         }
       }),
-      onFileDrop((source) => openSourceRef.current(source), setDragging),
+      onFileDrop(
+        (sources, point) => {
+          if (!pageEditsRef.current.dropFiles(sources, point)) {
+            sources.forEach((source) => openSourceRef.current(source));
+          }
+        },
+        (point) => {
+          const target = point && dropTargetAt(point);
+          showDropTarget(target);
+          setDropHover(point ? (target ? "insert" : "open") : null);
+        },
+      ),
       onFullscreenChange(setFullscreen),
       onRecentFilesChanged(refreshRecentFiles),
       onShowDocument(showPath),
@@ -187,7 +202,7 @@ export default function App() {
   const editingCommand = (name: "undo" | "redo") => {
     if (isTypingTarget(document.activeElement)) {
       document.execCommand(name);
-    } else {
+    } else if (!pageEdits.stepHistory(name)) {
       activeHandle()?.viewer.editingAction(name);
     }
   };
@@ -197,6 +212,9 @@ export default function App() {
   const runCommand = (id: CommandId) => {
     const handle = activeHandle();
     if (commandById.get(id)?.needsDocument && (!handle || !hasDocument || !activeSnapshot)) {
+      return;
+    }
+    if (pageEdits.runPageCommand(id)) {
       return;
     }
     const viewer = handle?.viewer;
@@ -347,7 +365,7 @@ export default function App() {
   const viewer = activeHandle()?.viewer;
 
   return (
-    <div className={`app${dragging ? " dragging" : ""}`}>
+    <div className={`app${dropHover ? " dragging" : ""}`}>
       <Toolbar
         titlebarInset={hasOverlayTitlebar && !fullscreen}
         hasDocument={hasDocument}
@@ -381,7 +399,7 @@ export default function App() {
         focusedPaneId={workspace.focusedPaneId}
         tabItems={tabItems}
         newTabShortcut={isMac ? "⌘T" : "Ctrl+T"}
-        overlay={dragging && <div className="drop-overlay">Drop to open</div>}
+        overlay={dropHover === "open" && <div className="drop-overlay">Drop to open</div>}
         onSelectTab={selectTab}
         onCloseTab={closeTab}
         onNewTab={(paneId) => newTab(paneId)}
@@ -425,6 +443,7 @@ export default function App() {
                 column={column}
                 source={tab.source}
                 initialView={tab.view}
+                initialSelection={tab.selection}
                 active={active}
                 sidebarOpen={sidebarOpen}
                 sidebarTab={sidebarTab}
@@ -433,9 +452,13 @@ export default function App() {
                 keepImages={darkPagesImages === "keep"}
                 requestPassword={passwords.requestPassword}
                 onSnapshot={handleSnapshot}
-                onLoaded={handleLoaded}
+                onLoaded={(id) => {
+                  handleLoaded(id);
+                  pageEdits.documentLoaded(id);
+                }}
                 onFailed={handleFailed}
                 onOpenUrl={openExternal}
+                onPageAction={(id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command))}
               />
             );
           }),

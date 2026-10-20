@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { usePdfViewer, type FindQuery, type PdfViewerApi } from "../hooks/usePdfViewer";
 import type { ViewState } from "../lib/documentWindows";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
+import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
 import { readPdfFromPath, type PdfSource } from "../lib/platform";
 import { FindBar } from "./FindBar";
 import { Sidebar, type SidebarTab } from "./Sidebar";
@@ -17,8 +18,11 @@ export type TabSnapshot = {
   findOpen: boolean;
 };
 
+export type PageAction = { kind: "move"; pages: number[]; slot: number } | { kind: "menu" } | { kind: "delete" };
+
 export type DocumentHandle = {
   viewer: PdfViewerApi;
+  selectedPages: () => number[];
   openFind: (query?: string) => void;
   closeFind: () => void;
   findAgain: (previous: boolean) => void;
@@ -30,6 +34,7 @@ type DocumentTabProps = {
   column: number;
   source: PdfSource;
   initialView?: ViewState;
+  initialSelection?: number[];
   active: boolean;
   sidebarOpen: boolean;
   sidebarTab: SidebarTab;
@@ -41,10 +46,30 @@ type DocumentTabProps = {
   onLoaded: (id: string) => void;
   onFailed: (id: string, error: unknown) => void;
   onOpenUrl: (url: string) => void;
+  onPageAction: (id: string, action: PageAction) => void;
 };
 
 export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function DocumentTab(
-  { id, paneId, column, source, initialView, active, sidebarOpen, sidebarTab, onSidebarTab, darkPages, keepImages, requestPassword, onSnapshot, onLoaded, onFailed, onOpenUrl },
+  {
+    id,
+    paneId,
+    column,
+    source,
+    initialView,
+    initialSelection,
+    active,
+    sidebarOpen,
+    sidebarTab,
+    onSidebarTab,
+    darkPages,
+    keepImages,
+    requestPassword,
+    onSnapshot,
+    onLoaded,
+    onFailed,
+    onOpenUrl,
+    onPageAction,
+  },
   ref,
 ) {
   const viewer = usePdfViewer();
@@ -52,10 +77,13 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const [findFocusToken, setFindFocusToken] = useState(0);
   const [findSeed, setFindSeed] = useState<string | null>(null);
   const lastQuery = useRef<FindQuery | null>(null);
+  const [selection, setSelection] = useState<PageSelection>(emptySelection);
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
   const loaded = !!viewer.pdfDocument;
 
-  const callbacks = useRef({ requestPassword, onLoaded, onFailed, initialView });
-  callbacks.current = { requestPassword, onLoaded, onFailed, initialView };
+  const callbacks = useRef({ requestPassword, onLoaded, onFailed, initialView, initialSelection });
+  callbacks.current = { requestPassword, onLoaded, onFailed, initialView, initialSelection };
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +98,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           doc.loadingTask.destroy();
           return;
         }
+        const pages = callbacks.current.initialSelection ?? [];
+        setSelection({ pages, anchor: pages[0] ?? null });
         viewer.setDocument(doc, callbacks.current.initialView);
         callbacks.current.onLoaded(id);
       })
@@ -104,6 +134,16 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     }
   }, [active, viewer]);
 
+  const currentPage = viewer.pageNumber - 1;
+  const shownSelection = followCurrentPage(selection, currentPage);
+
+  const choosePage = (page: number, modifiers: { toggle: boolean; range: boolean }) => {
+    const next = selectPage(shownSelection, page, modifiers);
+    const destination = next.pages.includes(page) ? page : next.pages.reduce((best, candidate) => (Math.abs(candidate - page) < Math.abs(best - page) ? candidate : best), next.pages[0] ?? page);
+    setSelection(next);
+    viewer.goToPage(destination + 1);
+  };
+
   const closeFind = useCallback(() => {
     setFindOpen(false);
     viewer.closeFind();
@@ -113,6 +153,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     ref,
     () => ({
       viewer,
+      selectedPages: () => targetPages(followCurrentPage(selectionRef.current, viewer.pageNumber - 1), viewer.pageNumber - 1),
       openFind: (query) => {
         setFindSeed(query ?? null);
         setFindOpen(true);
@@ -147,14 +188,20 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   }, [viewer.containerRef, onOpenUrl]);
 
   return (
-    <div className={`document-tab${active ? "" : " inactive"}`} inert={!active} data-pane-id={paneId} style={{ gridColumn: column }}>
+    <div className={`document-tab${active ? "" : " inactive"}`} inert={!active} data-pane-id={paneId} data-tab-id={id} style={{ gridColumn: column }}>
       {loaded && sidebarOpen && viewer.pdfDocument && (
         <Sidebar
           tab={sidebarTab}
           onTab={onSidebarTab}
           pdfDocument={viewer.pdfDocument}
           currentPage={viewer.pageNumber}
-          onSelectPage={viewer.goToPage}
+          selection={shownSelection.pages}
+          onSelectPage={choosePage}
+          onMovePages={(page, slot) =>
+            onPageAction(id, { kind: "move", pages: shownSelection.pages.includes(page) ? shownSelection.pages : [page], slot })
+          }
+          onPageMenu={() => onPageAction(id, { kind: "menu" })}
+          onDeletePages={() => onPageAction(id, { kind: "delete" })}
           onNavigate={viewer.goToDestination}
           onOpenUrl={onOpenUrl}
         />
