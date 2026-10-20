@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-20
+
 ### Added
 - **Split view**: show documents side by side, each pane with its own tabs. **Split Right** (⌘\) opens the current PDF again beside itself, drag a tab onto another pane to move it or onto a pane's right edge to split, drag the divider to resize, and **Close Split** (⇧⌘\) merges everything back
 - Move tabs between panes (⌃⌘← / ⌃⌘→) and switch the focused pane (⌥⌘← / ⌥⌘→); the focused pane drives the toolbar, menus, and window title
