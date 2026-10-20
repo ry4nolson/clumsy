@@ -190,12 +190,12 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     }
     const markup = handles.current.get(tabId)?.viewer.editHistory();
     if (direction === "undo") {
-      return markup?.canUndo || !edits.undo.length ? "viewer" : "page";
+      return markup?.canUndo || markup?.changed || !edits.undo.length ? "viewer" : "page";
     }
     if (markup?.canRedo) {
       return "viewer";
     }
-    if (markup?.changed) {
+    if (markup?.changed || markup?.canUndo) {
       edits.redo = [];
     }
     return edits.redo.length ? "page" : "viewer";
