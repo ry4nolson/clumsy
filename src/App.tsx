@@ -12,6 +12,19 @@ import { Welcome } from "./components/Welcome";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
 import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./lib/commands";
 import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppPreference } from "./lib/defaultApp";
+import {
+  documentWindowAt,
+  initialTransfer,
+  isMainWindow,
+  onReceiveTab,
+  onWindowFocused,
+  openDocumentWindow,
+  sendTabToWindow,
+  stashTransferBytes,
+  takeTransferBytes,
+  type TabTransfer,
+  type ViewState,
+} from "./lib/documentWindows";
 import { promptForDefaultApp } from "./lib/defaultAppPrompt";
 import { installAppMenu, type AppMenu } from "./lib/menu";
 import type { RecentEntry } from "./lib/recent";
@@ -58,8 +71,15 @@ type DocTab = {
   path: string | null;
   replaces: string | null;
   returnTo: string | null;
+  view?: ViewState;
+  carriedChanges: boolean;
 };
 type Tab = StartTab | DocTab;
+
+type OpenOptions = { split?: boolean; view?: ViewState; carriedChanges?: boolean; allowDuplicate?: boolean };
+
+const isModified = (tab: Tab | undefined, snapshots: Record<string, TabSnapshot>) =>
+  tab?.kind === "document" && (!!snapshots[tab.id]?.modified || tab.carriedChanges);
 
 type PasswordPrompt = { fileName: string; incorrect: boolean; resolve: (password: string | null) => void };
 
@@ -109,6 +129,10 @@ export default function App() {
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
   const activeHandle = () => handles.current.get(ws.focusedTab(workspaceRef.current).id);
+  const hasUnsavedChanges = useCallback(
+    (tab: Tab | undefined) => tab?.kind === "document" && (tab.carriedChanges || !!handles.current.get(tab.id)?.viewer.commitEdits()),
+    [],
+  );
 
   const commit = useCallback((next: ws.Workspace<Tab>) => {
     workspaceRef.current = next;
@@ -145,16 +169,16 @@ export default function App() {
       if (!tab) {
         return;
       }
-      if (tab.kind === "document" && snapshotsRef.current[id]?.modified && !(await confirmDiscard([tab.name]))) {
+      if (tab.kind === "document" && hasUnsavedChanges(tab) && !(await confirmDiscard([tab.name]))) {
         return;
       }
       dropTab(id);
     },
-    [dropTab],
+    [dropTab, hasUnsavedChanges],
   );
 
   const openSource = useCallback(
-    async (source: PdfSource | Promise<PdfSource | null>, options: { split?: boolean } = {}) => {
+    async (source: PdfSource | Promise<PdfSource | null>, options: OpenOptions = {}) => {
       let resolved: PdfSource | null;
       try {
         resolved = await source;
@@ -167,7 +191,7 @@ export default function App() {
       }
       const current = workspaceRef.current;
       const split = options.split && current.panes.length < ws.MAX_PANES;
-      const existing = resolved.path && !split
+      const existing = resolved.path && !split && !options.allowDuplicate
         ? ws.orderedTabs(current).find((tab) => tab.kind === "document" && tab.path === resolved.path)
         : undefined;
       if (existing) {
@@ -183,6 +207,8 @@ export default function App() {
         path: resolved.path,
         replaces: !split && focused.kind === "start" ? focused.id : null,
         returnTo: focused.id,
+        view: options.view,
+        carriedChanges: !!options.carriedChanges,
       };
       commit(split ? ws.splitWithTab(current, tab, createPaneId()) : ws.addTab(current, tab));
     },
@@ -262,7 +288,7 @@ export default function App() {
       }
       await writePdf(path, bytes);
       handle.viewer.markSaved();
-      update((current) => ws.replaceTab(current, { ...tab, name: fileNameFromPath(path), path }));
+      update((current) => ws.replaceTab(current, { ...tab, name: fileNameFromPath(path), path, carriedChanges: false }));
       recordRecentFile(path);
     } catch (error) {
       await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
@@ -297,7 +323,7 @@ export default function App() {
   defaultAppPreferenceRef.current = defaultAppPreference;
 
   useEffect(() => {
-    if (!isDesktop) {
+    if (!isDesktop || !isMainWindow()) {
       return;
     }
     const timer = window.setTimeout(async () => {
@@ -339,7 +365,7 @@ export default function App() {
     }
   };
 
-  const windowTitle = activeTab.kind === "document" ? `${activeTab.name}${activeSnapshot?.modified ? " — Edited" : ""}` : "Clumsy";
+  const windowTitle = activeTab.kind === "document" ? `${activeTab.name}${isModified(activeTab, snapshots) ? " — Edited" : ""}` : "Clumsy";
 
   useEffect(() => {
     setWindowTitle(windowTitle);
@@ -348,7 +374,7 @@ export default function App() {
   useEffect(() => {
     refreshRecentFiles();
     const modifiedNames = () =>
-      ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" && snapshotsRef.current[tab.id]?.modified ? [tab.name] : []));
+      ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" && hasUnsavedChanges(tab) ? [tab.name] : []));
     const cleanups: Array<Promise<() => void>> = [
       onOpenedFiles(async (paths) => {
         for (const path of paths) {
@@ -364,6 +390,91 @@ export default function App() {
       cleanups.forEach((cleanup) => cleanup.then((dispose) => dispose()));
     };
   }, []);
+
+  const receiveTab = useCallback(
+    async (transfer: TabTransfer) => {
+      if (transfer.kind === "start") {
+        update((current) => ws.addTab(current, createStartTab()));
+        return;
+      }
+      try {
+        const data = await takeTransferBytes(transfer.transferId);
+        await openSource(
+          { name: transfer.name, path: transfer.path, data },
+          { view: transfer.view, carriedChanges: transfer.modified, allowDuplicate: true },
+        );
+      } catch (error) {
+        await showError(`Could not move “${transfer.name}” here.\n\n${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    [openSource, update],
+  );
+
+  const receiveTabRef = useRef(receiveTab);
+  receiveTabRef.current = receiveTab;
+
+  useEffect(() => {
+    const transfer = initialTransfer();
+    if (transfer) {
+      receiveTabRef.current(transfer);
+    }
+    const listening = onReceiveTab((incoming) => receiveTabRef.current(incoming));
+    return () => {
+      listening.then((dispose) => dispose());
+    };
+  }, []);
+
+  const prepareTransfer = async (tabId: string, allowLastTab: boolean): Promise<TabTransfer | null> => {
+    const current = workspaceRef.current;
+    const tab = current.tabs[tabId];
+    if (!tab || (!allowLastTab && Object.keys(current.tabs).length < 2)) {
+      return null;
+    }
+    if (tab.kind === "start") {
+      return { kind: "start" };
+    }
+    const handle = handles.current.get(tabId);
+    const snapshot = snapshotsRef.current[tabId];
+    if (!handle || !snapshot?.loaded) {
+      return null;
+    }
+    const modified = hasUnsavedChanges(tab);
+    const bytes = await handle.viewer.save();
+    if (!bytes) {
+      return null;
+    }
+    return {
+      kind: "document",
+      transferId: await stashTransferBytes(bytes),
+      name: tab.name,
+      path: tab.path,
+      modified,
+      view: handle.viewer.viewState() ?? undefined,
+    };
+  };
+
+  const moveTabToWindow = async (tabId: string, destination: { label: string } | { at?: { x: number; y: number } }) => {
+    const merging = "label" in destination;
+    const transfer = await prepareTransfer(tabId, merging);
+    if (!transfer) {
+      return;
+    }
+    const lastTab = Object.keys(workspaceRef.current.tabs).length === 1;
+    if (merging) {
+      await sendTabToWindow(destination.label, transfer);
+    } else {
+      await openDocumentWindow(transfer, destination.at);
+    }
+    dropTab(tabId);
+    if (lastTab) {
+      await closeWindow();
+    }
+  };
+
+  const tearOffTab = async (tabId: string, screenX: number, screenY: number) => {
+    const target = await documentWindowAt(screenX, screenY);
+    await moveTabToWindow(tabId, target ? { label: target } : { at: { x: screenX - 120, y: screenY - 20 } });
+  };
 
   const editingCommand = (name: "undo" | "redo") => {
     if (isTypingTarget(document.activeElement)) {
@@ -392,6 +503,8 @@ export default function App() {
       checkUpdates: () => openAbout("about", true),
       makeDefault: () => requestDefaultApp(),
       newTab: () => newTab(),
+      newWindow: () => openDocumentWindow(null),
+      moveTabToNewWindow: () => moveTabToWindow(ws.focusedTab(workspaceRef.current).id, {}),
       open: () => openSource(pickPdf()),
       closeTab: async () => {
         if (!(await closeFocusedAuxWindow())) {
@@ -490,6 +603,7 @@ export default function App() {
           menuRef.current = menu;
           setMenuReady(true);
         }
+        return onWindowFocused(() => menuRef.current?.activate());
       })
       .catch((error: unknown) => console.error("Could not build the app menu", error));
     return () => {
@@ -540,7 +654,7 @@ export default function App() {
             title: tab.name,
             tooltip: tab.path ?? tab.name,
             loading: !snapshots[tab.id]?.loaded,
-            modified: !!snapshots[tab.id]?.modified,
+            modified: isModified(tab, snapshots),
           },
     ]),
   );
@@ -596,6 +710,7 @@ export default function App() {
         onFocusPane={(paneId) => update((current) => ws.focusPane(current, paneId))}
         onMoveTab={moveTab}
         onResize={(sizes) => update((current) => ws.resizePanes(current, sizes))}
+        onTearOff={tearOffTab}
       >
         {workspace.panes.flatMap((pane, index) =>
           pane.tabIds.map((tabId) => {
@@ -637,6 +752,7 @@ export default function App() {
                 paneId={pane.id}
                 column={column}
                 source={tab.source}
+                initialView={tab.view}
                 active={active}
                 sidebarOpen={sidebarOpen}
                 sidebarTab={sidebarTab}

@@ -211,7 +211,7 @@ export async function onOpenedFiles(handler: (paths: string[]) => void) {
       handler(paths);
     }
   };
-  const unlisten = await listen("files-opened", drain);
+  const unlisten = await getCurrentWebview().listen("files-opened", drain);
   await drain();
   return unlisten;
 }
@@ -257,6 +257,8 @@ export async function onFileDrop(handler: (source: Promise<PdfSource>) => void, 
 }
 
 export type AuxWindowKind = "about" | "shortcuts";
+
+const auxWindowLabels = new Set<string>(["about", "shortcuts"]);
 export type AuxWindowParams = Record<string, string>;
 
 const auxWindows: Record<AuxWindowKind, { title: string; width: number; height: number; minWidth: number; minHeight: number }> = {
@@ -326,7 +328,7 @@ export async function closeFocusedAuxWindow() {
     return false;
   }
   for (const auxWindow of await getAllWebviewWindows()) {
-    if (auxWindow.label !== "main" && (await auxWindow.isFocused())) {
+    if (auxWindowLabels.has(auxWindow.label) && (await auxWindow.isFocused())) {
       await auxWindow.close();
       return true;
     }
@@ -336,7 +338,7 @@ export async function closeFocusedAuxWindow() {
 
 async function closeAuxWindows() {
   for (const auxWindow of await getAllWebviewWindows()) {
-    if (auxWindow.label !== "main") {
+    if (auxWindowLabels.has(auxWindow.label)) {
       await auxWindow.close();
     }
   }
@@ -363,6 +365,9 @@ export async function onCloseRequested(isDirty: () => boolean, documentNames: ()
       event.preventDefault();
       return;
     }
-    await closeAuxWindows();
+    const others = (await getAllWebviewWindows()).filter((other) => other.label !== getCurrentWindow().label && !auxWindowLabels.has(other.label));
+    if (!others.length) {
+      await closeAuxWindows();
+    }
   });
 }

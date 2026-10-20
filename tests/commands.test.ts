@@ -68,8 +68,13 @@ describe("resolveCommand", () => {
   });
 
   it("ignores unlisted combos", () => {
-    expect(resolveCommand(eventFor("mod+k"), true, false)).toBeNull();
+    expect(resolveCommand(eventFor("mod+j"), true, false)).toBeNull();
     expect(resolveCommand(eventFor("shift+h"), true, false)).toBeNull();
+  });
+
+  it("opens keyboard shortcuts with either combo", () => {
+    expect(resolveCommand(eventFor("mod+k"), true, false)).toBe("keyboardShortcuts");
+    expect(resolveCommand(eventFor("mod+/"), true, false)).toBe("keyboardShortcuts");
   });
 
   it("maps Ctrl to the command modifier off macOS", () => {

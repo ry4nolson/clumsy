@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { usePdfViewer, type FindQuery, type PdfViewerApi } from "../hooks/usePdfViewer";
+import type { ViewState } from "../lib/documentWindows";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
 import type { PdfSource } from "../lib/platform";
 import { FindBar } from "./FindBar";
@@ -28,6 +29,7 @@ type DocumentTabProps = {
   paneId: string;
   column: number;
   source: PdfSource;
+  initialView?: ViewState;
   active: boolean;
   sidebarOpen: boolean;
   sidebarTab: SidebarTab;
@@ -42,7 +44,7 @@ type DocumentTabProps = {
 };
 
 export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function DocumentTab(
-  { id, paneId, column, source, active, sidebarOpen, sidebarTab, onSidebarTab, darkPages, keepImages, requestPassword, onSnapshot, onLoaded, onFailed, onOpenUrl },
+  { id, paneId, column, source, initialView, active, sidebarOpen, sidebarTab, onSidebarTab, darkPages, keepImages, requestPassword, onSnapshot, onLoaded, onFailed, onOpenUrl },
   ref,
 ) {
   const viewer = usePdfViewer();
@@ -52,8 +54,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const lastQuery = useRef<FindQuery | null>(null);
   const loaded = !!viewer.pdfDocument;
 
-  const callbacks = useRef({ requestPassword, onLoaded, onFailed });
-  callbacks.current = { requestPassword, onLoaded, onFailed };
+  const callbacks = useRef({ requestPassword, onLoaded, onFailed, initialView });
+  callbacks.current = { requestPassword, onLoaded, onFailed, initialView };
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +67,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           doc.loadingTask.destroy();
           return;
         }
-        viewer.setDocument(doc);
+        viewer.setDocument(doc, callbacks.current.initialView);
         callbacks.current.onLoaded(id);
       })
       .catch((error: unknown) => {

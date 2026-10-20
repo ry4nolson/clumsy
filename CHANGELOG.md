@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Multiple windows**: **New Window** (⌘N), **Move Tab to New Window** (⌥⌘N), drag a tab out of the window to open it in its own window, or drop it on another Clumsy window to move it there; a window whose last tab moves away closes
+- Moved documents keep their page, scroll position, zoom, rotation, and unsaved changes; menus and shortcuts always act on the window in front, and PDFs opened from Finder go to the most recently used window
+- **Keyboard Shortcuts** also opens with ⌘K
+
+### Fixed
+- A drawing still in progress, or a text note still being typed, is now included when you save, and closing a tab or window with one asks before discarding it
+
 ## [0.1.8] - 2026-10-20
 
 ### Added

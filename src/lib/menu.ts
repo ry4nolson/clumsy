@@ -24,7 +24,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       { predefined: "Quit" },
     ],
   ],
-  ["File", ["newTab", "open", "recent", "-", "closeTab", "closeWindow", "-", "save", "saveAs", "-", "revealInFinder"]],
+  ["File", ["newTab", "newWindow", "open", "recent", "-", "closeTab", "closeWindow", "-", "save", "saveAs", "-", "revealInFinder"]],
   [
     "Edit",
     [
@@ -82,6 +82,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "focusRightPane",
       "moveTabLeft",
       "moveTabRight",
+      "moveTabToNewWindow",
       "-",
       { predefined: "BringAllToFront" },
     ],
@@ -95,6 +96,7 @@ const splitCommands = new Set<CommandId>(["closeSplit", "focusLeftPane", "focusR
 export type MenuState = { hasDocument: boolean; split: boolean; darkPages: boolean; invertImages: boolean };
 
 export type AppMenu = {
+  activate: () => Promise<void>;
   setState: (state: MenuState) => Promise<void>;
   setRecent: (entries: RecentEntry[]) => Promise<void>;
 };
@@ -153,6 +155,9 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   await menu.setAsAppMenu();
 
   return {
+    async activate() {
+      await menu.setAsAppMenu();
+    },
     async setState({ hasDocument, split, darkPages, invertImages }) {
       await Promise.all([
         ...documentItems.map((item) => item.setEnabled(hasDocument)),

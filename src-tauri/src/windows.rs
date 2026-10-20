@@ -1,0 +1,84 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use tauri::{AppHandle, Manager, WebviewWindow};
+
+const AUXILIARY_WINDOWS: [&str; 2] = ["about", "shortcuts"];
+
+pub fn is_document_window(label: &str) -> bool {
+    !AUXILIARY_WINDOWS.contains(&label)
+}
+
+pub fn choose_document_window(last_focused: Option<&str>, open: &[String]) -> Option<String> {
+    let documents: Vec<&String> = open.iter().filter(|label| is_document_window(label)).collect();
+    last_focused
+        .filter(|label| documents.iter().any(|open| open.as_str() == *label))
+        .map(str::to_string)
+        .or_else(|| documents.iter().find(|label| label.as_str() == "main").map(|label| label.to_string()))
+        .or_else(|| documents.first().map(|label| label.to_string()))
+}
+
+#[derive(Default)]
+pub struct FocusTracker(Mutex<Option<String>>);
+
+impl FocusTracker {
+    pub fn focused(&self, label: &str) {
+        if is_document_window(label) {
+            *self.0.lock().unwrap() = Some(label.to_string());
+        }
+    }
+
+    pub fn target(&self, app: &AppHandle) -> Option<WebviewWindow> {
+        let open: Vec<String> = app.webview_windows().into_keys().collect();
+        let last = self.0.lock().unwrap().clone();
+        choose_document_window(last.as_deref(), &open).and_then(|label| app.get_webview_window(&label))
+    }
+}
+
+#[derive(Default)]
+pub struct Transfers {
+    next: AtomicU64,
+    items: Mutex<HashMap<String, Vec<u8>>>,
+}
+
+impl Transfers {
+    pub fn stash(&self, bytes: Vec<u8>) -> String {
+        let id = format!("transfer-{}", self.next.fetch_add(1, Ordering::Relaxed));
+        self.items.lock().unwrap().insert(id.clone(), bytes);
+        id
+    }
+
+    pub fn take(&self, id: &str) -> Option<Vec<u8>> {
+        self.items.lock().unwrap().remove(id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn labels(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn prefers_the_last_focused_document_window() {
+        assert_eq!(choose_document_window(Some("doc-2"), &labels(&["main", "doc-2", "about"])), Some("doc-2".into()));
+    }
+
+    #[test]
+    fn falls_back_to_main_then_any_document_window() {
+        assert_eq!(choose_document_window(Some("doc-9"), &labels(&["doc-2", "main"])), Some("main".into()));
+        assert_eq!(choose_document_window(None, &labels(&["about", "doc-3"])), Some("doc-3".into()));
+        assert_eq!(choose_document_window(Some("about"), &labels(&["about"])), None);
+    }
+
+    #[test]
+    fn transfers_are_taken_once() {
+        let transfers = Transfers::default();
+        let id = transfers.stash(vec![1, 2, 3]);
+        assert_eq!(transfers.take(&id), Some(vec![1, 2, 3]));
+        assert_eq!(transfers.take(&id), None);
+    }
+}

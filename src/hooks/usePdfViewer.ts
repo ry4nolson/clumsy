@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType, AnnotationEditorType, AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, FindState, LinkTarget, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
+import type { ViewState } from "../lib/documentWindows";
 import { imageRects, recordImageCoordinates, recordedImages } from "../lib/imageRegions";
 
 export const highlightColors = {
@@ -21,6 +22,10 @@ const toolModes: Record<EditorTool, number> = {
   draw: AnnotationEditorType.INK,
   image: AnnotationEditorType.STAMP,
 };
+
+type ViewLocation = { pageNumber: number; left: number; top: number; rotation: number };
+
+type EditorHost = { _layerProperties: { annotationEditorUIManager: { endCurrentEditing(): void } | null } };
 
 export type FindStatus = {
   state: "idle" | "found" | "notFound" | "pending" | "wrapped";
@@ -90,13 +95,16 @@ type ViewerParts = {
 export function usePdfViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const partsRef = useRef<ViewerParts | null>(null);
+  const initialViewRef = useRef<ViewState | null>(null);
+  const locationRef = useRef<ViewLocation | null>(null);
+  const modifiedRef = useRef(false);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pagesCount, setPagesCount] = useState(0);
   const [scale, setScale] = useState(1);
   const [scaleValue, setScaleValue] = useState("page-width");
   const [tool, setToolState] = useState<EditorTool>("select");
-  const [modified, setModified] = useState(false);
+  const [modified, setModifiedState] = useState(false);
   const [findStatus, setFindStatus] = useState<FindStatus>({ state: "idle", current: 0, total: 0 });
 
   useEffect(() => {
@@ -128,7 +136,22 @@ export function usePdfViewer() {
     partsRef.current = { eventBus, linkService, findController, viewer };
 
     eventBus.on("pagesinit", () => {
-      viewer.currentScaleValue = "page-width";
+      const initial = initialViewRef.current;
+      initialViewRef.current = null;
+      if (initial?.rotation) {
+        viewer.pagesRotation = initial.rotation;
+      }
+      viewer.currentScaleValue = initial?.scaleValue || "page-width";
+      if (initial) {
+        viewer.scrollPageIntoView({
+          pageNumber: Math.min(initial.page, viewer.pagesCount),
+          destArray: [null, { name: "XYZ" }, initial.left, initial.top, null],
+          allowNegativeOffset: true,
+        });
+      }
+    });
+    eventBus.on("updateviewarea", ({ location }: { location: ViewLocation }) => {
+      locationRef.current = location;
     });
     eventBus.on("pagerendered", ({ source, isDetailView, error }: { source: RenderedPageView; isDetailView: boolean; error: unknown }) => {
       if (!isDetailView && !error) {
@@ -192,11 +215,18 @@ export function usePdfViewer() {
     };
   }, []);
 
-  const setDocument = useCallback((doc: PDFDocumentProxy | null) => {
+  const setModified = useCallback((value: boolean) => {
+    modifiedRef.current = value;
+    setModifiedState(value);
+  }, []);
+
+  const setDocument = useCallback((doc: PDFDocumentProxy | null, initialView?: ViewState) => {
     const parts = partsRef.current;
     if (!parts) {
       return;
     }
+    initialViewRef.current = initialView ?? null;
+    locationRef.current = null;
     setModified(false);
     setPageNumber(1);
     setPagesCount(doc?.numPages ?? 0);
@@ -212,7 +242,7 @@ export function usePdfViewer() {
     parts.linkService.setDocument(doc, null);
     parts.findController.setDocument(doc!);
     setPdfDocument(doc);
-  }, []);
+  }, [setModified]);
 
   const goToPage = useCallback((page: number) => {
     const viewer = partsRef.current?.viewer;
@@ -306,18 +336,34 @@ export function usePdfViewer() {
     setFindStatus({ state: "idle", current: 0, total: 0 });
   }, []);
 
+  const commitEdits = useCallback(() => {
+    const viewer = partsRef.current?.viewer as unknown as EditorHost | undefined;
+    viewer?._layerProperties.annotationEditorUIManager?.endCurrentEditing();
+    return modifiedRef.current;
+  }, []);
+
+  const viewState = useCallback((): ViewState | null => {
+    const viewer = partsRef.current?.viewer;
+    const location = locationRef.current;
+    if (!viewer?.pdfDocument || !location) {
+      return null;
+    }
+    return { page: location.pageNumber, scaleValue: viewer.currentScaleValue, left: location.left, top: location.top, rotation: location.rotation };
+  }, []);
+
   const save = useCallback(async () => {
     const doc = partsRef.current?.viewer.pdfDocument;
     if (!doc) {
       return null;
     }
+    commitEdits();
     return doc.saveDocument();
-  }, []);
+  }, [commitEdits]);
 
   const markSaved = useCallback(() => {
     partsRef.current?.viewer.pdfDocument?.annotationStorage.resetModified();
     setModified(false);
-  }, []);
+  }, [setModified]);
 
   return {
     containerRef,
@@ -341,6 +387,8 @@ export function usePdfViewer() {
     addImage,
     find,
     closeFind,
+    commitEdits,
+    viewState,
     save,
     markSaved,
   };

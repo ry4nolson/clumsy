@@ -3,6 +3,8 @@ export type CommandId =
   | "checkUpdates"
   | "makeDefault"
   | "newTab"
+  | "newWindow"
+  | "moveTabToNewWindow"
   | "open"
   | "closeTab"
   | "closeWindow"
@@ -76,6 +78,7 @@ export const commands: Command[] = [
   { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [] },
 
   { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+t"] },
+  { id: "newWindow", label: "New Window", menu: "File", combos: ["mod+n"] },
   { id: "open", label: "Open…", menu: "File", combos: ["mod+o"] },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"] },
@@ -124,9 +127,10 @@ export const commands: Command[] = [
   { id: "focusRightPane", label: "Focus Right Pane", menu: "Window", combos: ["alt+mod+ArrowRight"] },
   { id: "moveTabLeft", label: "Move Tab to Left Pane", menu: "Window", combos: ["ctrl+mod+ArrowLeft"] },
   { id: "moveTabRight", label: "Move Tab to Right Pane", menu: "Window", combos: ["ctrl+mod+ArrowRight"] },
+  { id: "moveTabToNewWindow", label: "Move Tab to New Window", menu: "Window", combos: ["alt+mod+n"] },
   ...tabCommands,
 
-  { id: "keyboardShortcuts", label: "Keyboard Shortcuts", menu: "Help", combos: ["mod+/"] },
+  { id: "keyboardShortcuts", label: "Keyboard Shortcuts", menu: "Help", combos: ["mod+k", "mod+/"] },
   { id: "whatsNew", label: "What's New", menu: "Help", combos: [] },
   { id: "openGitHub", label: "Clumsy on GitHub", menu: "Help", combos: [] },
   { id: "reportIssue", label: "Report an Issue…", menu: "Help", combos: [] },

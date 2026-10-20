@@ -1,5 +1,6 @@
 mod default_app;
 mod recent;
+mod windows;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,6 +11,7 @@ use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Emitter, Manager};
 
 use recent::RecentFiles;
+use windows::{FocusTracker, Transfers};
 
 #[derive(Default)]
 struct PendingFiles(Mutex<Vec<String>>);
@@ -30,10 +32,23 @@ fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
         return;
     }
     app.state::<PendingFiles>().0.lock().unwrap().extend(paths);
-    let _ = app.emit("files-opened", ());
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.state::<FocusTracker>().target(app) {
+        let _ = window.emit_to(window.label(), "files-opened", ());
         let _ = window.set_focus();
     }
+}
+
+#[tauri::command]
+fn stash_transfer(request: Request<'_>, transfers: tauri::State<'_, Transfers>) -> Result<String, String> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err("Expected raw PDF bytes".into());
+    };
+    Ok(transfers.stash(bytes.clone()))
+}
+
+#[tauri::command]
+fn take_transfer(id: String, transfers: tauri::State<'_, Transfers>) -> Result<Response, String> {
+    transfers.take(&id).map(Response::new).ok_or_else(|| "That document is no longer available to move".into())
 }
 
 #[tauri::command]
@@ -114,6 +129,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(PendingFiles::default())
         .manage(RecentFiles::default())
+        .manage(FocusTracker::default())
+        .manage(Transfers::default())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Focused(true) = event {
+                window.state::<FocusTracker>().focused(window.label());
+            }
+        })
         .setup(|app| {
             app.state::<RecentFiles>().load(app.handle());
             let args = std::env::args().skip(1).map(PathBuf::from).collect();
@@ -129,7 +151,9 @@ pub fn run() {
             recent_files,
             record_recent_file,
             remove_recent_file,
-            clear_recent_files
+            clear_recent_files,
+            stash_transfer,
+            take_transfer
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

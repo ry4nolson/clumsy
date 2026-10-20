@@ -11,6 +11,9 @@ type DragState = {
   startY: number;
   x: number;
   y: number;
+  screenX: number;
+  screenY: number;
+  outside: boolean;
   active: boolean;
   target: TabDropTarget | null;
 };
@@ -28,11 +31,16 @@ type PaneGridProps = {
   onFocusPane: (paneId: string) => void;
   onMoveTab: (tabId: string, target: TabDropTarget) => void;
   onResize: (sizes: Record<string, number>) => void;
+  onTearOff: (tabId: string, screenX: number, screenY: number) => void;
 };
 
 const MIN_PANE_WIDTH = 240;
 const DRAG_THRESHOLD = 5;
 const SPLIT_ZONE = 0.25;
+
+function isOutsideWindow(event: PointerEvent) {
+  return event.clientX < 0 || event.clientY < 0 || event.clientX > window.innerWidth || event.clientY > window.innerHeight;
+}
 
 function findTarget(x: number, y: number, panes: Pane[], draggedTabId: string): TabDropTarget | null {
   for (const element of document.elementsFromPoint(x, y)) {
@@ -86,6 +94,7 @@ export function PaneGrid({
   onFocusPane,
   onMoveTab,
   onResize,
+  onTearOff,
 }: PaneGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -94,8 +103,8 @@ export function PaneGrid({
   dragRef.current = drag;
   const panesRef = useRef(panes);
   panesRef.current = panes;
-  const callbacks = useRef({ onMoveTab, onResize });
-  callbacks.current = { onMoveTab, onResize };
+  const callbacks = useRef({ onMoveTab, onResize, onTearOff });
+  callbacks.current = { onMoveTab, onResize, onTearOff };
 
   useEffect(() => {
     if (!drag) {
@@ -104,19 +113,33 @@ export function PaneGrid({
     const move = (event: PointerEvent) => {
       const current = dragRef.current!;
       const active = current.active || Math.hypot(event.clientX - current.startX, event.clientY - current.startY) > DRAG_THRESHOLD;
+      const outside = isOutsideWindow(event);
       setDrag({
         ...current,
         x: event.clientX,
         y: event.clientY,
+        screenX: event.screenX,
+        screenY: event.screenY,
+        outside,
         active,
-        target: active ? findTarget(event.clientX, event.clientY, panesRef.current, current.tabId) : null,
+        target: active && !outside ? findTarget(event.clientX, event.clientY, panesRef.current, current.tabId) : null,
       });
     };
-    const finish = () => {
+    const finish = (event: PointerEvent) => {
       const current = dragRef.current;
       setDrag(null);
-      if (current?.active && current.target) {
-        callbacks.current.onMoveTab(current.tabId, current.target);
+      if (!current?.active) {
+        return;
+      }
+      if (isOutsideWindow(event)) {
+        callbacks.current.onTearOff(current.tabId, event.screenX, event.screenY);
+      } else if (current.outside) {
+        callbacks.current.onTearOff(current.tabId, current.screenX, current.screenY);
+      } else {
+        const target = findTarget(event.clientX, event.clientY, panesRef.current, current.tabId) ?? current.target;
+        if (target) {
+          callbacks.current.onMoveTab(current.tabId, target);
+        }
       }
     };
     const cancel = (event: KeyboardEvent) => {
@@ -138,7 +161,19 @@ export function PaneGrid({
     if (event.button !== 0) {
       return;
     }
-    setDrag({ tabId, title: tabItems[tabId]?.title ?? "", startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, active: false, target: null });
+    setDrag({
+      tabId,
+      title: tabItems[tabId]?.title ?? "",
+      startX: event.clientX,
+      startY: event.clientY,
+      x: event.clientX,
+      y: event.clientY,
+      screenX: event.screenX,
+      screenY: event.screenY,
+      outside: false,
+      active: false,
+      target: null,
+    });
   };
 
   const startResize = (leftIndex: number, event: ReactPointerEvent<HTMLDivElement>) => {
