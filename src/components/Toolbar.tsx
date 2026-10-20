@@ -84,7 +84,7 @@ export function Toolbar(props: ToolbarProps) {
   return (
     <header className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
       <div className="toolbar-group" data-tauri-drag-region>
-        <IconButton title="Toggle sidebar (⌘\)" active={props.sidebarOpen} disabled={!hasDocument} onClick={props.onToggleSidebar}>
+        <IconButton title="Toggle sidebar (⌥⌘S)" active={props.sidebarOpen} disabled={!hasDocument} onClick={props.onToggleSidebar}>
           <PanelLeft size={18} />
         </IconButton>
         <IconButton title="Open (⌘O)" onClick={props.onOpen}>

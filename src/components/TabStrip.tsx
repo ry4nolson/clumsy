@@ -1,3 +1,4 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { FileText, House, LoaderCircle, Plus, X } from "lucide-react";
 
 export type TabItem = {
@@ -10,12 +11,18 @@ export type TabItem = {
 };
 
 type TabStripProps = {
+  paneId: string;
+  column: number;
+  focused: boolean;
   tabs: TabItem[];
   activeId: string;
+  draggedTabId: string | null;
+  insertAt: number | null;
   newTabShortcut: string;
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
   onNewTab: () => void;
+  onTabPointerDown: (id: string, event: ReactPointerEvent) => void;
 };
 
 function TabIcon({ tab }: { tab: TabItem }) {
@@ -25,10 +32,26 @@ function TabIcon({ tab }: { tab: TabItem }) {
   return tab.kind === "start" ? <House size={14} /> : <FileText size={14} />;
 }
 
-export function TabStrip({ tabs, activeId, newTabShortcut, onSelect, onClose, onNewTab }: TabStripProps) {
+export function TabStrip({
+  paneId,
+  column,
+  focused,
+  tabs,
+  activeId,
+  draggedTabId,
+  insertAt,
+  newTabShortcut,
+  onSelect,
+  onClose,
+  onNewTab,
+  onTabPointerDown,
+}: TabStripProps) {
   return (
     <div
-      className="tab-strip"
+      className={`tab-strip${focused ? " focused" : ""}${insertAt === tabs.length ? " insert-end" : ""}`}
+      data-pane-strip={paneId}
+      data-pane-id={paneId}
+      style={{ gridColumn: column }}
       onDoubleClick={(event) => {
         if (event.target === event.currentTarget) {
           onNewTab();
@@ -36,12 +59,18 @@ export function TabStrip({ tabs, activeId, newTabShortcut, onSelect, onClose, on
       }}
     >
       <div className="tab-list" role="tablist" aria-label="Open documents">
-        {tabs.map((tab) => {
+        {tabs.map((tab, index) => {
           const active = tab.id === activeId;
           return (
             <div
               key={tab.id}
-              className={`tab${active ? " active" : ""}${tab.modified ? " modified" : ""}`}
+              data-tab-id={tab.id}
+              className={`tab${active ? " active" : ""}${tab.modified ? " modified" : ""}${tab.id === draggedTabId ? " dragged" : ""}${insertAt === index ? " insert-before" : ""}`}
+              onPointerDown={(event) => {
+                if (!(event.target as HTMLElement).closest(".tab-close")) {
+                  onTabPointerDown(tab.id, event);
+                }
+              }}
               onMouseDown={(event) => {
                 if (event.button === 1) {
                   event.preventDefault();

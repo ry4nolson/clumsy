@@ -49,6 +49,9 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "showPages",
       "showOutline",
       "-",
+      "splitRight",
+      "closeSplit",
+      "-",
       "actualSize",
       "zoomIn",
       "zoomOut",
@@ -66,13 +69,30 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
   ],
   ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "goToPage"]],
   ["Tools", ["toolSelect", "toolHighlight", "toolText", "toolDraw", "-", "addImage", "sign"]],
-  ["Window", [{ predefined: "Minimize" }, { predefined: "Maximize" }, "-", "nextTab", "previousTab", "-", { predefined: "BringAllToFront" }]],
+  [
+    "Window",
+    [
+      { predefined: "Minimize" },
+      { predefined: "Maximize" },
+      "-",
+      "nextTab",
+      "previousTab",
+      "-",
+      "focusLeftPane",
+      "focusRightPane",
+      "moveTabLeft",
+      "moveTabRight",
+      "-",
+      { predefined: "BringAllToFront" },
+    ],
+  ],
   ["Help", ["keyboardShortcuts", "whatsNew", "-", "openGitHub", "reportIssue"]],
 ];
 
 const checkCommands = new Set<CommandId>(["toggleDarkPages", "toggleInvertImages"]);
+const splitCommands = new Set<CommandId>(["closeSplit", "focusLeftPane", "focusRightPane", "moveTabLeft"]);
 
-export type MenuState = { hasDocument: boolean; darkPages: boolean; invertImages: boolean };
+export type MenuState = { hasDocument: boolean; split: boolean; darkPages: boolean; invertImages: boolean };
 
 export type AppMenu = {
   setState: (state: MenuState) => Promise<void>;
@@ -88,6 +108,7 @@ type MenuCallbacks = {
 export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu> {
   const documentItems: Array<MenuItem | CheckMenuItem> = [];
   const checkItems = new Map<CommandId, CheckMenuItem>();
+  const splitItems: MenuItem[] = [];
   const recentMenu = await Submenu.new({ text: "Open Recent", items: [] });
 
   const commandItem = async (id: CommandId) => {
@@ -100,6 +121,9 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     }
     if (command.needsDocument) {
       documentItems.push(item);
+    }
+    if (splitCommands.has(id) && item instanceof MenuItem) {
+      splitItems.push(item);
     }
     return item;
   };
@@ -129,9 +153,10 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   await menu.setAsAppMenu();
 
   return {
-    async setState({ hasDocument, darkPages, invertImages }) {
+    async setState({ hasDocument, split, darkPages, invertImages }) {
       await Promise.all([
         ...documentItems.map((item) => item.setEnabled(hasDocument)),
+        ...splitItems.map((item) => item.setEnabled(split)),
         checkItems.get("toggleDarkPages")?.setChecked(darkPages),
         checkItems.get("toggleInvertImages")?.setChecked(invertImages),
       ]);

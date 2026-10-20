@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType } from "pdfjs-dist";
 import type { AboutTab } from "./components/AboutWindow";
 import { DocumentTab, type DocumentHandle, type TabSnapshot } from "./components/DocumentTab";
+import { PaneGrid, type TabDropTarget } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
 import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
-import { TabStrip, type TabItem } from "./components/TabStrip";
+import type { TabItem } from "./components/TabStrip";
 import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
@@ -45,7 +46,7 @@ import {
   type PdfSource,
 } from "./lib/platform";
 import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
-import { cycleTab, insertAfter, removeTab } from "./lib/tabs";
+import * as ws from "./lib/workspace";
 import { repoUrl } from "./lib/updates";
 
 type StartTab = { id: string; kind: "start" };
@@ -71,11 +72,12 @@ const colorParams: Partial<Record<EditorTool, number>> = {
 const isMac = navigator.userAgent.includes("Mac");
 
 let tabCounter = 0;
+let paneCounter = 0;
 const createStartTab = (): StartTab => ({ id: `tab-${++tabCounter}`, kind: "start" });
+const createPaneId = () => `pane-${++paneCounter}`;
 
 export default function App() {
-  const [tabs, setTabs] = useState<Tab[]>(() => [createStartTab()]);
-  const [activeId, setActiveId] = useState(() => tabs[0].id);
+  const [workspace, setWorkspace] = useState(() => ws.createWorkspace<Tab>(createStartTab(), createPaneId()));
   const [snapshots, setSnapshots] = useState<Record<string, TabSnapshot>>({});
   const [dragging, setDragging] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -98,61 +100,48 @@ export default function App() {
 
   const handles = useRef(new Map<string, DocumentHandle>());
   const menuRef = useRef<AppMenu | null>(null);
-  const tabsRef = useRef(tabs);
-  const activeIdRef = useRef(activeId);
+  const workspaceRef = useRef(workspace);
   const snapshotsRef = useRef(snapshots);
-  tabsRef.current = tabs;
-  activeIdRef.current = activeId;
+  workspaceRef.current = workspace;
   snapshotsRef.current = snapshots;
 
-  const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+  const activeTab = ws.focusedTab(workspace);
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
-  const activeHandle = () => handles.current.get(activeIdRef.current);
+  const activeHandle = () => handles.current.get(ws.focusedTab(workspaceRef.current).id);
 
-  const commit = useCallback((nextTabs: Tab[], nextActiveId: string) => {
-    tabsRef.current = nextTabs;
-    activeIdRef.current = nextActiveId;
-    setTabs(nextTabs);
-    setActiveId(nextActiveId);
+  const commit = useCallback((next: ws.Workspace<Tab>) => {
+    workspaceRef.current = next;
+    setWorkspace(next);
   }, []);
 
-  const selectTab = useCallback(
-    (id: string) => {
-      if (tabsRef.current.some((tab) => tab.id === id)) {
-        commit(tabsRef.current, id);
-      }
-    },
-    [commit],
-  );
+  const update = useCallback((change: (current: ws.Workspace<Tab>) => ws.Workspace<Tab>) => commit(change(workspaceRef.current)), [commit]);
 
-  const newTab = useCallback(() => {
-    const tab = createStartTab();
-    commit(insertAfter(tabsRef.current, activeIdRef.current, tab), tab.id);
-  }, [commit]);
+  const selectTab = useCallback((id: string) => update((current) => ws.selectTab(current, id)), [update]);
+
+  const newTab = useCallback(
+    (paneId?: string) => update((current) => ws.addTab(current, createStartTab(), paneId)),
+    [update],
+  );
 
   const dropTab = useCallback(
     (id: string, preferredActiveId?: string | null) => {
-      const result = removeTab(tabsRef.current, id, activeIdRef.current);
       handles.current.delete(id);
       setSnapshots((current) => {
         const { [id]: _removed, ...rest } = current;
         return rest;
       });
-      if (!result.tabs.length) {
-        const start = createStartTab();
-        commit([start], start.id);
-        return;
-      }
-      const preferred = preferredActiveId && result.tabs.some((tab) => tab.id === preferredActiveId) ? preferredActiveId : null;
-      commit(result.tabs, preferred ?? result.activeId ?? result.tabs[0].id);
+      update((current) => {
+        const next = ws.closeTab(current, id, createStartTab);
+        return preferredActiveId && next.tabs[preferredActiveId] ? ws.selectTab(next, preferredActiveId) : next;
+      });
     },
-    [commit],
+    [update],
   );
 
   const closeTab = useCallback(
     async (id: string) => {
-      const tab = tabsRef.current.find((candidate) => candidate.id === id);
+      const tab = workspaceRef.current.tabs[id];
       if (!tab) {
         return;
       }
@@ -165,7 +154,7 @@ export default function App() {
   );
 
   const openSource = useCallback(
-    async (source: PdfSource | Promise<PdfSource | null>) => {
+    async (source: PdfSource | Promise<PdfSource | null>, options: { split?: boolean } = {}) => {
       let resolved: PdfSource | null;
       try {
         resolved = await source;
@@ -176,24 +165,26 @@ export default function App() {
       if (!resolved) {
         return;
       }
-      const existing = resolved.path
-        ? tabsRef.current.find((tab) => tab.kind === "document" && tab.path === resolved.path)
+      const current = workspaceRef.current;
+      const split = options.split && current.panes.length < ws.MAX_PANES;
+      const existing = resolved.path && !split
+        ? ws.orderedTabs(current).find((tab) => tab.kind === "document" && tab.path === resolved.path)
         : undefined;
       if (existing) {
         selectTab(existing.id);
         return;
       }
-      const current = tabsRef.current.find((tab) => tab.id === activeIdRef.current);
+      const focused = ws.focusedTab(current);
       const tab: DocTab = {
         id: `tab-${++tabCounter}`,
         kind: "document",
         source: resolved,
         name: resolved.name,
         path: resolved.path,
-        replaces: current?.kind === "start" ? current.id : null,
-        returnTo: activeIdRef.current,
+        replaces: !split && focused.kind === "start" ? focused.id : null,
+        returnTo: focused.id,
       };
-      commit(insertAfter(tabsRef.current, activeIdRef.current, tab), tab.id);
+      commit(split ? ws.splitWithTab(current, tab, createPaneId()) : ws.addTab(current, tab));
     },
     [commit, selectTab],
   );
@@ -201,26 +192,27 @@ export default function App() {
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
-  const handleLoaded = useCallback((id: string) => {
-    const tab = tabsRef.current.find((candidate) => candidate.id === id);
-    if (tab?.kind !== "document") {
-      return;
-    }
-    if (tab.path) {
-      recordRecentFile(tab.path);
-    }
-    const replaced = tab.replaces;
-    if (replaced && replaced !== activeIdRef.current && tabsRef.current.some((candidate) => candidate.id === replaced)) {
-      commit(
-        tabsRef.current.filter((candidate) => candidate.id !== replaced),
-        activeIdRef.current,
-      );
-    }
-  }, [commit]);
+  const handleLoaded = useCallback(
+    (id: string) => {
+      const tab = workspaceRef.current.tabs[id];
+      if (tab?.kind !== "document") {
+        return;
+      }
+      if (tab.path) {
+        recordRecentFile(tab.path);
+      }
+      const replaced = tab.replaces;
+      const pane = replaced ? ws.paneOfTab(workspaceRef.current, replaced) : null;
+      if (replaced && pane && pane.activeTabId !== replaced) {
+        update((current) => ws.closeTab(current, replaced, createStartTab));
+      }
+    },
+    [update],
+  );
 
   const handleFailed = useCallback(
     (id: string, error: unknown) => {
-      const tab = tabsRef.current.find((candidate) => candidate.id === id);
+      const tab = workspaceRef.current.tabs[id];
       dropTab(id, tab?.kind === "document" ? tab.returnTo : null);
       if (error) {
         showError(`Could not open ${tab?.kind === "document" ? `“${tab.name}”` : "this PDF"}.\n\n${error instanceof Error ? error.message : String(error)}`);
@@ -248,8 +240,8 @@ export default function App() {
   };
 
   const save = useCallback(async (saveAs: boolean) => {
-    const tab = tabsRef.current.find((candidate) => candidate.id === activeIdRef.current);
-    const handle = handles.current.get(activeIdRef.current);
+    const tab = ws.focusedTab(workspaceRef.current);
+    const handle = handles.current.get(tab.id);
     if (tab?.kind !== "document" || !handle) {
       return;
     }
@@ -270,16 +262,12 @@ export default function App() {
       }
       await writePdf(path, bytes);
       handle.viewer.markSaved();
-      const renamed = { ...tab, name: fileNameFromPath(path), path };
-      commit(
-        tabsRef.current.map((candidate) => (candidate.id === tab.id ? renamed : candidate)),
-        activeIdRef.current,
-      );
+      update((current) => ws.replaceTab(current, { ...tab, name: fileNameFromPath(path), path }));
       recordRecentFile(path);
     } catch (error) {
       await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
     }
-  }, [commit]);
+  }, [update]);
 
   const refreshRecentFiles = useCallback(() => {
     getRecentFiles().then(setRecentFiles);
@@ -360,7 +348,7 @@ export default function App() {
   useEffect(() => {
     refreshRecentFiles();
     const modifiedNames = () =>
-      tabsRef.current.flatMap((tab) => (tab.kind === "document" && snapshotsRef.current[tab.id]?.modified ? [tab.name] : []));
+      ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" && snapshotsRef.current[tab.id]?.modified ? [tab.name] : []));
     const cleanups: Array<Promise<() => void>> = [
       onOpenedFiles(async (paths) => {
         for (const path of paths) {
@@ -396,21 +384,18 @@ export default function App() {
     const page = activeSnapshot?.pageNumber ?? 1;
     const tabIndex = /^tab(\d)$/.exec(id)?.[1];
     if (tabIndex) {
-      const target = tabsRef.current[Number(tabIndex) - 1];
-      if (target) {
-        selectTab(target.id);
-      }
+      update((current) => ws.selectTabAt(current, Number(tabIndex) - 1));
       return;
     }
     const actions: Partial<Record<CommandId, () => void>> = {
       about: () => openAbout("about"),
       checkUpdates: () => openAbout("about", true),
       makeDefault: () => requestDefaultApp(),
-      newTab,
+      newTab: () => newTab(),
       open: () => openSource(pickPdf()),
       closeTab: async () => {
         if (!(await closeFocusedAuxWindow())) {
-          closeTab(activeIdRef.current);
+          closeTab(ws.focusedTab(workspaceRef.current).id);
         }
       },
       closeWindow: async () => {
@@ -463,8 +448,20 @@ export default function App() {
         pickImage().then((file) => file && activeHandle()?.viewer.addImage(file));
       },
       sign: () => setSignatureOpen(true),
-      nextTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, 1)),
-      previousTab: () => selectTab(cycleTab(tabsRef.current, activeIdRef.current, -1)),
+      nextTab: () => update((current) => ws.cycleTabs(current, 1)),
+      previousTab: () => update((current) => ws.cycleTabs(current, -1)),
+      splitRight: () => {
+        if (activeTab.kind === "document" && activeTab.path) {
+          openSource(readPdfFromPath(activeTab.path), { split: true });
+        } else {
+          update((current) => ws.splitWithTab(current, createStartTab(), createPaneId()));
+        }
+      },
+      closeSplit: () => update(ws.closeSplit),
+      focusLeftPane: () => update((current) => ws.focusAdjacentPane(current, -1)),
+      focusRightPane: () => update((current) => ws.focusAdjacentPane(current, 1)),
+      moveTabLeft: () => update((current) => ws.moveTabToAdjacentPane(current, -1, createPaneId())),
+      moveTabRight: () => update((current) => ws.moveTabToAdjacentPane(current, 1, createPaneId())),
       keyboardShortcuts: () => openAuxWindow("shortcuts"),
       whatsNew: () => openAbout("changelog"),
       openGitHub: () => openExternal(repoUrl),
@@ -501,8 +498,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    menuRef.current?.setState({ hasDocument, darkPages, invertImages: darkPagesImages === "invert" });
-  }, [menuReady, hasDocument, darkPages, darkPagesImages]);
+    menuRef.current?.setState({ hasDocument, split: workspace.panes.length > 1, darkPages, invertImages: darkPagesImages === "invert" });
+  }, [menuReady, hasDocument, workspace.panes.length, darkPages, darkPagesImages]);
 
   useEffect(() => {
     if (recentFiles) {
@@ -532,18 +529,28 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeSnapshot, hasDocument]);
 
-  const tabItems: TabItem[] = tabs.map((tab) =>
-    tab.kind === "start"
-      ? { id: tab.id, kind: "start", title: "Start", loading: false, modified: false }
-      : {
-          id: tab.id,
-          kind: "document",
-          title: tab.name,
-          tooltip: tab.path ?? tab.name,
-          loading: !snapshots[tab.id]?.loaded,
-          modified: !!snapshots[tab.id]?.modified,
-        },
+  const tabItems: Record<string, TabItem> = Object.fromEntries(
+    Object.values(workspace.tabs).map((tab) => [
+      tab.id,
+      tab.kind === "start"
+        ? { id: tab.id, kind: "start", title: "Start", loading: false, modified: false }
+        : {
+            id: tab.id,
+            kind: "document",
+            title: tab.name,
+            tooltip: tab.path ?? tab.name,
+            loading: !snapshots[tab.id]?.loaded,
+            modified: !!snapshots[tab.id]?.modified,
+          },
+    ]),
   );
+
+  const moveTab = (tabId: string, target: TabDropTarget) =>
+    update((current) =>
+      target.kind === "newPane"
+        ? ws.moveTab(current, tabId, { newPaneAfter: target.afterPaneId, paneId: createPaneId() })
+        : ws.moveTab(current, tabId, { paneId: target.paneId, index: target.index }),
+    );
 
   const viewer = activeHandle()?.viewer;
 
@@ -577,59 +584,75 @@ export default function App() {
         onToggleFind={toggleFind}
         onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
       />
-      <TabStrip
-        tabs={tabItems}
-        activeId={activeTab.id}
+      <PaneGrid
+        panes={workspace.panes}
+        focusedPaneId={workspace.focusedPaneId}
+        tabItems={tabItems}
         newTabShortcut={isMac ? "⌘T" : "Ctrl+T"}
-        onSelect={selectTab}
-        onClose={closeTab}
-        onNewTab={newTab}
-      />
-      <div className="workspace">
-        {tabs.map((tab) =>
-          tab.kind === "start" ? (
-            <div key={tab.id} className={`document-tab${tab.id === activeTab.id ? "" : " inactive"}`} inert={tab.id !== activeTab.id}>
-              <div className="empty-state">
-                <Welcome
-                  loading={false}
-                  shortcut={isMac ? "⌘O" : "Ctrl+O"}
-                  recent={recentFiles}
-                  onOpen={() => openSource(pickPdf())}
-                  onOpenRecent={openRecent}
-                  onRemoveRecent={(entry) => removeRecentFile(entry.path)}
-                  onClearRecent={() => clearRecentFiles()}
-                  onAbout={() => openAbout("about")}
-                />
+        overlay={dragging && <div className="drop-overlay">Drop to open</div>}
+        onSelectTab={selectTab}
+        onCloseTab={closeTab}
+        onNewTab={(paneId) => newTab(paneId)}
+        onFocusPane={(paneId) => update((current) => ws.focusPane(current, paneId))}
+        onMoveTab={moveTab}
+        onResize={(sizes) => update((current) => ws.resizePanes(current, sizes))}
+      >
+        {workspace.panes.flatMap((pane, index) =>
+          pane.tabIds.map((tabId) => {
+            const tab = workspace.tabs[tabId];
+            const active = tabId === pane.activeTabId;
+            const column = index * 2 + 1;
+            return tab.kind === "start" ? (
+              <div
+                key={tab.id}
+                className={`document-tab${active ? "" : " inactive"}`}
+                inert={!active}
+                data-pane-id={pane.id}
+                style={{ gridColumn: column }}
+              >
+                <div className="empty-state">
+                  <Welcome
+                    loading={false}
+                    shortcut={isMac ? "⌘O" : "Ctrl+O"}
+                    recent={recentFiles}
+                    onOpen={() => openSource(pickPdf())}
+                    onOpenRecent={openRecent}
+                    onRemoveRecent={(entry) => removeRecentFile(entry.path)}
+                    onClearRecent={() => clearRecentFiles()}
+                    onAbout={() => openAbout("about")}
+                  />
+                </div>
               </div>
-            </div>
-          ) : (
-            <DocumentTab
-              key={tab.id}
-              ref={(handle) => {
-                if (handle) {
-                  handles.current.set(tab.id, handle);
-                } else {
-                  handles.current.delete(tab.id);
-                }
-              }}
-              id={tab.id}
-              source={tab.source}
-              active={tab.id === activeTab.id}
-              sidebarOpen={sidebarOpen}
-              sidebarTab={sidebarTab}
-              onSidebarTab={setSidebarTab}
-              darkPages={darkPages}
-              keepImages={darkPagesImages === "keep"}
-              requestPassword={requestPassword}
-              onSnapshot={handleSnapshot}
-              onLoaded={handleLoaded}
-              onFailed={handleFailed}
-              onOpenUrl={openExternal}
-            />
-          ),
+            ) : (
+              <DocumentTab
+                key={tab.id}
+                ref={(handle) => {
+                  if (handle) {
+                    handles.current.set(tab.id, handle);
+                  } else {
+                    handles.current.delete(tab.id);
+                  }
+                }}
+                id={tab.id}
+                paneId={pane.id}
+                column={column}
+                source={tab.source}
+                active={active}
+                sidebarOpen={sidebarOpen}
+                sidebarTab={sidebarTab}
+                onSidebarTab={setSidebarTab}
+                darkPages={darkPages}
+                keepImages={darkPagesImages === "keep"}
+                requestPassword={requestPassword}
+                onSnapshot={handleSnapshot}
+                onLoaded={handleLoaded}
+                onFailed={handleFailed}
+                onOpenUrl={openExternal}
+              />
+            );
+          }),
         )}
-        {dragging && <div className="drop-overlay">Drop to open</div>}
-      </div>
+      </PaneGrid>
       <SignatureDialog
         open={signatureOpen}
         onClose={() => setSignatureOpen(false)}

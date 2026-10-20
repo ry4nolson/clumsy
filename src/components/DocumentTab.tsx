@@ -25,6 +25,8 @@ export type DocumentHandle = {
 
 type DocumentTabProps = {
   id: string;
+  paneId: string;
+  column: number;
   source: PdfSource;
   active: boolean;
   sidebarOpen: boolean;
@@ -40,7 +42,7 @@ type DocumentTabProps = {
 };
 
 export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function DocumentTab(
-  { id, source, active, sidebarOpen, sidebarTab, onSidebarTab, darkPages, keepImages, requestPassword, onSnapshot, onLoaded, onFailed, onOpenUrl },
+  { id, paneId, column, source, active, sidebarOpen, sidebarTab, onSidebarTab, darkPages, keepImages, requestPassword, onSnapshot, onLoaded, onFailed, onOpenUrl },
   ref,
 ) {
   const viewer = usePdfViewer();
@@ -140,7 +142,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   }, [viewer.containerRef, onOpenUrl]);
 
   return (
-    <div className={`document-tab${active ? "" : " inactive"}`} inert={!active}>
+    <div className={`document-tab${active ? "" : " inactive"}`} inert={!active} data-pane-id={paneId} style={{ gridColumn: column }}>
       {loaded && sidebarOpen && viewer.pdfDocument && (
         <Sidebar
           tab={sidebarTab}

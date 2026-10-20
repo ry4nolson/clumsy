@@ -40,6 +40,12 @@ export type CommandId =
   | "sign"
   | "nextTab"
   | "previousTab"
+  | "splitRight"
+  | "closeSplit"
+  | "moveTabLeft"
+  | "moveTabRight"
+  | "focusLeftPane"
+  | "focusRightPane"
   | `tab${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`
   | "keyboardShortcuts"
   | "whatsNew"
@@ -84,7 +90,7 @@ export const commands: Command[] = [
   { id: "findPrevious", label: "Find Previous", menu: "Edit", combos: ["mod+shift+g"], needsDocument: true },
   { id: "useSelectionForFind", label: "Use Selection for Find", menu: "Edit", combos: ["mod+e"], needsDocument: true },
 
-  { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["mod+\\"], needsDocument: true },
+  { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["alt+mod+s"], needsDocument: true },
   { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["alt+mod+1"], needsDocument: true },
   { id: "showOutline", label: "Outline", menu: "View", combos: ["alt+mod+2"], needsDocument: true },
   { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true },
@@ -94,6 +100,8 @@ export const commands: Command[] = [
   { id: "fitPage", label: "Fit Page", menu: "View", combos: ["alt+mod+9"], needsDocument: true },
   { id: "rotateLeft", label: "Rotate Left", menu: "View", combos: ["mod+l"], needsDocument: true },
   { id: "rotateRight", label: "Rotate Right", menu: "View", combos: ["mod+r"], needsDocument: true },
+  { id: "splitRight", label: "Split Right", menu: "View", combos: ["mod+\\"] },
+  { id: "closeSplit", label: "Close Split", menu: "View", combos: ["mod+shift+\\"] },
   { id: "toggleDarkPages", label: "Dark Pages", menu: "View", combos: ["mod+shift+d"] },
   { id: "toggleInvertImages", label: "Invert Images in Dark Pages", menu: "View", combos: [] },
 
@@ -112,6 +120,10 @@ export const commands: Command[] = [
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
   { id: "previousTab", label: "Show Previous Tab", menu: "Window", combos: ["mod+shift+[", "ctrl+shift+Tab"] },
+  { id: "focusLeftPane", label: "Focus Left Pane", menu: "Window", combos: ["alt+mod+ArrowLeft"] },
+  { id: "focusRightPane", label: "Focus Right Pane", menu: "Window", combos: ["alt+mod+ArrowRight"] },
+  { id: "moveTabLeft", label: "Move Tab to Left Pane", menu: "Window", combos: ["ctrl+mod+ArrowLeft"] },
+  { id: "moveTabRight", label: "Move Tab to Right Pane", menu: "Window", combos: ["ctrl+mod+ArrowRight"] },
   ...tabCommands,
 
   { id: "keyboardShortcuts", label: "Keyboard Shortcuts", menu: "Help", combos: ["mod+/"] },
