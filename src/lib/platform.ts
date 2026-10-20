@@ -28,8 +28,12 @@ export function ensurePdfExtension(name: string) {
   return /\.pdf$/i.test(name) ? name : `${name}.pdf`;
 }
 
+export async function fileStamp(path: string) {
+  return invoke<string | null>("file_stamp", { path });
+}
+
 export async function readPdfFromPath(path: string): Promise<PdfSource> {
-  const stamp = await invoke<string | null>("file_stamp", { path });
+  const stamp = await fileStamp(path);
   const buffer = await invoke<ArrayBuffer>("read_pdf", { path });
   return { name: fileNameFromPath(path), path, data: new Uint8Array(buffer), stamp };
 }

@@ -10,6 +10,8 @@ import type { TabItem } from "./components/TabStrip";
 import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { useAppMenu } from "./hooks/useAppMenu";
+import { useExternalChanges } from "./hooks/useExternalChanges";
+import { useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
@@ -19,16 +21,12 @@ import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./l
 import { openDocumentWindow } from "./lib/documentWindows";
 import type { RecentEntry } from "./lib/recent";
 import {
-  CHANGED_ON_DISK,
   clearRecentFiles,
   closeFocusedAuxWindow,
   closeWindow,
-  confirmOverwrite,
-  downloadPdf,
   fileNameFromPath,
   getRecentFiles,
   hasOverlayTitlebar,
-  isDesktop,
   onCloseRequested,
   onFileDrop,
   onFullscreenChange,
@@ -39,16 +37,13 @@ import {
   openExternal,
   pickImage,
   pickPdf,
-  pickSavePath,
   readPdfFromPath,
-  recordRecentFile,
   removeRecentFile,
   reportDocuments,
   requestQuit,
   revealInFinder,
   setWindowTitle,
   showError,
-  writePdf,
 } from "./lib/platform";
 import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
 import { createPaneId, createStartTab, isModified } from "./lib/tabs";
@@ -69,7 +64,6 @@ export default function App() {
     workspace,
     snapshots,
     workspaceRef,
-    handles,
     activeHandle,
     setHandle,
     hasUnsavedChanges,
@@ -85,6 +79,8 @@ export default function App() {
     moveTab,
   } = workspaceApi;
   const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi);
+  useExternalChanges(workspaceApi);
+  const save = useSaveDocument(workspaceApi);
   const passwords = usePasswordPrompts();
   useDefaultAppPrompt();
 
@@ -110,57 +106,6 @@ export default function App() {
 
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
-
-  const savingRef = useRef(new Set<string>());
-
-  const save = useCallback(async (saveAs: boolean) => {
-    const tab = ws.focusedTab(workspaceRef.current);
-    const handle = handles.current.get(tab.id);
-    if (tab.kind !== "document" || !handle || savingRef.current.has(tab.id)) {
-      return;
-    }
-    (document.activeElement as HTMLElement | null)?.blur();
-    savingRef.current.add(tab.id);
-    try {
-      const bytes = await handle.viewer.save();
-      if (!bytes) {
-        return;
-      }
-      if (!isDesktop) {
-        downloadPdf(tab.name, bytes);
-        handle.viewer.markSaved();
-        return;
-      }
-      const path = saveAs || !tab.path ? await pickSavePath(tab.name) : tab.path;
-      if (!path) {
-        return;
-      }
-      let stamp: string;
-      try {
-        stamp = await writePdf(path, bytes, path === tab.path ? tab.stamp : null);
-      } catch (error) {
-        if (error !== CHANGED_ON_DISK) {
-          throw error;
-        }
-        if (!(await confirmOverwrite(tab.name))) {
-          return;
-        }
-        stamp = await writePdf(path, bytes);
-      }
-      handle.viewer.markSaved();
-      update((current) => {
-        const latest = current.tabs[tab.id];
-        return latest?.kind === "document"
-          ? ws.replaceTab(current, { ...latest, name: fileNameFromPath(path), path, carriedChanges: false, stamp })
-          : current;
-      });
-      recordRecentFile(path);
-    } catch (error) {
-      await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      savingRef.current.delete(tab.id);
-    }
-  }, [handles, update, workspaceRef]);
 
   const refreshRecentFiles = useCallback(() => {
     getRecentFiles().then(setRecentFiles);
