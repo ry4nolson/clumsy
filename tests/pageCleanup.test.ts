@@ -160,6 +160,14 @@ describe("removing pages scrubs everything that described them", () => {
     expect(await everyText(await extractPages(await plain(doc), [0]))).not.toContain("XFA-SECRET");
   });
 
+  it("keeps XFA when no pages are removed, since dynamic XFA forms have nothing else", async () => {
+    const doc = await markedPdf(["ONE", "TWO"]);
+    doc.catalog.set(name("AcroForm"), doc.context.obj({ Fields: [], XFA: doc.context.register(doc.context.stream("<xfa>XFA-KEEP</xfa>")) }));
+    for (const edit of [{ kind: "rotate", pages: [0], by: 90 }, { kind: "move", pages: [1], to: 0 }] as const) {
+      expect(await everyText(await applyPageEdit(await plain(doc), edit))).toContain("XFA-KEEP");
+    }
+  });
+
   it("removes bookmarks and links that reach deleted pages through named destinations", async () => {
     const doc = await markedPdf(["ONE", "TWO", "THREE"]);
     namedOutline(doc, ["Intro", "TITLE-SECRET", "End"]);
@@ -195,6 +203,51 @@ describe("removing pages scrubs everything that described them", () => {
     doc.catalog.set(name("OpenAction"), doc.context.obj([doc.getPage(1).ref, name("Fit")]));
     const loaded = await PDFDocument.load(await applyPageEdit(await plain(doc), { kind: "delete", pages: [1] }));
     expect(loaded.catalog.get(name("OpenAction"))).toBeUndefined();
+  });
+});
+
+describe("structure tree edge cases", () => {
+  it("keeps an element whose annotation is on a kept page even if the element claims the removed page", async () => {
+    const doc = await markedPdf(["ONE", "TWO"]);
+    const annotation = doc.context.register(doc.context.obj({ Type: "Annot", Subtype: "Link", Rect: [0, 0, 9, 9], StructParent: 5 }));
+    doc.getPage(0).node.set(name("Annots"), doc.context.obj([annotation]));
+    const rootRef = doc.context.nextRef();
+    const element = doc.context.register(
+      doc.context.obj({ Type: "StructElem", S: "Link", P: rootRef, Pg: doc.getPage(1).ref, Alt: PDFString.of("ALT-KEPT-LINK"), K: doc.context.obj({ Type: "OBJR", Obj: annotation }) }),
+    );
+    doc.context.assign(rootRef, doc.context.obj({ Type: "StructTreeRoot", K: [element], ParentTree: doc.context.obj({ Nums: [PDFNumber.of(5), element] }) }));
+    doc.catalog.set(name("StructTreeRoot"), rootRef);
+    expect(await everyText(await applyPageEdit(await plain(doc), { kind: "delete", pages: [1] }))).toContain("ALT-KEPT-LINK");
+  });
+
+  it("removes an element shared by two parents from both instead of leaving a null", async () => {
+    const doc = await markedPdf(["ONE", "TWO"]);
+    const rootRef = doc.context.nextRef();
+    const shared = doc.context.register(doc.context.obj({ Type: "StructElem", S: "Figure", Pg: doc.getPage(1).ref, K: 0, Alt: PDFString.of("ALT-SHARED") }));
+    const kept = doc.context.register(doc.context.obj({ Type: "StructElem", S: "P", Pg: doc.getPage(0).ref, K: 0 }));
+    const first = doc.context.register(doc.context.obj({ Type: "StructElem", S: "Div", P: rootRef, K: [shared, kept] }));
+    const second = doc.context.register(doc.context.obj({ Type: "StructElem", S: "Div", P: rootRef, K: [shared, kept] }));
+    doc.context.assign(rootRef, doc.context.obj({ Type: "StructTreeRoot", K: [first, second] }));
+    doc.catalog.set(name("StructTreeRoot"), rootRef);
+    const saved = await PDFDocument.load(await applyPageEdit(await plain(doc), { kind: "delete", pages: [1] }));
+    const root = saved.catalog.lookup(name("StructTreeRoot"), PDFDict);
+    for (const division of root.lookup(name("K"), PDFArray).asArray()) {
+      const kids = saved.context.lookup(division, PDFDict).lookup(name("K"));
+      const list = kids instanceof PDFArray ? kids.asArray() : [kids];
+      expect(list.every((kid) => saved.context.lookup(kid) instanceof PDFDict)).toBe(true);
+      expect(list).toHaveLength(1);
+    }
+    expect(await everyText(await plain(saved))).not.toContain("ALT-SHARED");
+  });
+});
+
+describe("open actions", () => {
+  it("keeps an open action that opens another file even if its name matches a removed page", async () => {
+    const doc = await markedPdf(["ONE", "TWO"]);
+    doc.catalog.set(name("Names"), doc.context.obj({ Dests: doc.context.obj({ Names: [PDFHexString.fromText("intro"), doc.context.obj([doc.getPage(1).ref, name("Fit")])] }) }));
+    doc.catalog.set(name("OpenAction"), doc.context.obj({ S: "GoToR", F: PDFString.of("other.pdf"), D: PDFHexString.fromText("intro") }));
+    const loaded = await PDFDocument.load(await applyPageEdit(await plain(doc), { kind: "delete", pages: [1] }));
+    expect(loaded.catalog.lookup(name("OpenAction"), PDFDict).lookup(name("S"))).toBe(name("GoToR"));
   });
 });
 

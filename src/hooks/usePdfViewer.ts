@@ -197,6 +197,13 @@ export function usePdfViewer() {
       });
     };
     container.addEventListener("wheel", onWheel, { passive: false });
+    const onFormInput = (event: Event) => {
+      if ((event.target as HTMLElement | null)?.closest?.(".annotationLayer")) {
+        editHistoryRef.current.changed = true;
+      }
+    };
+    container.addEventListener("input", onFormInput, true);
+    container.addEventListener("change", onFormInput, true);
 
     let lastSize = "";
     const resizeObserver = new ResizeObserver(([entry]) => {
@@ -218,6 +225,8 @@ export function usePdfViewer() {
     return () => {
       resizeObserver.disconnect();
       container.removeEventListener("wheel", onWheel);
+      container.removeEventListener("input", onFormInput, true);
+      container.removeEventListener("change", onFormInput, true);
       partsRef.current = null;
     };
   }, []);
@@ -242,10 +251,7 @@ export function usePdfViewer() {
     setFindStatus({ state: "idle", current: 0, total: 0 });
     if (doc) {
       Object.assign(doc.annotationStorage, {
-        onSetModified: () => {
-          editHistoryRef.current.changed = true;
-          setModified(true);
-        },
+        onSetModified: () => setModified(true),
         onResetModified: () => setModified(false),
       });
     }

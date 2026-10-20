@@ -113,7 +113,7 @@ function pruneFields(doc: PDFDocument, doomed: Set<PDFRef>) {
   return removed;
 }
 
-export function dropXfa(doc: PDFDocument) {
+function dropXfa(doc: PDFDocument) {
   acroForm(doc)?.delete(key("XFA"));
   doc.catalog.delete(key("NeedsRendering"));
 }
@@ -339,7 +339,7 @@ function pruneNamedDestinations(doc: PDFDocument) {
 
 function pruneOpenAction(doc: PDFDocument, resolveName: ResolveName) {
   const open = doc.catalog.lookup(key("OpenAction"));
-  const destination = open instanceof PDFDict ? destinationOf(open) : open;
+  const destination = open instanceof PDFDict ? (open.lookup(key("S")) === key("GoTo") ? open.get(key("D")) : undefined) : open;
   if (isDeadDestination(doc, destination, resolveName)) {
     doc.catalog.delete(key("OpenAction"));
   }
@@ -359,6 +359,7 @@ export function removePageRefs(doc: PDFDocument, pageRefs: PDFRef[], removed: Se
   pruneOutline(doc, resolveName);
   pruneOpenAction(doc, resolveName);
   pruneNamedDestinations(doc);
+  dropXfa(doc);
 }
 
 export function collectGarbage(doc: PDFDocument) {

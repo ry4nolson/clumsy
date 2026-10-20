@@ -8,7 +8,7 @@ export function pruneStructTree(doc: PDFDocument, doomed: Set<PDFRef>) {
   if (!(root instanceof PDFDict)) {
     return removed;
   }
-  const visiting = new Set<PDFDict>();
+  const decided = new Map<PDFDict, boolean>();
   const isDoomed = (object: PDFObject | undefined) => object instanceof PDFRef && doomed.has(object);
   const pageOf = (dict: PDFDict, inherited: PDFRef | undefined) => {
     const page = dict.get(key("Pg"));
@@ -44,14 +44,18 @@ export function pruneStructTree(doc: PDFDocument, doomed: Set<PDFRef>) {
       return isDoomed(pageOf(node, page));
     }
     if (type === key("OBJR")) {
-      return isDoomed(node.get(key("Obj"))) || isDoomed(pageOf(node, page));
+      const target = node.get(key("Obj"));
+      const object = doc.context.lookup(target);
+      const isAnnotation = object instanceof PDFDict && object.has(key("Rect"));
+      return isAnnotation ? isDoomed(target) : isDoomed(pageOf(node, page));
     }
-    if (visiting.has(node)) {
-      return false;
+    if (decided.has(node)) {
+      return decided.get(node)!;
     }
-    visiting.add(node);
+    decided.set(node, false);
     const { had, left } = pruneKids(node, pageOf(node, page));
     const remove = had ? !left : isDoomed(node.get(key("Pg")));
+    decided.set(node, remove);
     if (remove && item instanceof PDFRef) {
       removed.add(item);
     }
