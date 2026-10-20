@@ -1,5 +1,5 @@
 import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
-import { collectGarbage, flattenPageTree, importPageRefs, removePageRefs, setPageRefs } from "./pdfStructure";
+import { collectGarbage, dropXfa, flattenPageTree, importPageRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 export type PageEdit =
   | { kind: "move"; pages: number[]; to: number }
@@ -90,6 +90,7 @@ async function load(bytes: Uint8Array) {
 }
 
 async function save(doc: PDFDocument) {
+  dropXfa(doc);
   collectGarbage(doc);
   return doc.save({ rewrite: true, addDefaultPage: false, updateFieldAppearances: false });
 }
