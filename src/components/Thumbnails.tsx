@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { slotAt } from "../lib/dropTarget";
 import type { SelectModifiers } from "../lib/pageSelection";
 
 const THUMB_WIDTH = 120;
@@ -115,15 +116,6 @@ type ThumbnailsProps = {
   onContextMenu: (page: number) => void;
   onDelete: () => void;
 };
-
-export function slotAt(container: HTMLElement, y: number) {
-  const thumbnails = Array.from(container.querySelectorAll<HTMLElement>(".thumbnail"));
-  const index = thumbnails.findIndex((thumbnail) => {
-    const rect = thumbnail.getBoundingClientRect();
-    return y < rect.top + rect.height / 2;
-  });
-  return index < 0 ? thumbnails.length : index;
-}
 
 export function Thumbnails({ pdfDocument, currentPage, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
   const containerRef = useRef<HTMLDivElement>(null);

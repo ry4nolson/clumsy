@@ -13,6 +13,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - **Extract Pages to New Tab** turns the selected pages into their own document
 - **Combine Files…** in the File menu merges several PDFs into one new document
 - Page changes can be undone and redone with ⌘Z / ⇧⌘Z
+- Deleting pages removes them from the file completely, along with their form fields and any links or bookmarks that pointed to them
 
 ## [0.2.2] - 2026-10-20
 

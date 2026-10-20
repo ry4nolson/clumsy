@@ -11,7 +11,7 @@ import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useExternalChanges } from "./hooks/useExternalChanges";
-import { dropTargetAt, showDropTarget, usePageEdits } from "./hooks/usePageEdits";
+import { usePageEdits } from "./hooks/usePageEdits";
 import { useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
@@ -20,6 +20,7 @@ import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./lib/commands";
 import { openDocumentWindow } from "./lib/documentWindows";
+import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import type { RecentEntry } from "./lib/recent";
 import {
   clearRecentFiles,
@@ -79,10 +80,10 @@ export default function App() {
     handleSnapshot,
     moveTab,
   } = workspaceApi;
-  const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi);
-  useExternalChanges(workspaceApi);
-  const save = useSaveDocument(workspaceApi);
   const pageEdits = usePageEdits(workspaceApi);
+  const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi, pageEdits.settled);
+  useExternalChanges(workspaceApi);
+  const save = useSaveDocument(workspaceApi, pageEdits.settled);
   const pageEditsRef = useRef(pageEdits);
   pageEditsRef.current = pageEdits;
   const passwords = usePasswordPrompts();
@@ -456,7 +457,11 @@ export default function App() {
                   handleLoaded(id);
                   pageEdits.documentLoaded(id);
                 }}
-                onFailed={handleFailed}
+                onFailed={(id, error) => {
+                  if (!pageEdits.documentFailed(id)) {
+                    handleFailed(id, error);
+                  }
+                }}
                 onOpenUrl={openExternal}
                 onPageAction={(id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command))}
               />

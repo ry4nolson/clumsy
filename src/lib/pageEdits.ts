@@ -1,4 +1,5 @@
-import { EncryptedPDFError, PDFDocument, PDFName, PDFNumber, PDFPageLeaf, degrees } from "@cantoo/pdf-lib";
+import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
+import { collectGarbage, flattenPageTree, importPageRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 export type PageEdit =
   | { kind: "move"; pages: number[]; to: number }
@@ -88,24 +89,20 @@ async function load(bytes: Uint8Array) {
   }
 }
 
-const save = (doc: PDFDocument) => doc.save({ updateFieldAppearances: false });
+async function save(doc: PDFDocument) {
+  collectGarbage(doc);
+  return doc.save({ rewrite: true, addDefaultPage: false, updateFieldAppearances: false });
+}
 
-function setPageOrder(doc: PDFDocument, order: number[]) {
-  const pages = doc.getPages();
-  const rootRef = doc.catalog.get(PDFName.of("Pages"));
-  for (const page of pages) {
-    for (const name of PDFPageLeaf.InheritableEntries) {
-      const key = PDFName.of(name);
-      const inherited = page.node.getInheritableAttribute(key);
-      if (inherited && !page.node.get(key)) {
-        page.node.set(key, inherited);
-      }
-    }
-    page.node.set(PDFName.of("Parent"), rootRef!);
+export function changesDocument(edit: PageEdit, count: number) {
+  switch (edit.kind) {
+    case "move":
+      return reorderedPages(count, edit.pages, edit.to).some((page, index) => page !== index);
+    case "insert":
+      return true;
+    default:
+      return edit.pages.some((page) => page >= 0 && page < count);
   }
-  const root = doc.catalog.Pages();
-  root.set(PDFName.of("Kids"), doc.context.obj(order.map((index) => pages[index].ref)));
-  root.set(PDFName.of("Count"), PDFNumber.of(order.length));
 }
 
 export async function pageCount(bytes: Uint8Array) {
@@ -115,18 +112,17 @@ export async function pageCount(bytes: Uint8Array) {
 export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
   const doc = await load(bytes);
   const pages = doc.getPages();
+  const refs = flattenPageTree(doc);
   switch (edit.kind) {
     case "move":
-      setPageOrder(doc, reorderedPages(pages.length, edit.pages, edit.to));
+      setPageRefs(doc, reorderedPages(refs.length, edit.pages, edit.to).map((index) => refs[index]));
       break;
     case "delete": {
-      const doomed = uniqueSorted(edit.pages).filter((page) => page >= 0 && page < pages.length);
-      if (doomed.length >= pages.length) {
+      const doomed = new Set(uniqueSorted(edit.pages).filter((page) => page >= 0 && page < refs.length).map((page) => refs[page]));
+      if (doomed.size >= refs.length) {
         throw new PageEditError("A PDF needs at least one page.");
       }
-      for (const page of doomed.reverse()) {
-        doc.removePage(page);
-      }
+      removePageRefs(doc, refs, doomed);
       break;
     }
     case "rotate":
@@ -138,10 +134,9 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
       }
       break;
     case "insert": {
-      const source = await load(edit.data);
-      const copied = await doc.copyPages(source, source.getPageIndices());
-      const at = Math.min(Math.max(0, edit.at), pages.length);
-      copied.forEach((page, index) => doc.insertPage(at + index, page));
+      const inserted = importPageRefs(doc, await load(edit.data));
+      const at = Math.min(Math.max(0, edit.at), refs.length);
+      setPageRefs(doc, [...refs.slice(0, at), ...inserted, ...refs.slice(at)]);
       break;
     }
   }
@@ -149,22 +144,23 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
 }
 
 export async function extractPages(bytes: Uint8Array, pages: number[]) {
-  const source = await load(bytes);
-  const doc = await PDFDocument.create({ updateMetadata: false });
-  const indices = uniqueSorted(pages).filter((page) => page >= 0 && page < source.getPageCount());
-  for (const page of await doc.copyPages(source, indices)) {
-    doc.addPage(page);
+  const doc = await load(bytes);
+  const refs = flattenPageTree(doc);
+  const keep = new Set(uniqueSorted(pages).filter((page) => page >= 0 && page < refs.length));
+  if (!keep.size) {
+    throw new PageEditError("No pages to extract.");
   }
+  removePageRefs(doc, refs, new Set(refs.filter((_, index) => !keep.has(index))));
   return save(doc);
 }
 
 export async function combinePdfs(files: Uint8Array[]) {
-  const doc = await PDFDocument.create({ updateMetadata: false });
-  for (const bytes of files) {
-    const source = await load(bytes);
-    for (const page of await doc.copyPages(source, source.getPageIndices())) {
-      doc.addPage(page);
-    }
+  const [first, ...rest] = files;
+  const doc = await load(first);
+  const refs = flattenPageTree(doc);
+  for (const bytes of rest) {
+    refs.push(...importPageRefs(doc, await load(bytes)));
   }
+  setPageRefs(doc, refs);
   return save(doc);
 }
