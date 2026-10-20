@@ -27,7 +27,7 @@ export function Welcome({ loading, shortcut, recent, onOpen, onOpenRecent, onRem
         <img src={appIcon} alt="" width={72} height={72} />
         <div>
           <h1>Clumsy</h1>
-          <p>{loading ? "Opening…" : "Not an acrobat. Just opens your PDFs."}</p>
+          <p>{loading ? "Opening…" : "No tricks, no acrobatics."}</p>
         </div>
       </header>
 

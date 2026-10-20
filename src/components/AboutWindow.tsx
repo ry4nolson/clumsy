@@ -100,7 +100,7 @@ export function AboutWindow() {
             <img src={appIcon} alt="" width={96} height={96} />
             <div>
               <h2>Clumsy</h2>
-              <p className="about-tagline">Not an acrobat. Just opens your PDFs.</p>
+              <p className="about-tagline">No tricks, no acrobatics.</p>
               <p className="about-version">Version {appVersion}</p>
             </div>
           </div>
@@ -208,7 +208,7 @@ export function AboutWindow() {
             </button>
           </div>
 
-          <p className="about-footer">Built because Acrobat wanted to update again.</p>
+          <p className="about-footer">Built because opening a PDF shouldn’t require an update first.</p>
         </div>
       ) : tab === "changelog" ? (
         <div className="about-changelog">

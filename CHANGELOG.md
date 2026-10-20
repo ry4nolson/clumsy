@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- New tagline: "No tricks, no acrobatics."
+
 ## [0.1.6] - 2026-10-19
 
 ### Fixed
