@@ -16,17 +16,17 @@ import type { WorkspaceApi } from "./useWorkspace";
 export function useSaveDocument({ workspaceRef, handles, update }: WorkspaceApi, settled: (tabId: string) => Promise<void>) {
   const savingRef = useRef(new Set<string>());
 
-  return useCallback(async (saveAs: boolean) => {
-    const focused = ws.focusedTab(workspaceRef.current);
-    if (focused.kind !== "document" || savingRef.current.has(focused.id)) {
+  return useCallback(async (saveAs: boolean, tabId?: string) => {
+    const target = tabId ? workspaceRef.current.tabs[tabId] : ws.focusedTab(workspaceRef.current);
+    if (target?.kind !== "document" || savingRef.current.has(target.id)) {
       return;
     }
     (document.activeElement as HTMLElement | null)?.blur();
-    savingRef.current.add(focused.id);
+    savingRef.current.add(target.id);
     try {
-      await settled(focused.id);
-      const tab = workspaceRef.current.tabs[focused.id];
-      const handle = handles.current.get(focused.id);
+      await settled(target.id);
+      const tab = workspaceRef.current.tabs[target.id];
+      const handle = handles.current.get(target.id);
       if (tab?.kind !== "document" || !handle) {
         return;
       }
@@ -70,7 +70,34 @@ export function useSaveDocument({ workspaceRef, handles, update }: WorkspaceApi,
     } catch (error) {
       await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      savingRef.current.delete(focused.id);
+      savingRef.current.delete(target.id);
     }
   }, [handles, settled, update, workspaceRef]);
+}
+
+export function useSaveAll({ workspaceRef, hasUnsavedChanges, selectTab }: WorkspaceApi, save: (saveAs: boolean, tabId?: string) => Promise<void>) {
+  const savingAll = useRef(false);
+
+  return useCallback(async () => {
+    if (savingAll.current) {
+      return;
+    }
+    savingAll.current = true;
+    const focusedId = ws.focusedTab(workspaceRef.current).id;
+    try {
+      for (const tab of ws.orderedTabs(workspaceRef.current)) {
+        if (tab.kind === "document" && hasUnsavedChanges(tab)) {
+          if (!tab.path) {
+            selectTab(tab.id);
+          }
+          await save(false, tab.id);
+        }
+      }
+    } finally {
+      savingAll.current = false;
+      if (workspaceRef.current.tabs[focusedId]) {
+        selectTab(focusedId);
+      }
+    }
+  }, [hasUnsavedChanges, save, selectTab, workspaceRef]);
 }
