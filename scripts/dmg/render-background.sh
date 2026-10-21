@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerates background.png (requires ImageMagick). The committed PNG is what
-# create-dmg.sh / settings.py use; re-run after design tweaks.
+# create-dmg.sh uses; re-run after design tweaks.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="$DIR/background.png"

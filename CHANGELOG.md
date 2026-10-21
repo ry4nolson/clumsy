@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Download disk image shows the branded background again (icon layout alone had been making it through)
+
 ## [0.2.9] - 2026-10-21
 
 ### Added
