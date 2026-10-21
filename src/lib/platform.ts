@@ -150,7 +150,9 @@ export async function openExternal(url: string) {
   }
 }
 
-export const hasOverlayTitlebar = isDesktop && navigator.userAgent.includes("Mac");
+export const isMac = navigator.userAgent.includes("Mac");
+
+export const hasOverlayTitlebar = isDesktop && isMac;
 
 export async function onFullscreenChange(handler: (fullscreen: boolean) => void) {
   if (!isDesktop) {

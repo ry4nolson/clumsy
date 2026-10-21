@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type { DocumentHandle, TabSnapshot } from "../components/DocumentTab";
 import type { TabDropTarget } from "../components/PaneGrid";
 import { confirmDiscard, documentWindowFor, recordRecentFile, showDocumentInWindow, showError, type PdfSource } from "../lib/platform";
+import { rememberClosed, takeClosed, type ClosedTab } from "../lib/closedTabs";
 import { createPaneId, createStartTab, createTabId, type DocTab, type OpenOptions, type Tab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 
@@ -12,6 +13,7 @@ export function useWorkspace() {
   const [workspace, setWorkspace] = useState(() => ws.createWorkspace<Tab>(createStartTab(), createPaneId()));
   const [snapshots, setSnapshots] = useState<Record<string, TabSnapshot>>({});
   const handles = useRef(new Map<string, DocumentHandle>());
+  const closedTabs = useRef<ClosedTab[]>([]);
   const workspaceRef = useRef(workspace);
   const snapshotsRef = useRef(snapshots);
   workspaceRef.current = workspace;
@@ -70,6 +72,10 @@ export function useWorkspace() {
       if (tab.kind === "document" && hasUnsavedChanges(tab) && !(await confirmDiscard([tab.name]))) {
         return;
       }
+      if (tab.kind === "document" && tab.path) {
+        const view = handles.current.get(id)?.viewer.viewState() ?? tab.view;
+        closedTabs.current = rememberClosed(closedTabs.current, { path: tab.path, view });
+      }
       dropTab(id);
     },
     [dropTab, hasUnsavedChanges],
@@ -118,6 +124,13 @@ export function useWorkspace() {
     },
     [commit, selectTab],
   );
+
+  const takeClosedTab = useCallback(() => {
+    const openPaths = new Set(ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" && tab.path ? [tab.path] : [])));
+    const { tab, rest } = takeClosed(closedTabs.current, openPaths);
+    closedTabs.current = rest;
+    return tab;
+  }, []);
 
   const showPath = useCallback(
     (path: string) => {
@@ -188,6 +201,7 @@ export function useWorkspace() {
     dropTab,
     closeTab,
     openSource,
+    takeClosedTab,
     showPath,
     handleLoaded,
     handleFailed,

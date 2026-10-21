@@ -24,7 +24,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "quit",
     ],
   ],
-  ["File", ["newTab", "newWindow", "open", "recent", "combineFiles", "-", "closeTab", "closeWindow", "-", "save", "saveAs", "-", "revealInFinder"]],
+  ["File", ["newTab", "newWindow", "open", "recent", "combineFiles", "-", "closeTab", "closeWindow", "reopenClosedTab", "-", "save", "saveAs", "saveAll", "-", "revealInFinder"]],
   [
     "Edit",
     [
@@ -45,6 +45,8 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
   [
     "View",
     [
+      "commandPalette",
+      "-",
       "toggleSidebar",
       "showPages",
       "showOutline",
@@ -67,7 +69,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       { predefined: "Fullscreen" },
     ],
   ],
-  ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "goToPage"]],
+  ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "quickOpen", "goToPage"]],
   ["Pages", ["insertPages", "-", "rotatePagesLeft", "rotatePagesRight", "-", "deletePages", "extractPages"]],
   ["Tools", ["toolSelect", "toolHighlight", "toolText", "toolDraw", "-", "addImage", "sign"]],
   [
@@ -92,7 +94,6 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
 ];
 
 const checkCommands = new Set<CommandId>(["toggleDarkPages", "toggleInvertImages"]);
-const splitCommands = new Set<CommandId>(["closeSplit", "focusLeftPane", "focusRightPane", "moveTabLeft"]);
 
 export type MenuState = { hasDocument: boolean; split: boolean; darkPages: boolean; invertImages: boolean };
 
@@ -125,7 +126,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     if (command.needsDocument) {
       documentItems.push(item);
     }
-    if (splitCommands.has(id) && item instanceof MenuItem) {
+    if (command.needsSplit && item instanceof MenuItem) {
       splitItems.push(item);
     }
     return item;

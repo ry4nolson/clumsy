@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Command Palette** (⇧⌘P): search every command by name and run it, with its shortcut shown next to it
+- **Go to File…** (⌘P): jump to an open tab or a recent file by typing part of its name
+- **Reopen Closed Tab** (⇧⌘T) brings back the last tab you closed, on the same page and zoom
+- **Save All** (⌥⌘S) saves every edited document in the window
+
+### Changed
+- Keyboard shortcuts now follow the popular code editor layout: **Toggle Sidebar** is ⌘B, **Page Thumbnails** ⇧⌘E, **Outline** ⇧⌘O, **New Tab** ⌘N (⌘T still works), **New Window** ⇧⌘N, **Go to Page** ⌃G, and **First Page** / **Last Page** ⌘↑ / ⌘↓
+
 ## [0.2.3] - 2026-10-21
 
 ### Added

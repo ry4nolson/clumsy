@@ -1,0 +1,118 @@
+.quick-pick {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(440px, calc(100vh - 80px));
+  margin: 54px auto auto;
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  animation: quick-pick-in 120ms ease-out;
+}
+
+.quick-pick[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-pick::backdrop {
+  background: transparent;
+}
+
+@keyframes quick-pick-in {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+}
+
+.quick-pick-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.quick-pick-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.quick-pick-list {
+  margin: 6px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.quick-pick-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: default;
+}
+
+.quick-pick-list li.selected {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.quick-pick-label {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-pick-label mark {
+  background: none;
+  color: inherit;
+  font-weight: 650;
+}
+
+.quick-pick-list li:not(.selected) .quick-pick-label mark {
+  color: var(--accent);
+}
+
+.quick-pick-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-pick-list li.selected .quick-pick-detail {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.quick-pick-hint {
+  margin-left: auto;
+  flex: none;
+  color: var(--text-muted);
+  font: 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.quick-pick-list li.selected .quick-pick-hint {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.quick-pick-list .quick-pick-empty {
+  color: var(--text-muted);
+}

@@ -17,6 +17,8 @@ import {
   Type,
 } from "lucide-react";
 import type { EditorTool } from "../hooks/usePdfViewer";
+import { shortcutFor, type CommandId } from "../lib/commands";
+import { isMac } from "../lib/platform";
 import { highlightColors } from "../hooks/usePdfViewer";
 
 export const inkColors = ["#000000", "#d32f2f", "#1565c0", "#2e7d32"];
@@ -64,6 +66,11 @@ type ToolbarProps = {
   onToggleDarkPages: () => void;
 };
 
+const withShortcut = (label: string, id: CommandId) => {
+  const shortcut = shortcutFor(id, isMac);
+  return shortcut ? `${label} (${shortcut})` : label;
+};
+
 function IconButton({ title, active, disabled, onClick, children }: { title: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button type="button" className="icon-button" title={title} aria-label={title} aria-pressed={active} disabled={disabled} onClick={onClick}>
@@ -84,13 +91,13 @@ export function Toolbar(props: ToolbarProps) {
   return (
     <header className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
       <div className="toolbar-group" data-tauri-drag-region>
-        <IconButton title="Toggle sidebar (⌥⌘S)" active={props.sidebarOpen} disabled={!hasDocument} onClick={props.onToggleSidebar}>
+        <IconButton title={withShortcut("Toggle sidebar", "toggleSidebar")} active={props.sidebarOpen} disabled={!hasDocument} onClick={props.onToggleSidebar}>
           <PanelLeft size={18} />
         </IconButton>
-        <IconButton title="Open (⌘O)" onClick={props.onOpen}>
+        <IconButton title={withShortcut("Open", "open")} onClick={props.onOpen}>
           <FolderOpen size={18} />
         </IconButton>
-        <IconButton title="Save (⌘S)" disabled={!hasDocument} onClick={props.onSave}>
+        <IconButton title={withShortcut("Save", "save")} disabled={!hasDocument} onClick={props.onSave}>
           <Save size={18} />
         </IconButton>
       </div>
@@ -137,7 +144,7 @@ export function Toolbar(props: ToolbarProps) {
             <IconButton title="Zoom in (⌘+)" onClick={() => props.onZoom(1)}>
               <Plus size={16} />
             </IconButton>
-            <IconButton title="Rotate (⌘R)" onClick={props.onRotate}>
+            <IconButton title={withShortcut("Rotate", "rotateRight")} onClick={props.onRotate}>
               <RotateCw size={16} />
             </IconButton>
           </div>
@@ -196,7 +203,7 @@ export function Toolbar(props: ToolbarProps) {
         <IconButton title={props.darkPages ? "Light pages" : "Dark pages"} active={props.darkPages} disabled={!hasDocument} onClick={props.onToggleDarkPages}>
           {props.darkPages ? <Sun size={18} /> : <Moon size={18} />}
         </IconButton>
-        <IconButton title="Find (⌘F)" active={props.findOpen} disabled={!hasDocument} onClick={props.onToggleFind}>
+        <IconButton title={withShortcut("Find", "find")} active={props.findOpen} disabled={!hasDocument} onClick={props.onToggleFind}>
           <Search size={18} />
         </IconButton>
       </div>

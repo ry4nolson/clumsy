@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceleratorFor, commands, comboFromEvent, displayCombo, resolveCommand, type KeyInput } from "../src/lib/commands";
+import { acceleratorFor, commands, comboFromEvent, displayCombo, movesCaret, resolveCommand, shortcutFor, type KeyInput } from "../src/lib/commands";
 
 const codeFor = (key: string) => {
   if (/^[a-z]$/i.test(key)) return `Key${key.toUpperCase()}`;
@@ -53,7 +53,7 @@ describe("command table", () => {
 describe("resolveCommand", () => {
   it("uses physical keys so Option combos work", () => {
     expect(resolveCommand({ key: "ª", code: "Digit9", metaKey: true, altKey: true, ctrlKey: false, shiftKey: false }, true, false)).toBe("fitPage");
-    expect(resolveCommand({ key: "©", code: "KeyG", metaKey: true, altKey: true, ctrlKey: false, shiftKey: false }, true, false)).toBe("goToPage");
+    expect(resolveCommand({ key: "ß", code: "KeyS", metaKey: true, altKey: true, ctrlKey: false, shiftKey: false }, true, false)).toBe("saveAll");
   });
 
   it("treats shift+= as zoom in", () => {
@@ -65,6 +65,29 @@ describe("resolveCommand", () => {
     expect(resolveCommand(eventFor("Home"), true, true)).toBeNull();
     expect(resolveCommand(eventFor("mod+f"), true, true)).toBe("find");
     expect(resolveCommand(eventFor("Escape"), true, true)).toBe("escape");
+  });
+
+  it("leaves caret movement to text fields while typing", () => {
+    expect(resolveCommand(eventFor("mod+ArrowUp"), true, false)).toBe("firstPage");
+    expect(resolveCommand(eventFor("mod+ArrowDown"), true, false)).toBe("lastPage");
+    expect(resolveCommand(eventFor("mod+ArrowUp"), true, true)).toBeNull();
+    expect(resolveCommand(eventFor("mod+ArrowDown"), true, true)).toBeNull();
+    expect(resolveCommand(eventFor("alt+mod+ArrowUp"), true, true)).toBe("previousPage");
+    expect(resolveCommand(eventFor("ctrl+mod+ArrowLeft"), true, true)).toBe("moveTabLeft");
+  });
+
+  it("follows the code editor layout", () => {
+    expect(resolveCommand(eventFor("mod+b"), true, false)).toBe("toggleSidebar");
+    expect(resolveCommand(eventFor("mod+shift+e"), true, false)).toBe("showPages");
+    expect(resolveCommand(eventFor("mod+shift+o"), true, false)).toBe("showOutline");
+    expect(resolveCommand(eventFor("mod+n"), true, false)).toBe("newTab");
+    expect(resolveCommand(eventFor("mod+t"), true, false)).toBe("newTab");
+    expect(resolveCommand(eventFor("mod+shift+n"), true, false)).toBe("newWindow");
+    expect(resolveCommand(eventFor("mod+shift+t"), true, false)).toBe("reopenClosedTab");
+    expect(resolveCommand(eventFor("ctrl+g"), true, false)).toBe("goToPage");
+    expect(resolveCommand(eventFor("mod+p"), true, false)).toBe("quickOpen");
+    expect(resolveCommand(eventFor("mod+shift+p"), true, false)).toBe("commandPalette");
+    expect(resolveCommand(eventFor("mod+1"), true, false)).toBe("tab1");
   });
 
   it("ignores unlisted combos", () => {
@@ -79,6 +102,26 @@ describe("resolveCommand", () => {
 
   it("maps Ctrl to the command modifier off macOS", () => {
     expect(resolveCommand({ key: "o", code: "KeyO", ctrlKey: true, metaKey: false, shiftKey: false, altKey: false }, false, false)).toBe("open");
+  });
+});
+
+describe("movesCaret", () => {
+  it("covers the text navigation keys", () => {
+    for (const combo of ["ArrowUp", "mod+ArrowUp", "shift+mod+ArrowDown", "alt+ArrowLeft", "shift+alt+ArrowRight", "mod+Home", "End"]) {
+      expect(movesCaret(combo), combo).toBe(true);
+    }
+    for (const combo of ["alt+mod+ArrowUp", "ctrl+mod+ArrowLeft", "ctrl+ArrowUp", "mod+b", "PageDown"]) {
+      expect(movesCaret(combo), combo).toBe(false);
+    }
+  });
+});
+
+describe("shortcutFor", () => {
+  it("shows a command's first combo", () => {
+    expect(shortcutFor("toggleSidebar", true)).toBe("⌘B");
+    expect(shortcutFor("newTab", true)).toBe("⌘N");
+    expect(shortcutFor("newTab", false)).toBe("Ctrl+N");
+    expect(shortcutFor("combineFiles", true)).toBeNull();
   });
 });
 

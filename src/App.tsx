@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType } from "pdfjs-dist";
 import type { AboutTab } from "./components/AboutWindow";
 import { DocumentTab } from "./components/DocumentTab";
 import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
+import { QuickPick } from "./components/QuickPick";
 import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
 import type { TabItem } from "./components/TabStrip";
@@ -11,29 +12,30 @@ import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useExternalChanges } from "./hooks/useExternalChanges";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { usePageEdits } from "./hooks/usePageEdits";
 import { useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
+import { useQuickPick } from "./hooks/useQuickPick";
+import { useRecentFiles } from "./hooks/useRecentFiles";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
 import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useWorkspace } from "./hooks/useWorkspace";
-import { commandById, isTypingTarget, resolveCommand, type CommandId } from "./lib/commands";
+import { moveCaretToEdge } from "./lib/caret";
+import { commandById, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
 import { openDocumentWindow } from "./lib/documentWindows";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
-import type { RecentEntry } from "./lib/recent";
 import {
   clearRecentFiles,
   closeFocusedAuxWindow,
   closeWindow,
-  fileNameFromPath,
-  getRecentFiles,
   hasOverlayTitlebar,
+  isMac,
   onCloseRequested,
   onFileDrop,
   onFullscreenChange,
   onOpenedFiles,
-  onRecentFilesChanged,
   onShowDocument,
   openAuxWindow,
   openExternal,
@@ -45,7 +47,6 @@ import {
   requestQuit,
   revealInFinder,
   setWindowTitle,
-  showError,
 } from "./lib/platform";
 import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
 import { createPaneId, createStartTab, isModified } from "./lib/tabs";
@@ -57,8 +58,6 @@ const colorParams: Partial<Record<EditorTool, number>> = {
   text: AnnotationEditorParamsType.FREETEXT_COLOR,
   draw: AnnotationEditorParamsType.INK_COLOR,
 };
-
-const isMac = navigator.userAgent.includes("Mac");
 
 export default function App() {
   const workspaceApi = useWorkspace();
@@ -74,6 +73,7 @@ export default function App() {
     newTab,
     closeTab,
     openSource,
+    takeClosedTab,
     showPath,
     handleLoaded,
     handleFailed,
@@ -96,7 +96,7 @@ export default function App() {
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
-  const [recentFiles, setRecentFiles] = useState<RecentEntry[] | null>(null);
+  const { recentFiles, openRecent } = useRecentFiles(openSource);
   const [toolColors, setToolColors] = useState<Record<string, string>>({
     highlight: Object.values(highlightColors)[0],
     text: inkColors[0],
@@ -111,22 +111,6 @@ export default function App() {
 
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
-
-  const refreshRecentFiles = useCallback(() => {
-    getRecentFiles().then(setRecentFiles);
-  }, []);
-
-  const openRecent = useCallback(
-    async (entry: RecentEntry) => {
-      if (!entry.exists) {
-        await removeRecentFile(entry.path);
-        await showError(`“${fileNameFromPath(entry.path)}” couldn’t be found. It may have been moved or deleted, so it was removed from recent files.`);
-        return;
-      }
-      openSource(readPdfFromPath(entry.path));
-    },
-    [openSource],
-  );
 
   const changeTool = (tool: EditorTool) => activeHandle()?.viewer.setTool(tool);
 
@@ -169,7 +153,6 @@ export default function App() {
   }, [documentReport]);
 
   useEffect(() => {
-    refreshRecentFiles();
     const modifiedNames = () =>
       ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" && hasUnsavedChanges(tab) ? [tab.name] : []));
     const cleanups: Array<Promise<() => void>> = [
@@ -191,7 +174,6 @@ export default function App() {
         },
       ),
       onFullscreenChange(setFullscreen),
-      onRecentFilesChanged(refreshRecentFiles),
       onShowDocument(showPath),
       onCloseRequested(() => modifiedNames().length > 0, modifiedNames),
     ];
@@ -199,6 +181,28 @@ export default function App() {
       cleanups.forEach((cleanup) => cleanup.then((dispose) => dispose()));
     };
   }, []);
+
+  const saveAll = async () => {
+    for (const tab of ws.orderedTabs(workspaceRef.current)) {
+      if (tab.kind === "document" && hasUnsavedChanges(tab)) {
+        if (!tab.path) {
+          selectTab(tab.id);
+        }
+        await save(false, tab.id);
+      }
+    }
+  };
+
+  const quickPick = useQuickPick({
+    hasDocument,
+    split: workspace.panes.length > 1,
+    isMac,
+    tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),
+    recent: recentFiles ?? [],
+    onCommand: (id) => runCommandRef.current(id),
+    onShowTab: selectTab,
+    onOpenRecent: openRecent,
+  });
 
   const editingCommand = (name: "undo" | "redo") => {
     if (isTypingTarget(document.activeElement)) {
@@ -218,6 +222,10 @@ export default function App() {
     if (pageEdits.runPageCommand(id)) {
       return;
     }
+    if ((id === "firstPage" || id === "lastPage") && isTypingTarget(document.activeElement)) {
+      moveCaretToEdge(document.activeElement, id === "firstPage");
+      return;
+    }
     const viewer = handle?.viewer;
     const page = activeSnapshot?.pageNumber ?? 1;
     const tabIndex = /^tab(\d)$/.exec(id)?.[1];
@@ -230,6 +238,12 @@ export default function App() {
       checkUpdates: () => openAbout("about", true),
       makeDefault: () => requestDefaultApp(),
       newTab: () => newTab(),
+      reopenClosedTab: () => {
+        const closed = takeClosedTab();
+        if (closed) {
+          openSource(readPdfFromPath(closed.path), { view: closed.view });
+        }
+      },
       newWindow: () => openDocumentWindow(null),
       moveTabToNewWindow: () => moveTabToWindow(ws.focusedTab(workspaceRef.current).id, {}),
       open: () => openSource(pickPdf()),
@@ -251,6 +265,7 @@ export default function App() {
       },
       save: () => save(false),
       saveAs: () => save(true),
+      saveAll: () => saveAll(),
       revealInFinder: () => activeTab.kind === "document" && activeTab.path && revealInFinder(activeTab.path),
       undo: () => editingCommand("undo"),
       redo: () => editingCommand("redo"),
@@ -286,6 +301,8 @@ export default function App() {
       firstPage: () => viewer?.goToPage(1),
       lastPage: () => viewer?.goToPage(activeSnapshot?.pagesCount ?? 1),
       goToPage: () => document.querySelector<HTMLInputElement>(".page-nav input")?.focus(),
+      quickOpen: () => quickPick.toggle("quickOpen"),
+      commandPalette: () => quickPick.toggle("palette"),
       toolSelect: () => viewer?.setTool("select"),
       toolHighlight: () => viewer?.setTool("highlight"),
       toolText: () => viewer?.setTool("text"),
@@ -325,27 +342,13 @@ export default function App() {
     recentFiles,
   );
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const typing = isTypingTarget(event.target);
-      const id = resolveCommand(event, isMac, typing);
-      if (!id || id === "undo" || id === "redo") {
-        return;
-      }
-      if (id === "escape") {
-        if (activeSnapshot?.findOpen) {
-          activeHandle()?.closeFind();
-        } else if (!typing && hasDocument && activeSnapshot?.tool !== "select") {
-          activeHandle()?.viewer.setTool("select");
-        }
-        return;
-      }
-      event.preventDefault();
-      runCommandRef.current(id);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeSnapshot, hasDocument]);
+  useKeyboardShortcuts(isMac, (id) => runCommandRef.current(id), (typing) => {
+    if (activeSnapshot?.findOpen) {
+      activeHandle()?.closeFind();
+    } else if (!typing && hasDocument && activeSnapshot?.tool !== "select") {
+      activeHandle()?.viewer.setTool("select");
+    }
+  });
 
   const tabItems: Record<string, TabItem> = Object.fromEntries(
     Object.values(workspace.tabs).map((tab) => [
@@ -399,7 +402,7 @@ export default function App() {
         panes={workspace.panes}
         focusedPaneId={workspace.focusedPaneId}
         tabItems={tabItems}
-        newTabShortcut={isMac ? "⌘T" : "Ctrl+T"}
+        newTabShortcut={shortcutFor("newTab", isMac) ?? ""}
         overlay={dropHover === "open" && <div className="drop-overlay">Drop to open</div>}
         onSelectTab={selectTab}
         onCloseTab={closeTab}
@@ -425,7 +428,7 @@ export default function App() {
                 <div className="empty-state">
                   <Welcome
                     loading={false}
-                    shortcut={isMac ? "⌘O" : "Ctrl+O"}
+                    shortcut={shortcutFor("open", isMac) ?? ""}
                     recent={recentFiles}
                     onOpen={() => openSource(pickPdf())}
                     onOpenRecent={openRecent}
@@ -481,6 +484,7 @@ export default function App() {
         request={passwords.current}
         onSubmit={passwords.resolvePassword}
       />
+      <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>
   );
 }

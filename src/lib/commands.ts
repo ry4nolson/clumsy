@@ -3,6 +3,7 @@ export type CommandId =
   | "checkUpdates"
   | "makeDefault"
   | "newTab"
+  | "reopenClosedTab"
   | "newWindow"
   | "moveTabToNewWindow"
   | "open"
@@ -11,6 +12,7 @@ export type CommandId =
   | "closeWindow"
   | "save"
   | "saveAs"
+  | "saveAll"
   | "revealInFinder"
   | "undo"
   | "redo"
@@ -35,6 +37,8 @@ export type CommandId =
   | "firstPage"
   | "lastPage"
   | "goToPage"
+  | "quickOpen"
+  | "commandPalette"
   | "toolSelect"
   | "toolHighlight"
   | "toolText"
@@ -70,6 +74,7 @@ export type Command = {
   menu: MenuName | null;
   combos: string[];
   needsDocument?: boolean;
+  needsSplit?: boolean;
 };
 
 const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) => ({
@@ -85,14 +90,16 @@ export const commands: Command[] = [
   { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [] },
   { id: "quit", label: "Quit Clumsy", menu: "Clumsy", combos: ["mod+q"] },
 
-  { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+t"] },
-  { id: "newWindow", label: "New Window", menu: "File", combos: ["mod+n"] },
+  { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+n", "mod+t"] },
+  { id: "newWindow", label: "New Window", menu: "File", combos: ["mod+shift+n"] },
+  { id: "reopenClosedTab", label: "Reopen Closed Tab", menu: "File", combos: ["mod+shift+t"] },
   { id: "open", label: "Open…", menu: "File", combos: ["mod+o"] },
   { id: "combineFiles", label: "Combine Files…", menu: "File", combos: [] },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"] },
   { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true },
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true },
+  { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
   { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true },
 
   { id: "undo", label: "Undo", menu: "Edit", combos: ["mod+z"] },
@@ -102,9 +109,10 @@ export const commands: Command[] = [
   { id: "findPrevious", label: "Find Previous", menu: "Edit", combos: ["mod+shift+g"], needsDocument: true },
   { id: "useSelectionForFind", label: "Use Selection for Find", menu: "Edit", combos: ["mod+e"], needsDocument: true },
 
-  { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["alt+mod+s"], needsDocument: true },
-  { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["alt+mod+1"], needsDocument: true },
-  { id: "showOutline", label: "Outline", menu: "View", combos: ["alt+mod+2"], needsDocument: true },
+  { id: "commandPalette", label: "Command Palette…", menu: "View", combos: ["mod+shift+p"] },
+  { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["mod+b"], needsDocument: true },
+  { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["mod+shift+e"], needsDocument: true },
+  { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true },
   { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true },
   { id: "zoomIn", label: "Zoom In", menu: "View", combos: ["mod+=", "mod+shift+="], needsDocument: true },
   { id: "zoomOut", label: "Zoom Out", menu: "View", combos: ["mod+-"], needsDocument: true },
@@ -113,15 +121,16 @@ export const commands: Command[] = [
   { id: "rotateLeft", label: "Rotate Left", menu: "View", combos: ["mod+l"], needsDocument: true },
   { id: "rotateRight", label: "Rotate Right", menu: "View", combos: ["mod+r"], needsDocument: true },
   { id: "splitRight", label: "Split Right", menu: "View", combos: ["mod+\\"] },
-  { id: "closeSplit", label: "Close Split", menu: "View", combos: ["mod+shift+\\"] },
+  { id: "closeSplit", label: "Close Split", menu: "View", combos: ["mod+shift+\\"], needsSplit: true },
   { id: "toggleDarkPages", label: "Dark Pages", menu: "View", combos: ["mod+shift+d"] },
   { id: "toggleInvertImages", label: "Invert Images in Dark Pages", menu: "View", combos: [] },
 
   { id: "previousPage", label: "Previous Page", menu: "Go", combos: ["alt+mod+ArrowUp", "p", "k"], needsDocument: true },
   { id: "nextPage", label: "Next Page", menu: "Go", combos: ["alt+mod+ArrowDown", "n", "j"], needsDocument: true },
-  { id: "firstPage", label: "First Page", menu: "Go", combos: ["shift+alt+mod+ArrowUp", "Home"], needsDocument: true },
-  { id: "lastPage", label: "Last Page", menu: "Go", combos: ["shift+alt+mod+ArrowDown", "End"], needsDocument: true },
-  { id: "goToPage", label: "Go to Page…", menu: "Go", combos: ["alt+mod+g"], needsDocument: true },
+  { id: "firstPage", label: "First Page", menu: "Go", combos: ["mod+ArrowUp", "Home"], needsDocument: true },
+  { id: "lastPage", label: "Last Page", menu: "Go", combos: ["mod+ArrowDown", "End"], needsDocument: true },
+  { id: "goToPage", label: "Go to Page…", menu: "Go", combos: ["ctrl+g"], needsDocument: true },
+  { id: "quickOpen", label: "Go to File…", menu: "Go", combos: ["mod+p"] },
 
   { id: "toolSelect", label: "Select", menu: "Tools", combos: ["v"], needsDocument: true },
   { id: "toolHighlight", label: "Highlight", menu: "Tools", combos: ["ctrl+mod+h", "h"], needsDocument: true },
@@ -138,9 +147,9 @@ export const commands: Command[] = [
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
   { id: "previousTab", label: "Show Previous Tab", menu: "Window", combos: ["mod+shift+[", "ctrl+shift+Tab"] },
-  { id: "focusLeftPane", label: "Focus Left Pane", menu: "Window", combos: ["alt+mod+ArrowLeft"] },
-  { id: "focusRightPane", label: "Focus Right Pane", menu: "Window", combos: ["alt+mod+ArrowRight"] },
-  { id: "moveTabLeft", label: "Move Tab to Left Pane", menu: "Window", combos: ["ctrl+mod+ArrowLeft"] },
+  { id: "focusLeftPane", label: "Focus Left Pane", menu: "Window", combos: ["alt+mod+ArrowLeft"], needsSplit: true },
+  { id: "focusRightPane", label: "Focus Right Pane", menu: "Window", combos: ["alt+mod+ArrowRight"], needsSplit: true },
+  { id: "moveTabLeft", label: "Move Tab to Left Pane", menu: "Window", combos: ["ctrl+mod+ArrowLeft"], needsSplit: true },
   { id: "moveTabRight", label: "Move Tab to Right Pane", menu: "Window", combos: ["ctrl+mod+ArrowRight"] },
   { id: "moveTabToNewWindow", label: "Move Tab to New Window", menu: "Window", combos: ["alt+mod+n"] },
   ...tabCommands,
@@ -213,6 +222,15 @@ export function isPlainCombo(combo: string) {
   return !MODIFIERS.some((modifier) => normalize(combo).startsWith(`${modifier}+`));
 }
 
+const caretKeys = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
+const caretModifiers = new Set(["", "mod", "alt"]);
+
+export function movesCaret(combo: string) {
+  const parts = normalize(combo).split("+");
+  const key = parts.pop()!;
+  return caretKeys.has(key) && caretModifiers.has(parts.filter((part) => part !== "shift").join("+"));
+}
+
 export function resolveCommand(event: KeyInput, isMac: boolean, isTyping: boolean): CommandId | null {
   const combo = comboFromEvent(event, isMac);
   if (!combo) {
@@ -222,7 +240,7 @@ export function resolveCommand(event: KeyInput, isMac: boolean, isTyping: boolea
   if (!id || id === "escape") {
     return id;
   }
-  return isTyping && isPlainCombo(combo) ? null : id;
+  return isTyping && (isPlainCombo(combo) || movesCaret(combo)) ? null : id;
 }
 
 const acceleratorKeys: Record<string, string> = {
@@ -264,6 +282,11 @@ export function displayCombo(combo: string, isMac: boolean) {
   }
   const names: Record<string, string> = { ctrl: "Ctrl", shift: "Shift", alt: "Alt", mod: "Ctrl" };
   return [...parts.map((part) => names[part]), label].join("+");
+}
+
+export function shortcutFor(id: CommandId, isMac: boolean) {
+  const combo = commandById.get(id)?.combos[0];
+  return combo ? displayCombo(combo, isMac) : null;
 }
 
 export function isTypingTarget(target: EventTarget | null) {
