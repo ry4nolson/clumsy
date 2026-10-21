@@ -7,6 +7,7 @@ import { PasswordDialog } from "./components/PasswordDialog";
 import { QuickPick } from "./components/QuickPick";
 import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
+import { UpdateDialog } from "./components/UpdateDialog";
 import type { TabItem } from "./components/TabStrip";
 import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
@@ -17,6 +18,7 @@ import { usePageEdits } from "./hooks/usePageEdits";
 import { useSaveAll, useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
+import { useUpdatePrompt } from "./hooks/useUpdatePrompt";
 import { useQuickPick } from "./hooks/useQuickPick";
 import { useRecentFiles } from "./hooks/useRecentFiles";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
@@ -88,6 +90,7 @@ export default function App() {
   pageEditsRef.current = pageEdits;
   const passwords = usePasswordPrompts();
   useDefaultAppPrompt();
+  const updatePrompt = useUpdatePrompt();
 
   const [dropHover, setDropHover] = useState<"open" | "insert" | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -474,6 +477,12 @@ export default function App() {
       <PasswordDialog
         request={passwords.current}
         onSubmit={passwords.resolvePassword}
+      />
+      <UpdateDialog
+        offer={updatePrompt.offer}
+        onLater={updatePrompt.later}
+        onSkip={updatePrompt.skip}
+        onDownload={updatePrompt.download}
       />
       <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>

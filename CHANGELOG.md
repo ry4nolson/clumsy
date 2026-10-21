@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Checks for updates on startup and when the window is focused again (not on a background timer), and shows release notes for every version since the one you have installed
+
 ## [0.2.8] - 2026-10-21
 
 ### Changed

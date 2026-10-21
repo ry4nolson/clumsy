@@ -22,10 +22,13 @@ function InlineText({ text }: { text: string }) {
 type ChangelogListProps = {
   releases: ChangelogRelease[];
   onOpenUrl: (url: string) => void;
+  expand?: "first" | "all";
 };
 
-export function ChangelogList({ releases, onOpenUrl }: ChangelogListProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(releases.slice(0, 1).map((release) => release.version)));
+export function ChangelogList({ releases, onOpenUrl, expand = "first" }: ChangelogListProps) {
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set((expand === "all" ? releases : releases.slice(0, 1)).map((release) => release.version)),
+  );
 
   if (!releases.length) {
     return <p className="changelog-empty">No changelog available.</p>;

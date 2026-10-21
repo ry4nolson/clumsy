@@ -1249,6 +1249,13 @@ body {
   justify-content: center;
 }
 
+.about-update-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
 .about-update {
   display: flex;
   align-items: center;
@@ -1260,6 +1267,21 @@ body {
 
 .about-update strong {
   color: var(--text);
+}
+
+.about-update-notes,
+.update-dialog-notes {
+  max-height: min(360px, 50vh);
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.update-dialog {
+  width: min(560px, calc(100vw - 32px));
 }
 
 .spin {

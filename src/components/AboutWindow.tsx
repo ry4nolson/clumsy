@@ -145,38 +145,45 @@ export function AboutWindow() {
             ))}
           </div>
 
-          <div className="about-update" aria-live="polite">
-            {status.state === "checking" && (
-              <>
-                <LoaderCircle size={14} className="spin" />
-                <span>Checking for updates…</span>
-              </>
-            )}
-            {status.state === "available" && (
-              <>
-                <CircleArrowDown size={14} className="tone-available" />
-                <strong>v{status.latest} available</strong>
-                <button type="button" className="button primary small" onClick={() => onOpenUrl(status.url)}>
-                  View release
+          <div className="about-update-block" aria-live="polite">
+            <div className="about-update">
+              {status.state === "checking" && (
+                <>
+                  <LoaderCircle size={14} className="spin" />
+                  <span>Checking for updates…</span>
+                </>
+              )}
+              {status.state === "available" && (
+                <>
+                  <CircleArrowDown size={14} className="tone-available" />
+                  <strong>v{status.latest} available</strong>
+                  <button type="button" className="button primary small" onClick={() => onOpenUrl(status.url)}>
+                    Download
+                  </button>
+                </>
+              )}
+              {status.state === "current" && (
+                <>
+                  <CircleCheck size={14} className="tone-current" />
+                  <span>Up to date</span>
+                </>
+              )}
+              {status.state === "error" && (
+                <>
+                  <TriangleAlert size={14} className="tone-warning" />
+                  <span>{status.message}</span>
+                </>
+              )}
+              {status.state !== "checking" && (
+                <button type="button" className="link-button" onClick={check}>
+                  Check for updates
                 </button>
-              </>
-            )}
-            {status.state === "current" && (
-              <>
-                <CircleCheck size={14} className="tone-current" />
-                <span>Up to date</span>
-              </>
-            )}
-            {status.state === "error" && (
-              <>
-                <TriangleAlert size={14} className="tone-warning" />
-                <span>{status.message}</span>
-              </>
-            )}
-            {status.state !== "checking" && (
-              <button type="button" className="link-button" onClick={check}>
-                Check for updates
-              </button>
+              )}
+            </div>
+            {status.state === "available" && status.releases.length > 0 && (
+              <div className="about-update-notes">
+                <ChangelogList releases={status.releases} onOpenUrl={onOpenUrl} expand="all" />
+              </div>
             )}
           </div>
 
