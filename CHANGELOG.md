@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Releases keep `package.json`, `tauri.conf.json`, and `Cargo.toml` on the same version (they had drifted to 0.1.0 / 0.2.0)
+
 ## [0.2.5] - 2026-10-21
 
 ### Fixed

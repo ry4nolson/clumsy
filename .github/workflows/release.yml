@@ -72,13 +72,7 @@ jobs:
           VERSION="$(./scripts/next-version.sh)"
           echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          node -e '
-            const fs = require("fs");
-            const path = "src-tauri/tauri.conf.json";
-            const config = JSON.parse(fs.readFileSync(path, "utf8"));
-            config.version = process.argv[1];
-            fs.writeFileSync(path, JSON.stringify(config, null, 2) + "\n");
-          ' "$VERSION"
+          node scripts/set-version.mjs "$VERSION"
           echo "Version set to $VERSION"
 
       - name: Stamp changelog
@@ -210,17 +204,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Commit stamped changelog
-        if: env.CHANGELOG_STAMPED == 'true'
+      - name: Commit release metadata
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
+          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+          if [ "${CHANGELOG_STAMPED:-}" = "true" ]; then
+            git add CHANGELOG.md
+          fi
+          if git diff --cached --quiet; then
+            echo "No version or changelog changes to commit"
+            exit 0
+          fi
           git commit -m "Release v$VERSION"
-          git reset --hard HEAD
           for attempt in 1 2 3; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
             sleep 5
           done
-          echo "::error::Could not push the stamped changelog; move [Unreleased] under [$VERSION] by hand"
+          echo "::error::Could not push the release metadata; set version $VERSION and stamp CHANGELOG.md by hand"
           exit 1
