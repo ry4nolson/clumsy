@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-21
+
 ### Added
 - **Organize pages** from the sidebar: drag thumbnails to reorder, ⌘-click or ⇧-click to select several, Delete to remove, and right-click to rotate, delete, extract, or insert pages; the new **Pages** menu has the same commands
 - **Insert Pages from File…** (⌥⌘I), or drop PDFs onto the page thumbnails to insert them right where you drop
