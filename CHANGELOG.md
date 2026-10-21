@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-21
+
 ### Added
 - **Command Palette** (⇧⌘P): search every command by name and run it, with its shortcut shown next to it
 - **Go to File…** (⌘P): jump to an open tab or a recent file by typing part of its name
