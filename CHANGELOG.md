@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-10-21
+
 ### Changed
 - The download disk image opens to a branded window (drag Clumsy onto Applications)
 
