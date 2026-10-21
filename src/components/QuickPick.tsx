@@ -91,6 +91,11 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
         event.preventDefault();
         finish(null);
       }}
+      onMouseDown={(event) => {
+        if (!(event.target instanceof HTMLInputElement)) {
+          event.preventDefault();
+        }
+      }}
       onPointerDown={(event) => {
         const box = dialogRef.current?.getBoundingClientRect();
         const outside = box && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom);

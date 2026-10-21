@@ -74,6 +74,8 @@ describe("resolveCommand", () => {
     expect(resolveCommand(eventFor("mod+ArrowDown"), true, true)).toBeNull();
     expect(resolveCommand(eventFor("alt+mod+ArrowUp"), true, true)).toBe("previousPage");
     expect(resolveCommand(eventFor("ctrl+mod+ArrowLeft"), true, true)).toBe("moveTabLeft");
+    expect(resolveCommand(eventFor("mod+ArrowDown"), true, true, false)).toBe("lastPage");
+    expect(resolveCommand(eventFor("h"), true, true, false)).toBeNull();
   });
 
   it("follows the code editor layout", () => {

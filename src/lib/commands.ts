@@ -231,7 +231,7 @@ export function movesCaret(combo: string) {
   return caretKeys.has(key) && caretModifiers.has(parts.filter((part) => part !== "shift").join("+"));
 }
 
-export function resolveCommand(event: KeyInput, isMac: boolean, isTyping: boolean): CommandId | null {
+export function resolveCommand(event: KeyInput, isMac: boolean, isTyping: boolean, inCaretField = isTyping): CommandId | null {
   const combo = comboFromEvent(event, isMac);
   if (!combo) {
     return null;
@@ -240,7 +240,7 @@ export function resolveCommand(event: KeyInput, isMac: boolean, isTyping: boolea
   if (!id || id === "escape") {
     return id;
   }
-  return isTyping && (isPlainCombo(combo) || movesCaret(combo)) ? null : id;
+  return (isTyping && isPlainCombo(combo)) || (inCaretField && movesCaret(combo)) ? null : id;
 }
 
 const acceleratorKeys: Record<string, string> = {

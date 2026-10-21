@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { hasCaret } from "../lib/caret";
 import { isTypingTarget, resolveCommand, type CommandId } from "../lib/commands";
 
 export function useKeyboardShortcuts(isMac: boolean, onCommand: (id: CommandId) => void, onEscape: (typing: boolean) => void) {
@@ -11,12 +12,12 @@ export function useKeyboardShortcuts(isMac: boolean, onCommand: (id: CommandId) 
         return;
       }
       const typing = isTypingTarget(event.target);
-      const id = resolveCommand(event, isMac, typing);
+      const id = resolveCommand(event, isMac, typing, event.target instanceof Element && hasCaret(event.target));
       if (!id || id === "undo" || id === "redo") {
         return;
       }
       if (id === "escape") {
-        if (!(event.target instanceof Element && event.target.closest("dialog[open]"))) {
+        if (!document.querySelector("dialog[open]")) {
           handlers.current.onEscape(typing);
         }
         return;
