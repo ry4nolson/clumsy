@@ -57,7 +57,7 @@ scripts/
   next-version.sh            computes the next release version
   set-version.mjs            writes that version into package.json, tauri.conf.json, and Cargo.toml/lock
   stamp-changelog.mjs        moves [Unreleased] under a release heading
-  create-dmg.sh              headless DMG (no Finder/AppleScript styling, CI-safe)
+  create-dmg.sh              branded DMG via dmgbuild (scripts/dmg/; CI-safe, no AppleScript)
   third-party-licenses.mjs   generates public/third-party-licenses.txt (gitignored) for the About > Licenses tab
 tests/                       vitest unit tests for src/lib and scripts
 ```
