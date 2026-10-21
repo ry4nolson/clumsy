@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- About (and Help menu) links open in the browser again; the opener permission was missing its URL allowlist
+
 ## [0.2.4] - 2026-10-21
 
 ### Added
