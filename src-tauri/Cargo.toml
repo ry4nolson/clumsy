@@ -1,6 +1,6 @@
 [package]
 name = "clumsy"
-version = "0.2.8"
+version = "0.2.9"
 description = "A small, fast PDF viewer"
 license = "MIT"
 repository = "https://github.com/ry4nolson/clumsy"
