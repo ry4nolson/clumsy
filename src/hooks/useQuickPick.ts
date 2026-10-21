@@ -22,6 +22,9 @@ export function useQuickPick(sources: QuickPickSources) {
   const recentCommands = useRef<CommandId[]>([]);
 
   const toggle = useCallback((kind: Kind) => {
+    if (document.querySelector("dialog[open]:not(.quick-pick)")) {
+      return;
+    }
     setMode((current) => {
       if (current?.kind === kind) {
         return null;

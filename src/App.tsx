@@ -14,7 +14,7 @@ import { useAppMenu } from "./hooks/useAppMenu";
 import { useExternalChanges } from "./hooks/useExternalChanges";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { usePageEdits } from "./hooks/usePageEdits";
-import { useSaveDocument } from "./hooks/useSaveDocument";
+import { useSaveAll, useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
 import { useQuickPick } from "./hooks/useQuickPick";
@@ -22,7 +22,7 @@ import { useRecentFiles } from "./hooks/useRecentFiles";
 import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
 import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useWorkspace } from "./hooks/useWorkspace";
-import { moveCaretToEdge } from "./lib/caret";
+import { hasCaret, moveCaretToEdge } from "./lib/caret";
 import { commandById, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
 import { openDocumentWindow } from "./lib/documentWindows";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
@@ -182,16 +182,7 @@ export default function App() {
     };
   }, []);
 
-  const saveAll = async () => {
-    for (const tab of ws.orderedTabs(workspaceRef.current)) {
-      if (tab.kind === "document" && hasUnsavedChanges(tab)) {
-        if (!tab.path) {
-          selectTab(tab.id);
-        }
-        await save(false, tab.id);
-      }
-    }
-  };
+  const saveAll = useSaveAll(workspaceApi, save);
 
   const quickPick = useQuickPick({
     hasDocument,
@@ -214,7 +205,7 @@ export default function App() {
 
   const openAbout = (tab: AboutTab, checkForUpdates = false) => openAuxWindow("about", checkForUpdates ? { tab, check: "1" } : { tab });
 
-  const runCommand = (id: CommandId) => {
+  const runCommand = (id: CommandId, fromMenu = false) => {
     const handle = activeHandle();
     if (commandById.get(id)?.needsDocument && (!handle || !hasDocument || !activeSnapshot)) {
       return;
@@ -222,7 +213,7 @@ export default function App() {
     if (pageEdits.runPageCommand(id)) {
       return;
     }
-    if ((id === "firstPage" || id === "lastPage") && isTypingTarget(document.activeElement)) {
+    if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
       moveCaretToEdge(document.activeElement, id === "firstPage");
       return;
     }
@@ -337,7 +328,7 @@ export default function App() {
   runCommandRef.current = runCommand;
 
   useAppMenu(
-    { onCommand: runCommand, onOpenRecent: openRecent },
+    { onCommand: (id) => runCommand(id, true), onOpenRecent: openRecent },
     { hasDocument, split: workspace.panes.length > 1, darkPages, invertImages: darkPagesImages === "invert" },
     recentFiles,
   );

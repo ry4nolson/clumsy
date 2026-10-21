@@ -7,13 +7,18 @@ export function useKeyboardShortcuts(isMac: boolean, onCommand: (id: CommandId) 
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing || event.keyCode === 229) {
+        return;
+      }
       const typing = isTypingTarget(event.target);
       const id = resolveCommand(event, isMac, typing);
       if (!id || id === "undo" || id === "redo") {
         return;
       }
       if (id === "escape") {
-        handlers.current.onEscape(typing);
+        if (!(event.target instanceof Element && event.target.closest("dialog[open]"))) {
+          handlers.current.onEscape(typing);
+        }
         return;
       }
       event.preventDefault();

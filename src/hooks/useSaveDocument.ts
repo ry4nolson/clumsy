@@ -74,3 +74,30 @@ export function useSaveDocument({ workspaceRef, handles, update }: WorkspaceApi,
     }
   }, [handles, settled, update, workspaceRef]);
 }
+
+export function useSaveAll({ workspaceRef, hasUnsavedChanges, selectTab }: WorkspaceApi, save: (saveAs: boolean, tabId?: string) => Promise<void>) {
+  const savingAll = useRef(false);
+
+  return useCallback(async () => {
+    if (savingAll.current) {
+      return;
+    }
+    savingAll.current = true;
+    const focusedId = ws.focusedTab(workspaceRef.current).id;
+    try {
+      for (const tab of ws.orderedTabs(workspaceRef.current)) {
+        if (tab.kind === "document" && hasUnsavedChanges(tab)) {
+          if (!tab.path) {
+            selectTab(tab.id);
+          }
+          await save(false, tab.id);
+        }
+      }
+    } finally {
+      savingAll.current = false;
+      if (workspaceRef.current.tabs[focusedId]) {
+        selectTab(focusedId);
+      }
+    }
+  }, [hasUnsavedChanges, save, selectTab, workspaceRef]);
+}

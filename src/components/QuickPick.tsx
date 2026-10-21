@@ -45,13 +45,19 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
 
   const results = useMemo(() => (mode ? rankItems(query, mode.items, (item) => item.label, (item) => item.detail ?? "") : []), [mode, query]);
 
+  const hide = () => {
+    dialogRef.current?.close();
+    returnFocus.current?.focus();
+    returnFocus.current = null;
+  };
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (mode && dialog && !dialog.open) {
       returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       dialog.showModal();
     } else if (!mode && dialog?.open) {
-      dialog.close();
+      hide();
     }
     setQuery("");
     setSelected(0);
@@ -62,9 +68,7 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
   }, [selected]);
 
   const finish = (id: string | null) => {
-    dialogRef.current?.close();
-    returnFocus.current?.focus();
-    returnFocus.current = null;
+    hide();
     if (id) {
       onPick(id);
     } else {
@@ -88,7 +92,9 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
         finish(null);
       }}
       onPointerDown={(event) => {
-        if (event.target === dialogRef.current) {
+        const box = dialogRef.current?.getBoundingClientRect();
+        const outside = box && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom);
+        if (event.target === dialogRef.current && outside) {
           finish(null);
         }
       }}
@@ -117,7 +123,7 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
             Escape: () => finish(null),
           };
           const action = actions[event.key];
-          if (action && !event.nativeEvent.isComposing) {
+          if (action && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) {
             event.preventDefault();
             event.stopPropagation();
             action();
