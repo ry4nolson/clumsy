@@ -7,7 +7,7 @@ import type { PageRect } from "../lib/diffRects";
 import { markCurrentChange, paintDiffPage, paintDiffPages, type DiffViewer } from "../lib/diffLayer";
 import type { ViewState } from "../lib/documentWindows";
 import { compileFindPattern } from "../lib/findPattern";
-import { imageRects, recordImageCoordinates, recordedImages } from "../lib/imageRegions";
+import { restoreImages, type RenderedPageView } from "../lib/imageRestore";
 import { PatternFindController } from "../lib/patternFindController";
 import type { ScrollLocation } from "../lib/scrollSync";
 import { revealRect, scrollLocation, scrollToLocation, type ScrollableViewer } from "../lib/viewerScroll";
@@ -42,6 +42,8 @@ export type FindStatus = {
   total: number;
 };
 
+export type FindMatches = { positions: number[][]; lengths: number[][]; selected: { pageIdx: number; matchIdx: number } };
+
 export type FindQuery = {
   query: string;
   caseSensitive: boolean;
@@ -57,44 +59,6 @@ const findStates: Record<number, FindStatus["state"]> = {
 };
 
 const presetScales = new Set(["page-width", "page-fit", "auto"]);
-
-type RenderedPageView = {
-  id: number;
-  div: HTMLDivElement;
-  canvas: HTMLCanvasElement | null;
-  pdfPage: object;
-  imageCoordinates: ArrayLike<number> | null;
-  viewport: { rotation: number };
-};
-
-function restoreImages(pageView: RenderedPageView) {
-  const { canvas, div, pdfPage, viewport } = pageView;
-  recordImageCoordinates(pdfPage, pageView.imageCoordinates, viewport.rotation);
-  const images = recordedImages(pdfPage);
-  let overlay = div.querySelector<HTMLCanvasElement>("canvas.image-restore");
-  if (!canvas || !images?.coords.length) {
-    overlay?.remove();
-    return;
-  }
-  if (!overlay) {
-    overlay = document.createElement("canvas");
-    overlay.className = "image-restore";
-    overlay.setAttribute("aria-hidden", "true");
-  }
-  if (!overlay.isConnected) {
-    div.querySelector(".canvasWrapper")?.after(overlay);
-  }
-  overlay.width = canvas.width;
-  overlay.height = canvas.height;
-  const context = overlay.getContext("2d")!;
-  for (const rect of imageRects(images.coords, viewport.rotation - images.rotation)) {
-    const x = Math.floor(rect.x * canvas.width);
-    const y = Math.floor(rect.y * canvas.height);
-    const width = Math.ceil(rect.width * canvas.width);
-    const height = Math.ceil(rect.height * canvas.height);
-    context.drawImage(canvas, x, y, width, height, x, y, width, height);
-  }
-}
 
 type ViewerParts = {
   eventBus: EventBus;
@@ -117,6 +81,7 @@ export function usePdfViewer() {
   const [pagesCount, setPagesCount] = useState(0);
   const [scale, setScale] = useState(1);
   const [scaleValue, setScaleValue] = useState("page-width");
+  const [pagesRotation, setPagesRotation] = useState(0);
   const [tool, setToolState] = useState<EditorTool>("select");
   const [modified, setModifiedState] = useState(false);
   const [findStatus, setFindStatus] = useState<FindStatus>({ state: "idle", current: 0, total: 0 });
@@ -176,7 +141,10 @@ export function usePdfViewer() {
         paintDiff(source.id - 1);
       }
     });
-    eventBus.on("rotationchanging", paintAllDiffs);
+    eventBus.on("rotationchanging", ({ pagesRotation }: { pagesRotation: number }) => {
+      setPagesRotation(pagesRotation);
+      paintAllDiffs();
+    });
     eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => setPageNumber(pageNumber));
     eventBus.on("pagesloaded", ({ pagesCount }: { pagesCount: number }) => setPagesCount(pagesCount));
     eventBus.on("scalechanging", ({ scale, presetValue }: { scale: number; presetValue?: string }) => {
@@ -265,6 +233,7 @@ export function usePdfViewer() {
     setModified(false);
     setPageNumber(1);
     setPagesCount(doc?.numPages ?? 0);
+    setPagesRotation(0);
     setToolState("select");
     setFindStatus({ state: "idle", current: 0, total: 0 });
     if (doc) {
@@ -377,6 +346,14 @@ export function usePdfViewer() {
     });
   }, []);
 
+  const findMatches = useCallback((): FindMatches | null => {
+    const controller = partsRef.current?.findController;
+    if (!controller?.highlightMatches || !controller.pageMatches) {
+      return null;
+    }
+    return { positions: controller.pageMatches, lengths: controller.pageMatchesLength ?? [], selected: controller.selected ?? { pageIdx: -1, matchIdx: -1 } };
+  }, []);
+
   const closeFind = useCallback(() => {
     partsRef.current?.eventBus.dispatch("findbarclose", { source: null });
     setFindStatus({ state: "idle", current: 0, total: 0 });
@@ -459,9 +436,11 @@ export function usePdfViewer() {
     pagesCount,
     scale,
     scaleValue,
+    pagesRotation,
     tool,
     modified,
     findStatus,
+    findMatches,
     setDocument,
     goToPage,
     goToDestination,

@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { CompareView } from "../hooks/useComparison";
+import { useMapMarks } from "../hooks/useMapMarks";
 import { usePdfViewer, type FindQuery, type PdfViewerApi } from "../hooks/usePdfViewer";
 import type { ViewState } from "../lib/documentWindows";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
@@ -7,6 +8,7 @@ import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSe
 import { readPdfFromPath, type PdfSource } from "../lib/platform";
 import { ChangesList } from "./ChangesList";
 import { CompareBar } from "./CompareBar";
+import { DocumentMap } from "./DocumentMap";
 import { FindBar } from "./FindBar";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 
@@ -42,6 +44,7 @@ type DocumentTabProps = {
   sidebarOpen: boolean;
   sidebarTab: SidebarTab;
   onSidebarTab: (tab: SidebarTab) => void;
+  documentMap: boolean;
   darkPages: boolean;
   keepImages: boolean;
   requestPassword: (fileName: string, incorrect: boolean) => Promise<string | null>;
@@ -65,6 +68,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     sidebarOpen,
     sidebarTab,
     onSidebarTab,
+    documentMap,
     darkPages,
     keepImages,
     requestPassword,
@@ -141,6 +145,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
 
   const currentPage = viewer.pageNumber - 1;
   const shownSelection = followCurrentPage(selection, currentPage);
+  const mapMarks = useMapMarks(viewer, compare, documentMap);
 
   const choosePage = (page: number, modifiers: { toggle: boolean; range: boolean }) => {
     const next = selectPage(shownSelection, page, modifiers);
@@ -231,6 +236,15 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         </div>
         {!loaded && <div className="tab-loading">Opening {source.name}…</div>}
       </main>
+      {loaded && documentMap && viewer.pdfDocument && (
+        <DocumentMap
+          pdfDocument={viewer.pdfDocument}
+          containerRef={viewer.containerRef}
+          rotation={viewer.pagesRotation}
+          selection={shownSelection.pages}
+          marks={mapMarks}
+        />
+      )}
     </div>
   );
 });

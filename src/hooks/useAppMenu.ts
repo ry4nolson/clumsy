@@ -39,11 +39,11 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: MenuState, recent
     };
   }, []);
 
-  const { hasDocument, split, comparing, darkPages, invertImages } = state;
+  const { hasDocument, split, comparing, documentMap, darkPages, invertImages } = state;
 
   useEffect(() => {
-    menuRef.current?.setState({ hasDocument, split, comparing, darkPages, invertImages });
-  }, [menuReady, hasDocument, split, comparing, darkPages, invertImages]);
+    menuRef.current?.setState({ hasDocument, split, comparing, documentMap, darkPages, invertImages });
+  }, [menuReady, hasDocument, split, comparing, documentMap, darkPages, invertImages]);
 
   useEffect(() => {
     if (recentFiles) {

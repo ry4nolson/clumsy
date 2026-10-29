@@ -50,6 +50,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "toggleSidebar",
       "showPages",
       "showOutline",
+      "toggleDocumentMap",
       "-",
       "splitRight",
       "closeSplit",
@@ -98,9 +99,9 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
   ["Help", ["keyboardShortcuts", "whatsNew", "-", "openGitHub", "reportIssue"]],
 ];
 
-const checkCommands = new Set<CommandId>(["toggleDarkPages", "toggleInvertImages"]);
+const checkCommands = new Set<CommandId>(["toggleDocumentMap", "toggleDarkPages", "toggleInvertImages"]);
 
-export type MenuState = { hasDocument: boolean; split: boolean; comparing: boolean; darkPages: boolean; invertImages: boolean };
+export type MenuState = { hasDocument: boolean; split: boolean; comparing: boolean; documentMap: boolean; darkPages: boolean; invertImages: boolean };
 
 export type AppMenu = {
   activate: () => Promise<void>;
@@ -169,11 +170,12 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     async activate() {
       await menu.setAsAppMenu();
     },
-    async setState({ hasDocument, split, comparing, darkPages, invertImages }) {
+    async setState({ hasDocument, split, comparing, documentMap, darkPages, invertImages }) {
       await Promise.all([
         ...documentItems.map((item) => item.setEnabled(hasDocument)),
         ...splitItems.map((item) => item.setEnabled(split)),
         ...comparisonItems.map((item) => item.setEnabled(comparing)),
+        checkItems.get("toggleDocumentMap")?.setChecked(documentMap),
         checkItems.get("toggleDarkPages")?.setChecked(darkPages),
         checkItems.get("toggleInvertImages")?.setChecked(invertImages),
       ]);

@@ -147,3 +147,24 @@ export function tokenizePages(pages: PageText[]): Token[] {
 export function tokenPage(token: Token) {
   return token.rects[0]?.page ?? 0;
 }
+
+export function rangeRects({ items, viewport }: PageText, page: number, ranges: Array<[start: number, length: number]>): PageRect[][] {
+  const spans: Array<{ placed: Placed; start: number; end: number }> = [];
+  let offset = 0;
+  for (const item of items) {
+    spans.push({ placed: place(item, viewport), start: offset, end: offset + item.str.length });
+    offset += item.str.length;
+  }
+  return ranges.map(([start, length]) => {
+    const rects: PageRect[] = [];
+    for (const span of spans) {
+      const from = Math.max(start, span.start);
+      const to = Math.min(start + length, span.end);
+      if (to > from) {
+        const size = span.end - span.start;
+        rects.push(partRect(span.placed, page, (from - span.start) / size, (to - span.start) / size));
+      }
+    }
+    return mergeLineRects(rects);
+  });
+}

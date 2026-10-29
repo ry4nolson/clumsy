@@ -31,6 +31,7 @@ export type CommandId =
   | "toggleSidebar"
   | "showPages"
   | "showOutline"
+  | "toggleDocumentMap"
   | "actualSize"
   | "zoomIn"
   | "zoomOut"
@@ -124,6 +125,7 @@ export const commands: Command[] = [
   { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["mod+b"], needsDocument: true },
   { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["mod+shift+e"], needsDocument: true },
   { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true },
+  { id: "toggleDocumentMap", label: "Document Map", menu: "View", combos: ["alt+mod+b"] },
   { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true },
   { id: "zoomIn", label: "Zoom In", menu: "View", combos: ["mod+=", "mod+shift+="], needsDocument: true },
   { id: "zoomOut", label: "Zoom Out", menu: "View", combos: ["mod+-"], needsDocument: true },

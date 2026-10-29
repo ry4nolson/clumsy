@@ -651,6 +651,96 @@ body {
   background: var(--canvas-bg);
 }
 
+.document-map {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--canvas-bg);
+  border-left: 1px solid var(--border);
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+
+.document-map-content {
+  position: relative;
+  will-change: transform;
+}
+
+.document-map-page {
+  position: absolute;
+  background: #fff;
+}
+
+.document-map-page canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.app:has(.dark-pages) .document-map-page {
+  background: #141414;
+}
+
+.app:has(.dark-pages) .document-map-page canvas {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+.document-map-page.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.document-map-mark {
+  position: absolute;
+  min-width: 2px;
+  min-height: 2px;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.document-map-mark.find {
+  background: rgb(234 179 8 / 0.85);
+}
+
+.document-map-mark.find.current {
+  background: rgb(249 115 22);
+  outline: 1px solid rgb(249 115 22);
+}
+
+.document-map-mark.added {
+  background: rgb(22 163 74 / 0.75);
+}
+
+.document-map-mark.removed {
+  background: rgb(220 38 38 / 0.75);
+}
+
+.document-map-mark.modified {
+  background: rgb(217 119 6 / 0.75);
+}
+
+.document-map-mark.current:not(.find) {
+  outline: 1px solid var(--accent);
+}
+
+.document-map-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  pointer-events: none;
+}
+
+.document-map:hover .document-map-slider {
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+.document-map.dragging .document-map-slider {
+  background: color-mix(in srgb, var(--text) 26%, transparent);
+}
+
 .viewer-container {
   position: absolute;
   inset: 0;

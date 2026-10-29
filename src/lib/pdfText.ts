@@ -17,6 +17,27 @@ async function readText(pdfDocument: PDFDocumentProxy, onPage: (page: number) =>
   return { tokens: tokenizePages(pages), pages: pdfDocument.numPages };
 }
 
+const findTextCache = new WeakMap<PDFDocumentProxy, Map<number, Promise<PageText>>>();
+
+export function findPageText(pdfDocument: PDFDocumentProxy, index: number) {
+  let pages = findTextCache.get(pdfDocument);
+  if (!pages) {
+    pages = new Map();
+    findTextCache.set(pdfDocument, pages);
+  }
+  let text = pages.get(index);
+  if (!text) {
+    text = pdfDocument.getPage(index + 1).then(async (page) => {
+      const content = await page.getTextContent({ disableNormalization: true });
+      const { transform, width, height } = page.getViewport({ scale: 1 });
+      return { items: content.items.flatMap((item) => ("str" in item ? [item] : [])), viewport: { transform, width, height } };
+    });
+    pages.set(index, text);
+    text.catch(() => pages.delete(index));
+  }
+  return text;
+}
+
 export function documentText(pdfDocument: PDFDocumentProxy, onPage: (page: number) => void = () => {}) {
   let text = cache.get(pdfDocument);
   if (!text) {

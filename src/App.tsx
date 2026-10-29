@@ -97,10 +97,12 @@ export default function App() {
   const [fullscreen, setFullscreen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
   const [sidebarTab, setSidebarTab] = usePersistentState<SidebarTab>("clumsy.sidebarTab", "thumbnails");
-  const comparison = useComparison(workspaceApi, () => {
+  const showSidebar = (tab: SidebarTab) => {
     setSidebarOpen(true);
-    setSidebarTab("changes");
-  });
+    setSidebarTab(tab);
+  };
+  const comparison = useComparison(workspaceApi, () => showSidebar("changes"));
+  const [documentMap, setDocumentMap] = usePersistentState("clumsy.documentMap", true);
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
@@ -279,14 +281,9 @@ export default function App() {
         }
       },
       toggleSidebar: () => setSidebarOpen((open) => !open),
-      showPages: () => {
-        setSidebarOpen(true);
-        setSidebarTab("thumbnails");
-      },
-      showOutline: () => {
-        setSidebarOpen(true);
-        setSidebarTab("outline");
-      },
+      showPages: () => showSidebar("thumbnails"),
+      showOutline: () => showSidebar("outline"),
+      toggleDocumentMap: () => setDocumentMap((shown) => !shown),
       actualSize: () => viewer?.setZoom(1),
       zoomIn: () => viewer?.zoom(1),
       zoomOut: () => viewer?.zoom(-1),
@@ -338,7 +335,7 @@ export default function App() {
 
   useAppMenu(
     { onCommand: (id) => runCommand(id, true), onOpenRecent: openRecent },
-    { hasDocument, split: workspace.panes.length > 1, comparing: comparison.comparing, darkPages, invertImages: darkPagesImages === "invert" },
+    { hasDocument, split: workspace.panes.length > 1, comparing: comparison.comparing, documentMap, darkPages, invertImages: darkPagesImages === "invert" },
     recentFiles,
   );
 
@@ -452,6 +449,7 @@ export default function App() {
                 sidebarOpen={sidebarOpen}
                 sidebarTab={sidebarTab}
                 onSidebarTab={setSidebarTab}
+                documentMap={documentMap}
                 darkPages={darkPages}
                 keepImages={darkPagesImages === "keep"}
                 requestPassword={passwords.requestPassword}

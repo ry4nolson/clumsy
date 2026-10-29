@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Document Map**: a narrow pane beside each document shows every page with the part you're looking at highlighted. Click to jump, drag the highlight to scroll, or scroll over the map. Search matches, comparison changes, and selected pages are marked on it. Long documents shrink to fit, then scroll with the viewer. Toggle it with View > Document Map (⌥⌘B)
+
 ## [0.3.2] - 2026-10-29
 
 ### Changed
