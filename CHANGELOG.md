@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-29
+
 ### Added
 - **Export Comparison Report**: File > Export Comparison Report… (or the export button on the comparison bar) saves a PDF listing both file names, the date, how many changes of each kind and how many words were added and removed, then every change with its pages in each document and its full before and after text
 - The **Changes** list can show only added, removed, or changed text, and counts how many words were added and removed
