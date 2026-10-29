@@ -1,5 +1,6 @@
+import "./iteratorJoin";
 import { GlobalWorkerOptions, PasswordResponses, getDocument } from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import workerUrl from "./pdfWorker?worker&url";
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 

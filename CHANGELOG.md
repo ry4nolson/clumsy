@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **Find** now finds text; every search had been coming back with no matches
+
 ## [0.2.10] - 2026-10-21
 
 ### Fixed

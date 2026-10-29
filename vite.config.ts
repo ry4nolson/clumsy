@@ -40,6 +40,9 @@ export default defineConfig(() => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  worker: {
+    format: "es",
+  },
   build: {
     target: "safari16",
     chunkSizeWarningLimit: 2000,
