@@ -441,7 +441,8 @@ export function usePdfViewer() {
     return viewer?.pdfDocument && viewer.pagesCount && container ? run(viewer as unknown as ScrollableViewer, container) : null;
   }, []);
 
-  const scrollPosition = useCallback(() => scrollView(scrollLocation), [scrollView]);
+  const scrollPosition = useCallback(() => scrollView((viewer, container) => scrollLocation(viewer, container)), [scrollView]);
+  const readingPosition = useCallback(() => scrollView((viewer, container) => scrollLocation(viewer, container, container.clientHeight / 3)), [scrollView]);
   const scrollTo = useCallback((location: ScrollLocation) => scrollView((viewer, container) => scrollToLocation(viewer, container, location)), [scrollView]);
   const reveal = useCallback((rect: PageRect) => scrollView((viewer, container) => revealRect(viewer, container, rect)), [scrollView]);
   const rotation = useCallback(() => partsRef.current?.viewer.pagesRotation ?? 0, []);
@@ -481,6 +482,7 @@ export function usePdfViewer() {
     setDiffOverlays,
     setCurrentChange,
     scrollPosition,
+    readingPosition,
     scrollTo,
     reveal,
     rotation,

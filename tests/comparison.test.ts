@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildComparison, overlaysFor } from "../src/lib/comparison";
 import { markerRect, mergeLineRects, rotateRect, type PageRect } from "../src/lib/diffRects";
 import type { Token } from "../src/lib/diffTokens";
-import { syncLocation } from "../src/lib/scrollSync";
+import { changeAtLocation, syncLocation } from "../src/lib/scrollSync";
 import { diffWords } from "../src/lib/textDiff";
 
 const rect = (page: number, x: number, y: number, width = 0.1, height = 0.02): PageRect => ({ page, x, y, width, height });
@@ -109,5 +109,26 @@ describe("syncLocation at the document edges", () => {
   it("keeps the space above the first page", () => {
     const anchors = [{ left: rect(0, 0, 0.1), right: rect(0, 0, 0.1) }];
     expect(syncLocation(anchors, "left", { page: 0, y: -0.02 }, { left: 0, right: 0 }, 1)).toEqual({ page: 0, y: expect.closeTo(-0.02) });
+  });
+});
+
+describe("changeAtLocation", () => {
+  const changeAt = (page: number, y: number) => ({ kind: "modified" as const, before: "", after: "", beforeText: "", afterText: "", words: { left: 1, right: 1 }, left: [rect(page, 0, y)], right: [rect(page, 0, y)] });
+  const changes = [changeAt(0, 0.2), changeAt(0, 0.6), changeAt(2, 0.1)];
+
+  it("picks the last change that starts at or above the reading line", () => {
+    expect(changeAtLocation(changes, "left", { page: 0, y: 0.1 }, 0)).toBe(0);
+    expect(changeAtLocation(changes, "left", { page: 0, y: 0.6 }, 0)).toBe(1);
+    expect(changeAtLocation(changes, "left", { page: 1, y: 0.9 }, 0)).toBe(1);
+    expect(changeAtLocation(changes, "right", { page: 2, y: 0.5 }, 0)).toBe(2);
+  });
+
+  it("compares positions in the page's displayed rotation", () => {
+    expect(changeAtLocation([changeAt(0, 0.6)], "left", { page: 0, y: 0.5 }, 180)).toBe(0);
+    expect(changeAtLocation(changes, "left", { page: 0, y: 0.5 }, 180)).toBe(1);
+  });
+
+  it("is -1 without changes", () => {
+    expect(changeAtLocation([], "left", { page: 0, y: 0 }, 0)).toBe(-1);
   });
 });

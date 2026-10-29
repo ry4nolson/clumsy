@@ -927,6 +927,10 @@ body {
   background: var(--hover);
 }
 
+.change-row.in-view {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .change-row[aria-current="true"] {
   background: var(--active);
 }

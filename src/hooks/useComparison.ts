@@ -6,7 +6,7 @@ import { tokenPage } from "../lib/diffTokens";
 import { diffInWorker } from "../lib/diffWorker";
 import { documentText } from "../lib/pdfText";
 import { downloadPdf, isDesktop, pickPdf, pickSavePath, showError, writePdf, type PdfSource } from "../lib/platform";
-import { syncLocation } from "../lib/scrollSync";
+import { changeAtLocation, syncLocation } from "../lib/scrollSync";
 import { createPaneId, type DocTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
@@ -19,11 +19,13 @@ type ComparisonState = {
   progress: string;
   result: Comparison | null;
   current: number;
+  inView: Record<Side, number>;
   linked: boolean;
 };
 
-export type CompareView = Omit<ComparisonState, "tabs" | "result"> & {
+export type CompareView = Omit<ComparisonState, "tabs" | "result" | "inView"> & {
   comparison: Comparison | null;
+  inView: number;
   side: Side;
   otherName: string;
   onSelect: (index: number) => void;
@@ -161,6 +163,34 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     return () => cleanups.forEach((cleanup) => cleanup());
   }, [leftId, rightId, linked, result, handles, workspaceRef]);
 
+  useEffect(() => {
+    if (!leftId || !rightId || !result) {
+      return;
+    }
+    const ids = { left: leftId, right: rightId };
+    const cleanups = sides.map((side) => {
+      const viewer = handles.current.get(ids[side])?.viewer;
+      const container = viewer?.containerRef.current;
+      let frame = 0;
+      const follow = () => {
+        frame = 0;
+        const location = viewer?.readingPosition();
+        const index = viewer && location ? changeAtLocation(result.changes, side, location, viewer.rotation()) : -1;
+        setState((previous) => (previous && previous.inView[side] !== index ? { ...previous, inView: { ...previous.inView, [side]: index } } : previous));
+      };
+      const onScroll = () => {
+        frame ||= requestAnimationFrame(follow);
+      };
+      follow();
+      container?.addEventListener("scroll", onScroll, { passive: true });
+      return () => {
+        cancelAnimationFrame(frame);
+        container?.removeEventListener("scroll", onScroll);
+      };
+    });
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [leftId, rightId, result, handles]);
+
   const start = useCallback((left: string, right: string) => {
     const latest = stateRef.current;
     onStartRef.current();
@@ -168,7 +198,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
       return;
     }
     expected.current = { left: null, right: null };
-    setState({ tabs: { left, right }, status: "comparing", progress: "Reading pages…", result: null, current: -1, linked: true });
+    setState({ tabs: { left, right }, status: "comparing", progress: "Reading pages…", result: null, current: -1, inView: { left: -1, right: -1 }, linked: true });
   }, []);
 
   const end = useCallback(() => setState(null), []);
@@ -317,9 +347,9 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     if (!state || !side) {
       return null;
     }
-    const { tabs, result: comparison, ...rest } = state;
+    const { tabs, result: comparison, inView, ...rest } = state;
     const other = docTab(tabs[otherSide(side)]);
-    return { ...rest, comparison, side, otherName: other?.name ?? "", onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onExport: exportReport, onEnd: end };
+    return { ...rest, comparison, inView: inView[side], side, otherName: other?.name ?? "", onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onExport: exportReport, onEnd: end };
   };
 
   return { comparing: !!state, runCompareCommand, viewFor };

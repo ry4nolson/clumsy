@@ -8,15 +8,25 @@ type ChangesListProps = { view: CompareView };
 const filters: ChangeFilter[] = ["all", "added", "removed", "modified"];
 
 const sameList = ({ view: a }: ChangesListProps, { view: b }: ChangesListProps) =>
-  a.comparison === b.comparison && a.current === b.current && a.side === b.side && a.status === b.status && a.progress === b.progress && a.onSelect === b.onSelect;
+  a.comparison === b.comparison && a.current === b.current && a.inView === b.inView && a.side === b.side && a.status === b.status && a.progress === b.progress && a.onSelect === b.onSelect;
 
 export const ChangesList = memo(function ChangesList({ view }: ChangesListProps) {
-  const { comparison, current, side, status, progress, onSelect } = view;
+  const { comparison, current, inView, side, status, progress, onSelect } = view;
   const [filter, setFilter] = useState<ChangeFilter>("all");
   const listRef = useRef<HTMLOListElement>(null);
   const changes = comparison?.changes;
   const summary = useMemo(() => changes && summarizeChanges(changes), [changes]);
   const shown = useMemo(() => changes && filteredChanges(changes, filter), [changes, filter]);
+  const followed = shown && (shown.find((index) => index >= inView) ?? shown.at(-1));
+
+  useEffect(() => {
+    const row = listRef.current?.querySelector<HTMLElement>(`[data-index="${followed}"]`);
+    const scroller = row?.closest<HTMLElement>(".sidebar-content");
+    if (row && scroller) {
+      const offset = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+      scroller.scrollTop += offset - (scroller.clientHeight - row.offsetHeight) / 2;
+    }
+  }, [followed]);
 
   useEffect(() => {
     listRef.current?.querySelector(`[data-index="${current}"]`)?.scrollIntoView({ block: "nearest" });
@@ -62,7 +72,7 @@ export const ChangesList = memo(function ChangesList({ view }: ChangesListProps)
               <button
                 type="button"
                 data-index={index}
-                className={`change-row ${change.kind}`}
+                className={`change-row ${change.kind}${index === followed ? " in-view" : ""}`}
                 aria-current={index === current || undefined}
                 onClick={() => onSelect(index)}
               >

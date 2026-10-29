@@ -1,4 +1,4 @@
-import { otherSide, type Anchor, type Side } from "./comparison";
+import { otherSide, type Anchor, type Change, type Side } from "./comparison";
 import { rotateRect } from "./diffRects";
 
 export type ScrollLocation = { page: number; y: number };
@@ -29,4 +29,15 @@ export function syncLocation(anchors: Anchor[], from: Side, location: ScrollLoca
   const previous = anchors.findLast((anchor) => anchor[from].page < location.page);
   const page = previous ? previous[to].page + location.page - previous[from].page : location.page;
   return clampLocation({ page, y: location.y }, targetPages);
+}
+
+export function changeAtLocation(changes: Change[], side: Side, location: ScrollLocation, rotation: number) {
+  let found = changes.length ? 0 : -1;
+  changes.forEach((change, index) => {
+    const rect = change[side][0];
+    if (rect && (rect.page < location.page || (rect.page === location.page && rotateRect(rect, rotation).y <= location.y))) {
+      found = index;
+    }
+  });
+  return found;
 }

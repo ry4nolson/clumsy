@@ -14,7 +14,8 @@ function pageOffset(container: HTMLElement, div: HTMLElement) {
   return { top: page.top - box.top + container.scrollTop, left: page.left - box.left + container.scrollLeft };
 }
 
-export function scrollLocation(viewer: ScrollableViewer, container: HTMLElement): ScrollLocation | null {
+export function scrollLocation(viewer: ScrollableViewer, container: HTMLElement, offset = 0): ScrollLocation | null {
+  const at = container.scrollTop + offset;
   const top = (page: number) => {
     const div = viewer.getPageView(page)?.div;
     return div ? pageOffset(container, div).top : Infinity;
@@ -23,14 +24,14 @@ export function scrollLocation(viewer: ScrollableViewer, container: HTMLElement)
   let high = viewer.pagesCount - 1;
   while (low < high) {
     const middle = Math.ceil((low + high) / 2);
-    if (top(middle) <= container.scrollTop + 1) {
+    if (top(middle) <= at + 1) {
       low = middle;
     } else {
       high = middle - 1;
     }
   }
   const div = viewer.getPageView(low)?.div;
-  return div?.offsetHeight ? { page: low, y: Math.min((container.scrollTop - top(low)) / div.offsetHeight, 1) } : null;
+  return div?.offsetHeight ? { page: low, y: Math.min((at - top(low)) / div.offsetHeight, 1) } : null;
 }
 
 export function scrollToLocation(viewer: ScrollableViewer, container: HTMLElement, { page, y }: ScrollLocation, offset = 0) {
