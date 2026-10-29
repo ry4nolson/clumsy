@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType, AnnotationEditorType, AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
-import { EventBus, FindState, LinkTarget, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
+import { EventBus, FindState, LinkTarget, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
 import type { ViewState } from "../lib/documentWindows";
+import { compileFindPattern } from "../lib/findPattern";
 import { imageRects, recordImageCoordinates, recordedImages } from "../lib/imageRegions";
+import { PatternFindController } from "../lib/patternFindController";
 
 export const highlightColors = {
   yellow: "#FFFF98",
@@ -39,6 +41,7 @@ export type FindQuery = {
   query: string;
   caseSensitive: boolean;
   entireWord: boolean;
+  regex: boolean;
 };
 
 const findStates: Record<number, FindStatus["state"]> = {
@@ -90,7 +93,7 @@ function restoreImages(pageView: RenderedPageView) {
 type ViewerParts = {
   eventBus: EventBus;
   linkService: PDFLinkService;
-  findController: PDFFindController;
+  findController: PatternFindController;
   viewer: PDFViewer;
 };
 
@@ -118,7 +121,7 @@ export function usePdfViewer() {
     const viewerElement = container.querySelector<HTMLDivElement>(".pdfViewer")!;
     const eventBus = new EventBus();
     const linkService = new PDFLinkService({ eventBus, externalLinkTarget: LinkTarget.BLANK });
-    const findController = new PDFFindController({ eventBus, linkService });
+    const findController = new PatternFindController({ eventBus, linkService });
     const viewer = new PDFViewer({
       container,
       viewer: viewerElement,
@@ -336,7 +339,18 @@ export function usePdfViewer() {
   );
 
   const find = useCallback((query: FindQuery, type: "" | "again" | "casesensitivitychange" | "entirewordchange", findPrevious = false) => {
-    partsRef.current?.eventBus.dispatch("find", {
+    const parts = partsRef.current;
+    if (!parts) {
+      return;
+    }
+    const pattern = query.regex ? compileFindPattern(query.query, query.caseSensitive) : null;
+    if (query.regex && query.query && !pattern) {
+      parts.eventBus.dispatch("findbarclose", { source: null });
+      return;
+    }
+    parts.findController.pattern = pattern;
+    parts.findController.patternEntireWord = query.entireWord;
+    parts.eventBus.dispatch("find", {
       source: null,
       type,
       query: query.query,

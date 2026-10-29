@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Regular expression search**: turn on the .* button in the find bar to search with a pattern. Match Case and Whole Words still apply, and an invalid pattern says so instead of searching
+
 ## [0.2.12] - 2026-10-29
 
 ### Fixed

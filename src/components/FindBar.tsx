@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { CaseSensitive, ChevronDown, ChevronUp, WholeWord, X } from "lucide-react";
+import { CaseSensitive, ChevronDown, ChevronUp, Regex, WholeWord, X } from "lucide-react";
 import type { FindQuery, FindStatus } from "../hooks/usePdfViewer";
+import { escapeFindPattern, isInvalidFindPattern } from "../lib/findPattern";
 
 type FindBarProps = {
   status: FindStatus;
@@ -12,12 +13,12 @@ type FindBarProps = {
 
 export function FindBar({ status, focusToken, seed, onFind, onClose }: FindBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState<FindQuery>({ query: "", caseSensitive: false, entireWord: false });
+  const [query, setQuery] = useState<FindQuery>({ query: "", caseSensitive: false, entireWord: false, regex: false });
 
   useEffect(() => {
     if (seed) {
       setQuery((current) => {
-        const next = { ...current, query: seed };
+        const next = { ...current, query: current.regex ? escapeFindPattern(seed) : seed };
         onFind(next, "");
         return next;
       });
@@ -37,19 +38,22 @@ export function FindBar({ status, focusToken, seed, onFind, onClose }: FindBarPr
     }
   };
 
+  const invalid = isInvalidFindPattern(query.query, query.regex, query.caseSensitive);
   const summary = !query.query
     ? ""
-    : status.state === "notFound"
-      ? "No matches"
-      : status.total
-        ? `${status.current} of ${status.total}`
-        : "";
+    : invalid
+      ? "Invalid regex"
+      : status.state === "notFound"
+        ? "No matches"
+        : status.total
+          ? `${status.current} of ${status.total}`
+          : "";
 
   return (
     <div className="findbar" role="search">
       <input
         ref={inputRef}
-        className={status.state === "notFound" && query.query ? "not-found" : undefined}
+        className={(status.state === "notFound" || invalid) && query.query ? "not-found" : undefined}
         type="search"
         placeholder="Find in document"
         value={query.query}
@@ -88,6 +92,15 @@ export function FindBar({ status, focusToken, seed, onFind, onClose }: FindBarPr
         title="Whole words"
       >
         <WholeWord size={18} />
+      </button>
+      <button
+        type="button"
+        className="icon-button"
+        aria-pressed={query.regex}
+        onClick={() => update({ ...query, regex: !query.regex }, "")}
+        title="Use regular expression"
+      >
+        <Regex size={18} />
       </button>
       <button type="button" className="icon-button" onClick={onClose} title="Close (Esc)">
         <X size={16} />
