@@ -1,4 +1,4 @@
-import "./iteratorJoin";
+import "./polyfills";
 import { GlobalWorkerOptions, PasswordResponses, getDocument } from "pdfjs-dist";
 import workerUrl from "./pdfWorker?worker&url";
 
