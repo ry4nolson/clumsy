@@ -827,6 +827,79 @@ body {
   background: rgb(220 38 38 / 0.92);
 }
 
+.changes-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 6px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.change-filters {
+  display: flex;
+  gap: 3px;
+}
+
+.change-filter {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.change-filter:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.change-filter[aria-pressed="true"] {
+  background: var(--active);
+  color: var(--text);
+}
+
+.change-filter:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.change-filter.added .change-dot {
+  background: var(--diff-added);
+}
+
+.change-filter.removed .change-dot {
+  background: var(--diff-removed);
+}
+
+.change-words {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.change-words .added {
+  color: var(--diff-added);
+}
+
+.change-words .removed {
+  color: var(--diff-removed);
+}
+
 .changes {
   display: flex;
   flex-direction: column;

@@ -10,6 +10,7 @@ export type CommandId =
   | "combineFiles"
   | "compareWithFile"
   | "compareSplitPanes"
+  | "exportComparison"
   | "nextChange"
   | "previousChange"
   | "swapComparison"
@@ -104,6 +105,7 @@ export const commands: Command[] = [
   { id: "open", label: "Open…", menu: "File", combos: ["mod+o"] },
   { id: "combineFiles", label: "Combine Files…", menu: "File", combos: [] },
   { id: "compareWithFile", label: "Compare With File…", menu: "File", combos: [], needsDocument: true },
+  { id: "exportComparison", label: "Export Comparison Report…", menu: "File", combos: [], needsComparison: true },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"] },
   { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true },

@@ -4,7 +4,16 @@ import { slideToLineStarts, type Segment } from "./textDiff";
 
 export type Side = "left" | "right";
 export type ChangeKind = "added" | "removed" | "modified";
-export type Change = { kind: ChangeKind; before: string; after: string; left: PageRect[]; right: PageRect[] };
+export type Change = {
+  kind: ChangeKind;
+  before: string;
+  after: string;
+  beforeText: string;
+  afterText: string;
+  words: Record<Side, number>;
+  left: PageRect[];
+  right: PageRect[];
+};
 export type Anchor = Record<Side, PageRect>;
 export type PageNote = "added" | "removed" | "noText" | null;
 export type Comparison = { changes: Change[]; anchors: Anchor[]; notes: Record<Side, PageNote[]> };
@@ -14,10 +23,13 @@ export type PageOverlay = { rects: OverlayRect[]; note: PageNote };
 
 const SNIPPET_LENGTH = 80;
 
+export const changeKindLabels: Record<ChangeKind, string> = { added: "Added", removed: "Removed", modified: "Changed" };
+
 export const otherSide = (side: Side): Side => (side === "left" ? "right" : "left");
 
-function snippet(tokens: Token[]) {
-  const text = tokens.map((token) => token.text).join(" ");
+const joined = (tokens: Token[]) => tokens.map((token) => token.text).join(" ");
+
+function snippet(text: string) {
   return text.length > SNIPPET_LENGTH ? `${text.slice(0, SNIPPET_LENGTH - 1)}…` : text;
 }
 
@@ -70,10 +82,15 @@ export function buildComparison(left: Token[], right: Token[], diff: Segment[], 
     } else if (kind === "added") {
       added.fill(1, rightStart, rightEnd);
     }
+    const beforeText = joined(left.slice(leftStart, leftEnd));
+    const afterText = joined(right.slice(rightStart, rightEnd));
     changes.push({
       kind,
-      before: snippet(left.slice(leftStart, leftEnd)),
-      after: snippet(right.slice(rightStart, rightEnd)),
+      before: snippet(beforeText),
+      after: snippet(afterText),
+      beforeText,
+      afterText,
+      words: { left: leftEnd - leftStart, right: rightEnd - rightStart },
       left: changedRects(left, leftStart, leftEnd),
       right: changedRects(right, rightStart, rightEnd),
     });

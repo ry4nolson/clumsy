@@ -1,5 +1,6 @@
-import { ArrowLeftRight, ChevronDown, ChevronUp, Link, Unlink, X } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, ChevronUp, FileDown, Link, Unlink, X } from "lucide-react";
 import type { CompareView } from "../hooks/useComparison";
+import { describeWords, summarizeChanges } from "../lib/changeSummary";
 import { shortcutFor, type CommandId } from "../lib/commands";
 import { isMac } from "../lib/platform";
 
@@ -22,12 +23,20 @@ function summary({ status, progress, comparison, current }: CompareView) {
   return current >= 0 ? `Change ${current + 1} of ${count}` : `${count} ${count === 1 ? "change" : "changes"}`;
 }
 
+function details({ status, progress, comparison, otherName }: CompareView) {
+  if (status === "failed") {
+    return progress;
+  }
+  const compared = `Compared with ${otherName}`;
+  return comparison?.changes.length ? `${describeWords(summarizeChanges(comparison.changes))}. ${compared}` : compared;
+}
+
 export function CompareBar({ view }: { view: CompareView }) {
   const hasChanges = !!view.comparison?.changes.length;
   return (
     <div className={`compare-bar ${view.side}`} role="toolbar" aria-label="Comparison">
       <span className="compare-side">{view.side === "left" ? "Original" : "Changed"}</span>
-      <span className="compare-summary" aria-live="polite" title={view.status === "failed" ? view.progress : `Compared with ${view.otherName}`}>
+      <span className="compare-summary" aria-live="polite" title={details(view)}>
         {summary(view)}
       </span>
       <button type="button" className="icon-button" disabled={!hasChanges} onClick={() => view.onStep(-1)} title={withShortcut("Previous change", "previousChange")}>
@@ -41,6 +50,9 @@ export function CompareBar({ view }: { view: CompareView }) {
       </button>
       <button type="button" className="icon-button" onClick={view.onSwap} title="Swap sides">
         <ArrowLeftRight size={15} />
+      </button>
+      <button type="button" className="icon-button" disabled={view.status !== "ready"} onClick={view.onExport} title="Export comparison report">
+        <FileDown size={15} />
       </button>
       <button type="button" className="icon-button" onClick={view.onEnd} title="End comparison">
         <X size={16} />

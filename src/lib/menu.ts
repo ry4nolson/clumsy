@@ -24,7 +24,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "quit",
     ],
   ],
-  ["File", ["newTab", "newWindow", "open", "recent", "combineFiles", "compareWithFile", "-", "closeTab", "closeWindow", "reopenClosedTab", "-", "save", "saveAs", "saveAll", "-", "revealInFinder"]],
+  ["File", ["newTab", "newWindow", "open", "recent", "combineFiles", "compareWithFile", "exportComparison", "-", "closeTab", "closeWindow", "reopenClosedTab", "-", "save", "saveAs", "saveAll", "-", "revealInFinder"]],
   [
     "Edit",
     [

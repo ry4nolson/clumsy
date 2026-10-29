@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
 import { buildComparison, changeRect, otherSide, overlaysFor, type Comparison, type Side } from "../lib/comparison";
+import { buildComparisonReport } from "../lib/comparisonReport";
 import { tokenPage } from "../lib/diffTokens";
 import { diffInWorker } from "../lib/diffWorker";
 import { documentText } from "../lib/pdfText";
-import { pickPdf, showError, type PdfSource } from "../lib/platform";
+import { downloadPdf, isDesktop, pickPdf, pickSavePath, showError, writePdf, type PdfSource } from "../lib/platform";
 import { syncLocation } from "../lib/scrollSync";
 import { createPaneId, type DocTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
@@ -29,6 +30,7 @@ export type CompareView = Omit<ComparisonState, "tabs" | "result"> & {
   onStep: (direction: 1 | -1) => void;
   onSwap: () => void;
   onToggleLinked: () => void;
+  onExport: () => void;
   onEnd: () => void;
 };
 
@@ -263,10 +265,42 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     start(left.id, right.id);
   };
 
+  const exportReport = async () => {
+    const latest = stateRef.current;
+    if (!latest) {
+      return;
+    }
+    if (!latest.result) {
+      await showError(latest.status === "failed" ? "These documents couldn't be compared, so there's no report to export." : "Wait for the comparison to finish, then export the report.");
+      return;
+    }
+    const nameOf = (side: Side) => {
+      const tab = workspaceRef.current.tabs[latest.tabs[side]];
+      return tab?.kind === "document" ? tab.name : "";
+    };
+    const names = { left: nameOf("left"), right: nameOf("right") };
+    const stem = (name: string) => name.replace(/\.pdf$/i, "");
+    const fileName = `${stem(names.left)} vs ${stem(names.right)} comparison.pdf`;
+    try {
+      const bytes = await buildComparisonReport({ comparison: latest.result, names, date: new Date() });
+      if (!isDesktop) {
+        downloadPdf(fileName, bytes);
+        return;
+      }
+      const path = await pickSavePath(fileName);
+      if (path) {
+        await writePdf(path, bytes);
+      }
+    } catch (error) {
+      await showError(`Could not export the comparison report.\n\n${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
   const runCompareCommand = (id: CommandId) => {
     const actions: Partial<Record<CommandId, () => unknown>> = {
       compareWithFile,
       compareSplitPanes,
+      exportComparison: exportReport,
       nextChange: () => step(1),
       previousChange: () => step(-1),
       swapComparison: swap,
@@ -285,7 +319,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     }
     const { tabs, result: comparison, ...rest } = state;
     const other = docTab(tabs[otherSide(side)]);
-    return { ...rest, comparison, side, otherName: other?.name ?? "", onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onEnd: end };
+    return { ...rest, comparison, side, otherName: other?.name ?? "", onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onExport: exportReport, onEnd: end };
   };
 
   return { comparing: !!state, runCompareCommand, viewFor };
