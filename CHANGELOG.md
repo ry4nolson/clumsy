@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-29
+
 ### Changed
 - The **Changes** list follows the document as you scroll, keeping the change you're reading centered and marked
 
