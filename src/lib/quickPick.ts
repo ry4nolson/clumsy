@@ -3,18 +3,18 @@ import type { RecentEntry } from "./recent";
 
 export type QuickPickItem = { id: string; label: string; detail?: string; hint?: string | null };
 
-export type PaletteContext = { hasDocument: boolean; split: boolean; isMac: boolean };
+export type PaletteContext = { hasDocument: boolean; split: boolean; comparing: boolean; isMac: boolean };
 
 const hiddenFromPalette = new Set<CommandId>(["escape", "commandPalette"]);
 
-export function paletteItems({ hasDocument, split, isMac }: PaletteContext, recentIds: CommandId[] = []): QuickPickItem[] {
+export function paletteItems({ hasDocument, split, comparing, isMac }: PaletteContext, recentIds: CommandId[] = []): QuickPickItem[] {
   const rank = (id: CommandId, menu: string | null) => {
     const recent = recentIds.indexOf(id);
     return recent >= 0 ? recent - recentIds.length : menu === "Clumsy" ? 1 : 0;
   };
   return commands
     .filter((command) => command.menu && !hiddenFromPalette.has(command.id))
-    .filter((command) => (hasDocument || !command.needsDocument) && (split || !command.needsSplit))
+    .filter((command) => (hasDocument || !command.needsDocument) && (split || !command.needsSplit) && (comparing || !command.needsComparison))
     .map((command, order) => ({ command, order, rank: rank(command.id, command.menu) }))
     .sort((a, b) => a.rank - b.rank || a.order - b.order)
     .map(({ command }) => ({

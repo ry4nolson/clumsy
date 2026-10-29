@@ -10,6 +10,9 @@
   --accent: #2563eb;
   --accent-text: #ffffff;
   --danger: #dc2626;
+  --diff-removed: #dc2626;
+  --diff-added: #16a34a;
+  --diff-modified: #d97706;
   --canvas-bg: #e4e4e7;
   --focus: rgb(37 99 235 / 0.45);
   --shadow: 0 10px 40px rgb(0 0 0 / 0.18);
@@ -33,6 +36,9 @@
     --active: rgb(255 255 255 / 0.13);
     --accent: #3b82f6;
     --danger: #f87171;
+    --diff-removed: #f87171;
+    --diff-added: #4ade80;
+    --diff-modified: #fbbf24;
     --canvas-bg: #2a2a2f;
     --focus: rgb(59 130 246 / 0.55);
     --shadow: 0 10px 40px rgb(0 0 0 / 0.5);
@@ -695,6 +701,208 @@ body {
 
 .dark-pages .pdfViewer .page .editToolbar {
   filter: invert(1) hue-rotate(180deg);
+}
+
+.viewer-area.comparing .viewer-container {
+  top: 36px;
+}
+
+.viewer-area.comparing .findbar {
+  top: 46px;
+}
+
+.compare-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 6px 0 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.compare-side {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--diff-removed) 14%, transparent);
+  color: var(--diff-removed);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.compare-bar.right .compare-side {
+  background: color-mix(in srgb, var(--diff-added) 14%, transparent);
+  color: var(--diff-added);
+}
+
+.compare-summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0 6px;
+  overflow: hidden;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pdfViewer .page .diff-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.dark-pages:not(.keep-images) .pdfViewer .page .diff-layer {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.diff-layer:has(> .diff-note.added) {
+  background: rgb(22 163 74 / 0.06);
+}
+
+.diff-layer:has(> .diff-note.removed) {
+  background: rgb(220 38 38 / 0.06);
+}
+
+.diff-mark {
+  position: absolute;
+  border-radius: 2px;
+}
+
+.diff-mark.removed {
+  background: rgb(220 38 38 / 0.2);
+  box-shadow: inset 0 -2px rgb(220 38 38 / 0.65);
+}
+
+.diff-mark.added {
+  background: rgb(22 163 74 / 0.2);
+  box-shadow: inset 0 -2px rgb(22 163 74 / 0.65);
+}
+
+.diff-mark.modified {
+  background: rgb(217 119 6 / 0.2);
+  box-shadow: inset 0 -2px rgb(217 119 6 / 0.65);
+}
+
+.diff-mark.marker {
+  min-width: 2px;
+  box-shadow: none;
+}
+
+.diff-mark.marker.added {
+  background: rgb(22 163 74);
+}
+
+.diff-mark.marker.removed {
+  background: rgb(220 38 38);
+}
+
+.diff-mark.current {
+  outline: 2px solid rgb(37 99 235);
+  outline-offset: 1px;
+}
+
+.diff-note {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgb(113 113 122 / 0.9);
+  color: #ffffff;
+  font: 600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.diff-note.added {
+  background: rgb(22 163 74 / 0.92);
+}
+
+.diff-note.removed {
+  background: rgb(220 38 38 / 0.92);
+}
+
+.changes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+
+.change-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.change-row:hover {
+  background: var(--hover);
+}
+
+.change-row[aria-current="true"] {
+  background: var(--active);
+}
+
+.change-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.change-page {
+  margin-left: auto;
+}
+
+.change-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--diff-modified);
+}
+
+.change-row.added .change-dot {
+  background: var(--diff-added);
+}
+
+.change-row.removed .change-dot {
+  background: var(--diff-removed);
+}
+
+.change-row :is(del, ins) {
+  display: -webkit-box;
+  padding: 1px 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.change-row del {
+  background: color-mix(in srgb, var(--diff-removed) 14%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--diff-removed) 60%, transparent);
+}
+
+.change-row ins {
+  background: color-mix(in srgb, var(--diff-added) 14%, transparent);
+  text-decoration: none;
 }
 
 .findbar {

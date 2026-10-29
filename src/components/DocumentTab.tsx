@@ -1,9 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { CompareView } from "../hooks/useComparison";
 import { usePdfViewer, type FindQuery, type PdfViewerApi } from "../hooks/usePdfViewer";
 import type { ViewState } from "../lib/documentWindows";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
 import { readPdfFromPath, type PdfSource } from "../lib/platform";
+import { ChangesList } from "./ChangesList";
+import { CompareBar } from "./CompareBar";
 import { FindBar } from "./FindBar";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 
@@ -47,6 +50,7 @@ type DocumentTabProps = {
   onFailed: (id: string, error: unknown, source: PdfSource) => void;
   onOpenUrl: (url: string) => void;
   onPageAction: (id: string, action: PageAction) => void;
+  compare: CompareView | null;
 };
 
 export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function DocumentTab(
@@ -69,6 +73,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     onFailed,
     onOpenUrl,
     onPageAction,
+    compare,
   },
   ref,
 ) {
@@ -204,9 +209,11 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           onDeletePages={() => onPageAction(id, { kind: "delete" })}
           onNavigate={viewer.goToDestination}
           onOpenUrl={onOpenUrl}
+          changes={compare && <ChangesList view={compare} />}
         />
       )}
-      <main className={`viewer-area${darkPages ? " dark-pages" : ""}${keepImages ? " keep-images" : ""}`}>
+      <main className={`viewer-area${darkPages ? " dark-pages" : ""}${keepImages ? " keep-images" : ""}${compare ? " comparing" : ""}`}>
+        {compare && <CompareBar view={compare} />}
         {findOpen && loaded && (
           <FindBar
             status={viewer.findStatus}

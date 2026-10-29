@@ -12,6 +12,7 @@ import type { TabItem } from "./components/TabStrip";
 import { Toolbar, inkColors } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { useAppMenu } from "./hooks/useAppMenu";
+import { useComparison } from "./hooks/useComparison";
 import { useExternalChanges } from "./hooks/useExternalChanges";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { usePageEdits } from "./hooks/usePageEdits";
@@ -96,6 +97,10 @@ export default function App() {
   const [fullscreen, setFullscreen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
   const [sidebarTab, setSidebarTab] = usePersistentState<SidebarTab>("clumsy.sidebarTab", "thumbnails");
+  const comparison = useComparison(workspaceApi, () => {
+    setSidebarOpen(true);
+    setSidebarTab("changes");
+  });
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
@@ -190,6 +195,7 @@ export default function App() {
   const quickPick = useQuickPick({
     hasDocument,
     split: workspace.panes.length > 1,
+    comparing: comparison.comparing,
     isMac,
     tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),
     recent: recentFiles ?? [],
@@ -213,7 +219,7 @@ export default function App() {
     if (commandById.get(id)?.needsDocument && (!handle || !hasDocument || !activeSnapshot)) {
       return;
     }
-    if (pageEdits.runPageCommand(id)) {
+    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -332,7 +338,7 @@ export default function App() {
 
   useAppMenu(
     { onCommand: (id) => runCommand(id, true), onOpenRecent: openRecent },
-    { hasDocument, split: workspace.panes.length > 1, darkPages, invertImages: darkPagesImages === "invert" },
+    { hasDocument, split: workspace.panes.length > 1, comparing: comparison.comparing, darkPages, invertImages: darkPagesImages === "invert" },
     recentFiles,
   );
 
@@ -461,6 +467,7 @@ export default function App() {
                 }}
                 onOpenUrl={openExternal}
                 onPageAction={(id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command))}
+                compare={comparison.viewFor(tab.id)}
               />
             );
           }),

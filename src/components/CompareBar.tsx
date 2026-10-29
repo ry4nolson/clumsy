@@ -1,0 +1,50 @@
+import { ArrowLeftRight, ChevronDown, ChevronUp, Link, Unlink, X } from "lucide-react";
+import type { CompareView } from "../hooks/useComparison";
+import { shortcutFor, type CommandId } from "../lib/commands";
+import { isMac } from "../lib/platform";
+
+const withShortcut = (label: string, id: CommandId) => {
+  const shortcut = shortcutFor(id, isMac);
+  return shortcut ? `${label} (${shortcut})` : label;
+};
+
+function summary({ status, progress, comparison, current }: CompareView) {
+  const count = comparison?.changes.length ?? 0;
+  if (status === "comparing") {
+    return progress || "Comparing…";
+  }
+  if (status === "failed") {
+    return "Couldn't compare";
+  }
+  if (!count) {
+    return "No differences";
+  }
+  return current >= 0 ? `Change ${current + 1} of ${count}` : `${count} ${count === 1 ? "change" : "changes"}`;
+}
+
+export function CompareBar({ view }: { view: CompareView }) {
+  const hasChanges = !!view.comparison?.changes.length;
+  return (
+    <div className={`compare-bar ${view.side}`} role="toolbar" aria-label="Comparison">
+      <span className="compare-side">{view.side === "left" ? "Original" : "Changed"}</span>
+      <span className="compare-summary" aria-live="polite" title={view.status === "failed" ? view.progress : `Compared with ${view.otherName}`}>
+        {summary(view)}
+      </span>
+      <button type="button" className="icon-button" disabled={!hasChanges} onClick={() => view.onStep(-1)} title={withShortcut("Previous change", "previousChange")}>
+        <ChevronUp size={16} />
+      </button>
+      <button type="button" className="icon-button" disabled={!hasChanges} onClick={() => view.onStep(1)} title={withShortcut("Next change", "nextChange")}>
+        <ChevronDown size={16} />
+      </button>
+      <button type="button" className="icon-button" aria-pressed={view.linked} onClick={view.onToggleLinked} title={view.linked ? "Unlink scrolling" : "Link scrolling"}>
+        {view.linked ? <Link size={15} /> : <Unlink size={15} />}
+      </button>
+      <button type="button" className="icon-button" onClick={view.onSwap} title="Swap sides">
+        <ArrowLeftRight size={15} />
+      </button>
+      <button type="button" className="icon-button" onClick={view.onEnd} title="End comparison">
+        <X size={16} />
+      </button>
+    </div>
+  );
+}

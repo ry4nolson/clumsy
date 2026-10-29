@@ -44,7 +44,7 @@ describe("command table", () => {
     for (const command of commands.filter((candidate) => candidate.menu)) {
       const accelerator = command.combos.map(acceleratorFor).find(Boolean);
       if (accelerator) {
-        expect(accelerator).toMatch(/^((Ctrl|Shift|Alt|CmdOrCtrl)\+)+([A-Z0-9]|Equal|Minus|Backslash|BracketLeft|BracketRight|Slash|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Tab)$/);
+        expect(accelerator).toMatch(/^((Ctrl|Shift|Alt|CmdOrCtrl)\+)+([A-Z0-9]|Equal|Minus|Backslash|BracketLeft|BracketRight|Slash|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Tab|F\d{1,2})$/);
       }
     }
   });

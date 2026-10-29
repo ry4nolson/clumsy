@@ -12,21 +12,21 @@ const recent = (path: string, exists = true): RecentEntry => ({
 
 describe("paletteItems", () => {
   it("lists menu commands with their menu and shortcut", () => {
-    const items = paletteItems({ hasDocument: true, split: true, isMac: true });
+    const items = paletteItems({ hasDocument: true, split: true, comparing: true, isMac: true });
     expect(items.find((item) => item.id === "toggleSidebar")).toEqual({ id: "toggleSidebar", label: "View: Toggle Sidebar", hint: "⌘B" });
     expect(items.find((item) => item.id === "goToPage")?.label).toBe("Go: Go to Page");
     expect(items.find((item) => item.id === "combineFiles")?.hint).toBeNull();
   });
 
   it("leaves out itself, Escape, and the tab number commands", () => {
-    const ids = paletteItems({ hasDocument: true, split: true, isMac: true }).map((item) => item.id);
+    const ids = paletteItems({ hasDocument: true, split: true, comparing: true, isMac: true }).map((item) => item.id);
     expect(ids).not.toContain("commandPalette");
     expect(ids).not.toContain("escape");
     expect(ids).not.toContain("tab1");
   });
 
   it("lists recently run commands first and the app menu last", () => {
-    const ids = paletteItems({ hasDocument: true, split: true, isMac: true }, ["zoomIn", "save"]).map((item) => item.id);
+    const ids = paletteItems({ hasDocument: true, split: true, comparing: true, isMac: true }, ["zoomIn", "save"]).map((item) => item.id);
     expect(ids.slice(0, 3)).toEqual(["zoomIn", "save", "newTab"]);
     expect(ids.at(-1)).toBe("quit");
   });
@@ -44,10 +44,12 @@ describe("paletteItems", () => {
   });
 
   it("hides commands that can't run right now", () => {
-    const ids = paletteItems({ hasDocument: false, split: false, isMac: true }).map((item) => item.id);
+    const ids = paletteItems({ hasDocument: false, split: false, comparing: false, isMac: true }).map((item) => item.id);
     expect(ids).not.toContain("save");
     expect(ids).not.toContain("closeSplit");
     expect(ids).not.toContain("focusLeftPane");
+    expect(ids).not.toContain("nextChange");
+    expect(ids).not.toContain("compareWithFile");
     expect(ids).toContain("open");
     expect(ids).toContain("moveTabRight");
   });
@@ -79,5 +81,13 @@ describe("quickOpenTarget", () => {
     expect(quickOpenTarget("tab:t1")).toEqual({ kind: "tab", tabId: "t1" });
     expect(quickOpenTarget("recent:/a/b:c.pdf")).toEqual({ kind: "recent", path: "/a/b:c.pdf" });
     expect(quickOpenTarget("other")).toBeNull();
+  });
+});
+
+describe("comparison commands in the palette", () => {
+  it("offers change navigation only while comparing", () => {
+    const ids = paletteItems({ hasDocument: true, split: true, comparing: true, isMac: true }).map((item) => item.id);
+    expect(ids).toEqual(expect.arrayContaining(["compareWithFile", "compareSplitPanes", "nextChange", "endComparison"]));
+    expect(paletteItems({ hasDocument: true, split: true, comparing: false, isMac: true }).map((item) => item.id)).not.toContain("nextChange");
   });
 });

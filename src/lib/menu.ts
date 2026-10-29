@@ -24,7 +24,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "quit",
     ],
   ],
-  ["File", ["newTab", "newWindow", "open", "recent", "combineFiles", "-", "closeTab", "closeWindow", "reopenClosedTab", "-", "save", "saveAs", "saveAll", "-", "revealInFinder"]],
+  ["File", ["newTab", "newWindow", "open", "recent", "combineFiles", "compareWithFile", "-", "closeTab", "closeWindow", "reopenClosedTab", "-", "save", "saveAs", "saveAll", "-", "revealInFinder"]],
   [
     "Edit",
     [
@@ -54,6 +54,11 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "splitRight",
       "closeSplit",
       "-",
+      "compareSplitPanes",
+      "swapComparison",
+      "toggleLinkedScroll",
+      "endComparison",
+      "-",
       "actualSize",
       "zoomIn",
       "zoomOut",
@@ -69,7 +74,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       { predefined: "Fullscreen" },
     ],
   ],
-  ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "quickOpen", "goToPage"]],
+  ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "quickOpen", "goToPage", "-", "nextChange", "previousChange"]],
   ["Pages", ["insertPages", "-", "rotatePagesLeft", "rotatePagesRight", "-", "deletePages", "extractPages"]],
   ["Tools", ["toolSelect", "toolHighlight", "toolText", "toolDraw", "-", "addImage", "sign"]],
   [
@@ -95,7 +100,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
 
 const checkCommands = new Set<CommandId>(["toggleDarkPages", "toggleInvertImages"]);
 
-export type MenuState = { hasDocument: boolean; split: boolean; darkPages: boolean; invertImages: boolean };
+export type MenuState = { hasDocument: boolean; split: boolean; comparing: boolean; darkPages: boolean; invertImages: boolean };
 
 export type AppMenu = {
   activate: () => Promise<void>;
@@ -113,6 +118,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const documentItems: Array<MenuItem | CheckMenuItem> = [];
   const checkItems = new Map<CommandId, CheckMenuItem>();
   const splitItems: MenuItem[] = [];
+  const comparisonItems: MenuItem[] = [];
   const recentMenu = await Submenu.new({ text: "Open Recent", items: [] });
 
   const commandItem = async (id: CommandId) => {
@@ -128,6 +134,9 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     }
     if (command.needsSplit && item instanceof MenuItem) {
       splitItems.push(item);
+    }
+    if (command.needsComparison && item instanceof MenuItem) {
+      comparisonItems.push(item);
     }
     return item;
   };
@@ -160,10 +169,11 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     async activate() {
       await menu.setAsAppMenu();
     },
-    async setState({ hasDocument, split, darkPages, invertImages }) {
+    async setState({ hasDocument, split, comparing, darkPages, invertImages }) {
       await Promise.all([
         ...documentItems.map((item) => item.setEnabled(hasDocument)),
         ...splitItems.map((item) => item.setEnabled(split)),
+        ...comparisonItems.map((item) => item.setEnabled(comparing)),
         checkItems.get("toggleDarkPages")?.setChecked(darkPages),
         checkItems.get("toggleInvertImages")?.setChecked(invertImages),
       ]);

@@ -2,10 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnotationEditorParamsType, AnnotationEditorType, AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, FindState, LinkTarget, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
+import type { PageOverlay } from "../lib/comparison";
+import type { PageRect } from "../lib/diffRects";
+import { markCurrentChange, paintDiffPage, paintDiffPages, type DiffViewer } from "../lib/diffLayer";
 import type { ViewState } from "../lib/documentWindows";
 import { compileFindPattern } from "../lib/findPattern";
 import { imageRects, recordImageCoordinates, recordedImages } from "../lib/imageRegions";
 import { PatternFindController } from "../lib/patternFindController";
+import type { ScrollLocation } from "../lib/scrollSync";
+import { revealRect, scrollLocation, scrollToLocation, type ScrollableViewer } from "../lib/viewerScroll";
 
 export const highlightColors = {
   yellow: "#FFFF98",
@@ -54,6 +59,7 @@ const findStates: Record<number, FindStatus["state"]> = {
 const presetScales = new Set(["page-width", "page-fit", "auto"]);
 
 type RenderedPageView = {
+  id: number;
   div: HTMLDivElement;
   canvas: HTMLCanvasElement | null;
   pdfPage: object;
@@ -100,10 +106,12 @@ type ViewerParts = {
 export function usePdfViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const partsRef = useRef<ViewerParts | null>(null);
+  const paintDiffRef = useRef(() => {});
   const initialViewRef = useRef<ViewState | null>(null);
   const locationRef = useRef<ViewLocation | null>(null);
   const modifiedRef = useRef(false);
   const editHistoryRef = useRef({ canUndo: false, canRedo: false, changed: false });
+  const diffRef = useRef<{ overlays: Map<number, PageOverlay> | null; current: number }>({ overlays: null, current: -1 });
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pagesCount, setPagesCount] = useState(0);
@@ -140,6 +148,9 @@ export function usePdfViewer() {
     } as ConstructorParameters<typeof PDFViewer>[0]);
     linkService.setViewer(viewer);
     partsRef.current = { eventBus, linkService, findController, viewer };
+    const paintDiff = (index: number) => paintDiffPage(viewer as unknown as DiffViewer, index, diffRef.current.overlays, diffRef.current.current);
+    const paintAllDiffs = () => paintDiffPages(viewer as unknown as DiffViewer, diffRef.current.overlays, diffRef.current.current);
+    paintDiffRef.current = paintAllDiffs;
 
     eventBus.on("pagesinit", () => {
       const initial = initialViewRef.current;
@@ -162,13 +173,16 @@ export function usePdfViewer() {
     eventBus.on("pagerendered", ({ source, isDetailView, error }: { source: RenderedPageView; isDetailView: boolean; error: unknown }) => {
       if (!isDetailView && !error) {
         restoreImages(source);
+        paintDiff(source.id - 1);
       }
     });
+    eventBus.on("rotationchanging", paintAllDiffs);
     eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => setPageNumber(pageNumber));
     eventBus.on("pagesloaded", ({ pagesCount }: { pagesCount: number }) => setPagesCount(pagesCount));
     eventBus.on("scalechanging", ({ scale, presetValue }: { scale: number; presetValue?: string }) => {
       setScale(scale);
       setScaleValue(presetValue ?? String(scale));
+      paintAllDiffs();
     });
     eventBus.on("editingstateschanged", ({ details }: { details: { hasSomethingToUndo?: boolean; hasSomethingToRedo?: boolean } }) => {
       editHistoryRef.current.canUndo = !!details.hasSomethingToUndo;
@@ -247,6 +261,7 @@ export function usePdfViewer() {
     initialViewRef.current = initialView ?? null;
     locationRef.current = null;
     editHistoryRef.current = { canUndo: false, canRedo: false, changed: false };
+    diffRef.current = { overlays: null, current: -1 };
     setModified(false);
     setPageNumber(1);
     setPagesCount(doc?.numPages ?? 0);
@@ -402,6 +417,35 @@ export function usePdfViewer() {
     return doc.saveDocument();
   }, [commitEdits]);
 
+  const setDiffOverlays = useCallback((overlays: Map<number, PageOverlay> | null) => {
+    const previous = diffRef.current.overlays;
+    diffRef.current.overlays = overlays;
+    if (previous) {
+      containerRef.current?.querySelectorAll(".diff-layer").forEach((layer) => layer.remove());
+    }
+    if (overlays) {
+      paintDiffRef.current();
+    }
+  }, []);
+
+  const setCurrentChange = useCallback((current: number) => {
+    diffRef.current.current = current;
+    if (containerRef.current) {
+      markCurrentChange(containerRef.current, current);
+    }
+  }, []);
+
+  const scrollView = useCallback(<T,>(run: (viewer: ScrollableViewer, container: HTMLElement) => T): T | null => {
+    const viewer = partsRef.current?.viewer;
+    const container = containerRef.current;
+    return viewer?.pdfDocument && viewer.pagesCount && container ? run(viewer as unknown as ScrollableViewer, container) : null;
+  }, []);
+
+  const scrollPosition = useCallback(() => scrollView(scrollLocation), [scrollView]);
+  const scrollTo = useCallback((location: ScrollLocation) => scrollView((viewer, container) => scrollToLocation(viewer, container, location)), [scrollView]);
+  const reveal = useCallback((rect: PageRect) => scrollView((viewer, container) => revealRect(viewer, container, rect)), [scrollView]);
+  const rotation = useCallback(() => partsRef.current?.viewer.pagesRotation ?? 0, []);
+
   const markSaved = useCallback(() => {
     partsRef.current?.viewer.pdfDocument?.annotationStorage.resetModified();
     setModified(false);
@@ -434,6 +478,12 @@ export function usePdfViewer() {
     viewState,
     save,
     markSaved,
+    setDiffOverlays,
+    setCurrentChange,
+    scrollPosition,
+    scrollTo,
+    reveal,
+    rotation,
   };
 }
 

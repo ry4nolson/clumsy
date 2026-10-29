@@ -9,6 +9,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 - **Regular expression search**: turn on the .* button in the find bar to search with a pattern. Match Case and Whole Words still apply, and an invalid pattern says so instead of searching
+- **Compare documents** side by side: File > Compare With File… or View > Compare Split Panes highlights removed, added, and changed text on both pages, lists every change in a new **Changes** sidebar tab, and scrolls the two panes together. Next Change and Previous Change (⌥F5 / ⇧⌥F5) step through them
 
 ## [0.2.12] - 2026-10-29
 

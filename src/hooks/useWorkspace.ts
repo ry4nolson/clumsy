@@ -82,28 +82,28 @@ export function useWorkspace() {
   );
 
   const openSource = useCallback(
-    async (source: PdfSource | Promise<PdfSource | null>, options: OpenOptions = {}) => {
+    async (source: PdfSource | Promise<PdfSource | null>, options: OpenOptions = {}): Promise<string | null> => {
       let resolved: PdfSource | null;
       try {
         resolved = await source;
       } catch (error) {
         await showError(`Could not open this PDF.\n\n${error instanceof Error ? error.message : String(error)}`);
-        return;
+        return null;
       }
       if (!resolved) {
-        return;
+        return null;
       }
       const split = options.split && workspaceRef.current.panes.length < ws.MAX_PANES;
       if (resolved.path && !split && !options.allowDuplicate) {
         const existing = tabWithPath(workspaceRef.current, resolved.path);
         if (existing) {
           selectTab(existing.id);
-          return;
+          return existing.id;
         }
         const owner = await documentWindowFor(resolved.path);
         if (owner) {
           await showDocumentInWindow(owner, resolved.path);
-          return;
+          return null;
         }
       }
       const current = workspaceRef.current;
@@ -121,6 +121,7 @@ export function useWorkspace() {
         stamp: resolved.stamp ?? null,
       };
       commit(split ? ws.splitWithTab(current, tab, createPaneId()) : ws.addTab(current, tab));
+      return tab.id;
     },
     [commit, selectTab],
   );

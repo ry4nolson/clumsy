@@ -8,6 +8,13 @@ export type CommandId =
   | "moveTabToNewWindow"
   | "open"
   | "combineFiles"
+  | "compareWithFile"
+  | "compareSplitPanes"
+  | "nextChange"
+  | "previousChange"
+  | "swapComparison"
+  | "toggleLinkedScroll"
+  | "endComparison"
   | "closeTab"
   | "closeWindow"
   | "save"
@@ -75,6 +82,7 @@ export type Command = {
   combos: string[];
   needsDocument?: boolean;
   needsSplit?: boolean;
+  needsComparison?: boolean;
 };
 
 const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) => ({
@@ -95,6 +103,7 @@ export const commands: Command[] = [
   { id: "reopenClosedTab", label: "Reopen Closed Tab", menu: "File", combos: ["mod+shift+t"] },
   { id: "open", label: "Open…", menu: "File", combos: ["mod+o"] },
   { id: "combineFiles", label: "Combine Files…", menu: "File", combos: [] },
+  { id: "compareWithFile", label: "Compare With File…", menu: "File", combos: [], needsDocument: true },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"] },
   { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true },
@@ -122,6 +131,10 @@ export const commands: Command[] = [
   { id: "rotateRight", label: "Rotate Right", menu: "View", combos: ["mod+r"], needsDocument: true },
   { id: "splitRight", label: "Split Right", menu: "View", combos: ["mod+\\"] },
   { id: "closeSplit", label: "Close Split", menu: "View", combos: ["mod+shift+\\"], needsSplit: true },
+  { id: "compareSplitPanes", label: "Compare Split Panes", menu: "View", combos: [], needsSplit: true },
+  { id: "swapComparison", label: "Swap Compared Sides", menu: "View", combos: [], needsComparison: true },
+  { id: "toggleLinkedScroll", label: "Toggle Linked Scrolling", menu: "View", combos: [], needsComparison: true },
+  { id: "endComparison", label: "End Comparison", menu: "View", combos: [], needsComparison: true },
   { id: "toggleDarkPages", label: "Dark Pages", menu: "View", combos: ["mod+shift+d"] },
   { id: "toggleInvertImages", label: "Invert Images in Dark Pages", menu: "View", combos: [] },
 
@@ -130,6 +143,8 @@ export const commands: Command[] = [
   { id: "firstPage", label: "First Page", menu: "Go", combos: ["mod+ArrowUp", "Home"], needsDocument: true },
   { id: "lastPage", label: "Last Page", menu: "Go", combos: ["mod+ArrowDown", "End"], needsDocument: true },
   { id: "goToPage", label: "Go to Page…", menu: "Go", combos: ["ctrl+g"], needsDocument: true },
+  { id: "nextChange", label: "Next Change", menu: "Go", combos: ["alt+F5"], needsComparison: true },
+  { id: "previousChange", label: "Previous Change", menu: "Go", combos: ["shift+alt+F5"], needsComparison: true },
   { id: "quickOpen", label: "Go to File…", menu: "Go", combos: ["mod+p"] },
 
   { id: "toolSelect", label: "Select", menu: "Tools", combos: ["v"], needsDocument: true },

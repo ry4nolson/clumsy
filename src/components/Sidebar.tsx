@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { SelectModifiers } from "../lib/pageSelection";
 import { Outline } from "./Outline";
 import { Thumbnails } from "./Thumbnails";
 
-export type SidebarTab = "thumbnails" | "outline";
+export type SidebarTab = "thumbnails" | "outline" | "changes";
 
 type SidebarProps = {
   tab: SidebarTab;
@@ -17,10 +18,12 @@ type SidebarProps = {
   onDeletePages: () => void;
   onNavigate: (dest: unknown) => void;
   onOpenUrl: (url: string) => void;
+  changes?: ReactNode;
 };
 
 export function Sidebar(props: SidebarProps) {
-  const { tab, onTab, pdfDocument, currentPage, onNavigate, onOpenUrl } = props;
+  const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes } = props;
+  const tab = props.tab === "changes" && !changes ? "thumbnails" : props.tab;
   return (
     <aside className="sidebar">
       <div className="sidebar-tabs" role="tablist">
@@ -30,9 +33,16 @@ export function Sidebar(props: SidebarProps) {
         <button type="button" role="tab" aria-selected={tab === "outline"} onClick={() => onTab("outline")}>
           Outline
         </button>
+        {changes && (
+          <button type="button" role="tab" aria-selected={tab === "changes"} onClick={() => onTab("changes")}>
+            Changes
+          </button>
+        )}
       </div>
       <div className="sidebar-content">
-        {tab === "thumbnails" ? (
+        {tab === "changes" ? (
+          changes
+        ) : tab === "thumbnails" ? (
           <Thumbnails
             pdfDocument={pdfDocument}
             currentPage={currentPage}
