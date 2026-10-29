@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.12] - 2026-10-29
+
 ### Fixed
 - **Find** finds text in the app now; the 0.2.11 fix wasn't enough, and searches still came back with no matches
 
