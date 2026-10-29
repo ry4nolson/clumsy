@@ -474,7 +474,7 @@ dependencies = [
 
 [[package]]
 name = "clumsy"
-version = "0.2.12"
+version = "0.3.0"
 dependencies = [
  "core-foundation",
  "percent-encoding",

@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-29
+
 ### Added
 - **Compare documents** side by side: File > Compare With File… or View > Compare Split Panes highlights removed, added, and changed text on both pages, lists every change in a new **Changes** sidebar tab, and scrolls the two panes together. Next Change and Previous Change (⌥F5 / ⇧⌥F5) step through them
 
