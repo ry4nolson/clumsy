@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CircleArrowDown,
   CircleCheck,
@@ -16,12 +16,14 @@ import sponsorLogoWhite from "../assets/brand/HorizontalLogoWhite.png";
 import { parseChangelog } from "../lib/changelog";
 import type { DefaultAppStatus } from "../lib/defaultApp";
 import { promptForDefaultApp } from "../lib/defaultAppPrompt";
-import { getDefaultAppStatus, initialWindowParams, onAuxWindowParams, openExternal, type AuxWindowParams } from "../lib/platform";
+import { getDefaultAppStatus, openExternal } from "../lib/platform";
 import { appVersion, repoUrl, useUpdateCheck } from "../lib/updates";
 import { ChangelogList } from "./ChangelogList";
 import { LicensesView } from "./LicensesView";
 
 export type AboutTab = "about" | "changelog" | "licenses";
+
+export type AboutRequest = { tab: AboutTab; check: boolean; token: number };
 
 const features = [
   "Search with match highlighting",
@@ -38,13 +40,9 @@ const links = [
   { title: "Issues", icon: MessageSquareWarning, url: `${repoUrl}/issues` },
 ];
 
-const isAboutTab = (value: string | undefined): value is AboutTab => value === "about" || value === "changelog" || value === "licenses";
-
-export function AboutWindow() {
-  const [tab, setTab] = useState<AboutTab>(() => {
-    const requested = initialWindowParams().tab;
-    return isAboutTab(requested) ? requested : "about";
-  });
+export function AboutDialog({ request, onClose }: { request: AboutRequest | null; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [tab, setTab] = useState<AboutTab>("about");
   const releases = useMemo(() => parseChangelog(changelogSource), []);
   const { status, check } = useUpdateCheck();
   const [defaultApp, setDefaultApp] = useState<DefaultAppStatus | null>(null);
@@ -55,23 +53,24 @@ export function AboutWindow() {
   }, []);
 
   useEffect(() => {
-    const apply = (params: AuxWindowParams) => {
-      if (isAboutTab(params.tab)) {
-        setTab(params.tab);
+    const dialog = dialogRef.current;
+    if (!request) {
+      if (dialog?.open) {
+        dialog.close();
       }
-      if (params.check === "1") {
-        check();
-      }
-      refreshDefaultApp();
-    };
-    apply(initialWindowParams());
-    const dispose = onAuxWindowParams(apply);
+      return;
+    }
+    setTab(request.tab);
+    if (request.check) {
+      check();
+    }
+    refreshDefaultApp();
+    if (dialog && !dialog.open) {
+      dialog.showModal();
+    }
     window.addEventListener("focus", refreshDefaultApp);
-    return () => {
-      dispose.then((unlisten) => unlisten());
-      window.removeEventListener("focus", refreshDefaultApp);
-    };
-  }, [check, refreshDefaultApp]);
+    return () => window.removeEventListener("focus", refreshDefaultApp);
+  }, [request, check, refreshDefaultApp]);
 
   const makeDefault = async () => {
     if (defaultApp) {
@@ -81,20 +80,33 @@ export function AboutWindow() {
   };
 
   return (
-    <div className="aux-window about-window">
-      <div className="about-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "about"} onClick={() => setTab("about")}>
-          About
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "changelog"} onClick={() => setTab("changelog")}>
-          What's New
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "licenses"} onClick={() => setTab("licenses")}>
-          Licenses
+    <dialog
+      ref={dialogRef}
+      className="dialog sheet info-sheet about-sheet"
+      aria-label="About Clumsy"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+    >
+      <div className="info-sheet-header">
+        <div className="about-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === "about"} onClick={() => setTab("about")}>
+            About
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "changelog"} onClick={() => setTab("changelog")}>
+            What's New
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "licenses"} onClick={() => setTab("licenses")}>
+            Licenses
+          </button>
+        </div>
+        <button type="button" className="button" onClick={onClose}>
+          Done
         </button>
       </div>
 
-      {tab === "about" ? (
+      {!request ? null : tab === "about" ? (
         <div className="about">
           <div className="about-hero">
             <img src={appIcon} alt="" width={96} height={96} />
@@ -224,6 +236,6 @@ export function AboutWindow() {
       ) : (
         <LicensesView license={licenseSource} />
       )}
-    </div>
+    </dialog>
   );
 }

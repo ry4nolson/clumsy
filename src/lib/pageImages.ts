@@ -1,5 +1,5 @@
 import { AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
-import { mimeTypeFor, renderScale, type ExportOptions } from "./imageExport";
+import { exportPixelSize, mimeTypeFor, renderScale, type ExportOptions } from "./imageExport";
 
 export class ExportCancelledError extends Error {}
 
@@ -21,8 +21,9 @@ export async function renderPageImage(doc: PDFDocumentProxy, storage: PrintStora
   try {
     const natural = page.getViewport({ scale: 1 });
     const viewport = page.getViewport({ scale: renderScale(natural.width, natural.height, options.dpi) });
-    canvas.width = Math.max(1, Math.round(viewport.width));
-    canvas.height = Math.max(1, Math.round(viewport.height));
+    const size = exportPixelSize(natural.width, natural.height, options.dpi);
+    canvas.width = size.width;
+    canvas.height = size.height;
     const task = page.render({ canvas, viewport, intent: "print", annotationMode: AnnotationMode.ENABLE_STORAGE, printAnnotationStorage: storage });
     const cancel = () => task.cancel();
     signal.addEventListener("abort", cancel);

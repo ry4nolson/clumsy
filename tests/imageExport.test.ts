@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   defaultExportOptions,
-  exportTargets,
+  exportPixelSize,
+  exportSummary,
   normalizeExportOptions,
   pageImageName,
   pageImageNames,
+  pagesToExport,
   renderScale,
   safeFileName,
 } from "../src/lib/imageExport";
@@ -29,14 +31,47 @@ describe("page image names", () => {
   });
 });
 
-describe("exportTargets", () => {
-  it("exports the selection in page order", () => {
-    expect(exportTargets([4, 1, 4], 10)).toEqual([1, 4]);
+describe("pagesToExport", () => {
+  const context = { pageCount: 10, currentPage: 6, selection: [4, 1, 4], range: [8, 2, 99] };
+
+  it("exports every page", () => {
+    expect(pagesToExport("all", { ...context, pageCount: 3 })).toEqual([0, 1, 2]);
   });
 
-  it("exports every page without a selection", () => {
-    expect(exportTargets([], 3)).toEqual([0, 1, 2]);
-    expect(exportTargets([7], 3)).toEqual([0, 1, 2]);
+  it("exports the current page", () => {
+    expect(pagesToExport("current", context)).toEqual([6]);
+  });
+
+  it("exports the selection in page order", () => {
+    expect(pagesToExport("selected", context)).toEqual([1, 4]);
+  });
+
+  it("exports a range in page order, dropping pages the document doesn't have", () => {
+    expect(pagesToExport("range", context)).toEqual([2, 8]);
+    expect(pagesToExport("range", { ...context, range: null })).toEqual([]);
+  });
+});
+
+describe("exportSummary", () => {
+  it("counts the images written", () => {
+    expect(exportSummary(1, 1)).toBe("Exported 1 image.");
+    expect(exportSummary(12, 12)).toBe("Exported 12 images.");
+  });
+
+  it("says when an export was cancelled partway", () => {
+    expect(exportSummary(3, 12)).toBe("Exported 3 of 12 images before you cancelled.");
+  });
+});
+
+describe("exportPixelSize", () => {
+  it("gives the image size at a resolution", () => {
+    expect(exportPixelSize(612, 792, 150)).toEqual({ width: 1275, height: 1650 });
+    expect(exportPixelSize(612, 792, 72)).toEqual({ width: 612, height: 792 });
+  });
+
+  it("stays within the canvas limits", () => {
+    const { width, height } = exportPixelSize(14400, 14400, 300);
+    expect(width * height).toBeLessThanOrEqual(2 ** 25);
   });
 });
 
