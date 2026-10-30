@@ -303,6 +303,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         rotatePagesLeft: () => editPages(tab.id, { kind: "rotate", pages, by: -90 }),
         rotatePagesRight: () => editPages(tab.id, { kind: "rotate", pages, by: 90 }),
         deletePages: () => editPages(tab.id, { kind: "delete", pages }),
+        pageLabels: () => handle.editPageLabels(),
         insertPages: () => insertFiles(tab.id, pickImages(true), Math.max(...pages) + 1),
         extractPages: () =>
           enqueue(tab.id, async () => {
@@ -330,6 +331,8 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         editPages(tabId, { kind: "move", pages: action.pages, to: action.slot });
       } else if (action.kind === "delete") {
         runCommand("deletePages");
+      } else if (action.kind === "label") {
+        editPages(tabId, { kind: "label", from: action.from, to: action.to, numbering: action.numbering });
       } else {
         const selected = handles.current.get(tabId)?.selectedPages() ?? [];
         const count = selected.includes(action.page) ? selected.length : 1;
@@ -341,6 +344,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
           { label: `Extract ${plural} to New Tab`, run: () => runCommand("extractPages") },
           { label: count > 1 ? `Export ${plural} as Images…` : "Export Page as Image…", run: () => runCommand("exportSelectedPagesAsImages") },
           { label: "Insert Pages from File…", run: () => runCommand("insertPages") },
+          { label: "Page Labels…", run: () => runCommand("pageLabels") },
           "-",
           { label: `Delete ${plural}`, enabled: count < (snapshotsRef.current[tabId]?.pagesCount ?? 0), run: () => runCommand("deletePages") },
         ]);

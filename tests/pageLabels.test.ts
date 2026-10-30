@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument, PDFHexString, PDFName, PDFNumber } from "@cantoo/pdf-lib";
 import { applyPageEdit, combinePdfs, extractPages } from "../src/lib/pageEdits";
-import { encodePageLabels, formatNumber, hasCustomLabels, labelsFromRanges, pageFromInput, pageLabelOf } from "../src/lib/pageLabels";
+import { encodePageLabels, formatNumber, hasCustomLabels, labelsFromRanges, numberingAt, pageFromInput, pageLabelOf, relabelRange, runEnd } from "../src/lib/pageLabels";
 import { readPageLabels, writePageLabels } from "../src/lib/pdfPageLabels";
 
 const book = ["Cover", "i", "ii", "iii", "iv", "1", "2", "3", "A-1", "A-2", "A-3"];
@@ -97,6 +97,56 @@ async function widthsOf(bytes: Uint8Array) {
   return (await PDFDocument.load(bytes)).getPages().map((page) => page.getWidth() - 300);
 }
 
+describe("relabelRange", () => {
+  it("numbers a range and leaves the pages around it alone", () => {
+    const labels = ["Cover", "i", "ii", "1", "2", "3"];
+    expect(relabelRange(labels, 6, 3, 5, { style: "D", prefix: "A-", first: 1 })).toEqual(["Cover", "i", "ii", "A-1", "A-2", "A-3"]);
+    expect(relabelRange(labels, 6, 1, 2, { style: "R", prefix: "", first: 4 })).toEqual(["Cover", "IV", "V", "1", "2", "3"]);
+  });
+
+  it("gives an unlabeled document labels in the range and page numbers elsewhere", () => {
+    expect(relabelRange(null, 5, 0, 1, { style: "r", prefix: "", first: 1 })).toEqual(["i", "ii", "3", "4", "5"]);
+  });
+
+  it("uses the prefix alone when there's no number", () => {
+    expect(relabelRange(null, 3, 0, 0, { style: null, prefix: "Cover", first: 1 })).toEqual(["Cover", "2", "3"]);
+  });
+
+  it("returns null when every page ends up with its own number", () => {
+    expect(relabelRange(["i", "2", "3"], 3, 0, 0, { style: "D", prefix: "", first: 1 })).toBeNull();
+  });
+});
+
+describe("numberingAt", () => {
+  it("continues the range a page is in", () => {
+    const labels = ["Cover", "i", "ii", "A-1", "A-2", "A-3"];
+    expect(numberingAt(labels, 4)).toEqual({ style: "D", prefix: "A-", first: 2 });
+    expect(numberingAt(labels, 2)).toEqual({ style: "r", prefix: "", first: 2 });
+    expect(numberingAt(labels, 0)).toEqual({ style: null, prefix: "Cover", first: 1 });
+  });
+
+  it("falls back to the page's own number without labels", () => {
+    expect(numberingAt(null, 6)).toEqual({ style: "D", prefix: "", first: 7 });
+  });
+});
+
+describe("runEnd", () => {
+  it("finds the last page numbered in the same run", () => {
+    const labels = ["Cover", "i", "ii", "1", "2", "3", "A-1", "A-2"];
+    expect(runEnd(labels, 1, 8)).toBe(2);
+    expect(runEnd(labels, 4, 8)).toBe(5);
+    expect(runEnd(labels, 7, 8)).toBe(7);
+    expect(runEnd(null, 2, 8)).toBe(7);
+  });
+
+  it("makes the prefilled sheet a no-op", () => {
+    const labels = ["Cover", "i", "ii", "1", "2", "3"];
+    for (let index = 0; index < labels.length; index++) {
+      expect(relabelRange(labels, 6, index, runEnd(labels, index, 6), numberingAt(labels, index))).toEqual(labels);
+    }
+  });
+});
+
 describe("page labels in the file", () => {
   it("reads a number tree with styles, prefixes, and start values", async () => {
     const doc = await PDFDocument.create();
@@ -151,6 +201,20 @@ describe("page labels in the file", () => {
   it("leaves labels alone on rotation", async () => {
     const bytes = await labeledPdf(3, ["i", "ii", "1"]);
     expect(await labelsOf(await applyPageEdit(bytes, { kind: "rotate", pages: [0], by: 90 }))).toEqual(["i", "ii", "1"]);
+  });
+
+  it("relabels a range as an undoable page edit", async () => {
+    const bytes = await labeledPdf(5, ["i", "ii", "1", "2", "3"]);
+    const edited = await applyPageEdit(bytes, { kind: "label", from: 2, to: 4, numbering: { style: "A", prefix: "Appendix ", first: 1 } });
+    expect(await labelsOf(edited)).toEqual(["i", "ii", "Appendix A", "Appendix B", "Appendix C"]);
+    expect(await widthsOf(edited)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("adds labels to a plain file and removes them all", async () => {
+    const plain = await labeledPdf(4, null);
+    const labeled = await applyPageEdit(plain, { kind: "label", from: 0, to: 1, numbering: { style: "r", prefix: "", first: 1 } });
+    expect(await labelsOf(labeled)).toEqual(["i", "ii", "3", "4"]);
+    expect(await labelsOf(await applyPageEdit(labeled, { kind: "label", from: 0, to: 3, numbering: null }))).toBeNull();
   });
 
   it("combines files with each one's labels", async () => {

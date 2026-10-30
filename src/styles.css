@@ -1490,6 +1490,48 @@ body {
   background: var(--bg);
 }
 
+.label-form {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 12px;
+  align-items: center;
+}
+
+.label-form-name {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.label-form-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label-form-range .text-input {
+  width: 72px;
+}
+
+.label-form-note {
+  color: var(--text-muted);
+}
+
+.label-form select.text-input {
+  cursor: pointer;
+}
+
+.label-form .text-input:disabled {
+  opacity: 0.45;
+}
+
+.label-form-preview {
+  min-height: 32px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: var(--bg);
+  overflow-wrap: anywhere;
+}
+
 .signature-pad {
   display: block;
   width: 100%;
