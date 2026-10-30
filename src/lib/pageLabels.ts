@@ -103,6 +103,29 @@ export function labelsFromRanges(ranges: LabelRange[], count: number) {
   });
 }
 
+export type LabelNumbering = Omit<LabelRange, "start">;
+
+export function numberingAt(labels: string[] | null | undefined, index: number): LabelNumbering {
+  const range = labels ? encodePageLabels(labels).findLast((candidate) => candidate.start <= index) : null;
+  if (!range) {
+    return { style: "D", prefix: "", first: index + 1 };
+  }
+  return { style: range.style, prefix: range.prefix, first: range.style ? range.first + index - range.start : 1 };
+}
+
+export function runEnd(labels: string[] | null | undefined, index: number, count: number) {
+  const next = labels ? encodePageLabels(labels).find((range) => range.start > index) : undefined;
+  return next ? next.start - 1 : count - 1;
+}
+
+export function relabelRange(labels: string[] | null | undefined, count: number, from: number, to: number, numbering: LabelNumbering): string[] | null {
+  const range = { start: from, ...numbering };
+  const next = Array.from({ length: count }, (_, index) =>
+    index >= from && index <= to ? rangeLabel(range, index - from) : (labels?.[index] ?? String(index + 1)),
+  );
+  return hasCustomLabels(next) ? next : null;
+}
+
 export function hasCustomLabels(labels: string[] | null | undefined): labels is string[] {
   return !!labels?.some((label, index) => label !== String(index + 1));
 }

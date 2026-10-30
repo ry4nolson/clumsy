@@ -7,11 +7,13 @@ import type { ViewState } from "../lib/documentWindows";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
 import { getRecentFiles, readPdfFromPath, type PdfSource } from "../lib/platform";
+import { runEnd, type LabelNumbering } from "../lib/pageLabels";
 import { documentView, scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
 import { ChangesList } from "./ChangesList";
 import { CompareBar } from "./CompareBar";
 import { DocumentMap } from "./DocumentMap";
 import { FindBar } from "./FindBar";
+import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 
 export type TabSnapshot = {
@@ -30,7 +32,11 @@ export type TabSnapshot = {
   selectedEditor: boolean;
 };
 
-export type PageAction = { kind: "move"; pages: number[]; slot: number } | { kind: "menu"; page: number } | { kind: "delete" };
+export type PageAction =
+  | { kind: "move"; pages: number[]; slot: number }
+  | { kind: "menu"; page: number }
+  | { kind: "delete" }
+  | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null };
 
 export type DocumentHandle = {
   viewer: PdfViewerApi;
@@ -39,6 +45,7 @@ export type DocumentHandle = {
   openFind: (query?: string) => void;
   closeFind: () => void;
   findAgain: (previous: boolean) => void;
+  editPageLabels: () => void;
 };
 
 type DocumentTabProps = {
@@ -124,6 +131,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const [findSeed, setFindSeed] = useState<string | null>(null);
   const lastQuery = useRef<FindQuery | null>(null);
   const [selection, setSelection] = useState<PageSelection>(emptySelection);
+  const [labelsRequest, setLabelsRequest] = useState<PageLabelsRequest | null>(null);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
   const loaded = !!viewer.pdfDocument;
@@ -261,6 +269,12 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           runFind(lastQuery.current, "again", previous);
         }
       },
+      editPageLabels: () => {
+        const current = viewer.pageNumber - 1;
+        const pages = targetPages(followCurrentPage(selectionRef.current, current), current);
+        const range = pages.length > 1 ? [Math.min(...pages), Math.max(...pages)] : [current, runEnd(viewer.pageLabels, current, viewer.pagesCount)];
+        setLabelsRequest({ pagesCount: viewer.pagesCount, labels: viewer.pageLabels, from: range[0], to: range[1] });
+      },
     }),
     [viewer, closeFind, runFind],
   );
@@ -333,6 +347,14 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           fixedWidth={viewer.scrollMode === "wrapped"}
         />
       )}
+      <PageLabelsDialog
+        request={labelsRequest}
+        onApply={(from, to, numbering) => {
+          setLabelsRequest(null);
+          onPageAction(id, { kind: "label", from, to, numbering });
+        }}
+        onClose={() => setLabelsRequest(null)}
+      />
     </div>
   );
 });

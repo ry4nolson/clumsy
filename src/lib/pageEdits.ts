@@ -1,12 +1,14 @@
 import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
-import { pageRefsOf, readPageLabels, relabelPages, type LabelSource } from "./pdfPageLabels";
+import { relabelRange, type LabelNumbering } from "./pageLabels";
+import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
 import { collectGarbage, flattenPageTree, importPageRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 export type PageEdit =
   | { kind: "move"; pages: number[]; to: number }
   | { kind: "delete"; pages: number[] }
   | { kind: "rotate"; pages: number[]; by: 90 | -90 }
-  | { kind: "insert"; data: Uint8Array; at: number };
+  | { kind: "insert"; data: Uint8Array; at: number }
+  | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null };
 
 export class PageEditError extends Error {}
 
@@ -45,6 +47,7 @@ export function pageAfterEdit(edit: PageEdit, page: number, count: number, inser
       return remaining.indexOf(next);
     }
     case "rotate":
+    case "label":
       return page;
     case "insert":
       return page >= edit.at ? page + insertedCount : page;
@@ -75,6 +78,7 @@ export function selectionAfterEdit(edit: PageEdit, count: number, insertedCount 
       return Array.from({ length: insertedCount }, (_, index) => at + index);
     }
     case "delete":
+    case "label":
       return [];
   }
 }
@@ -100,6 +104,7 @@ export function changesDocument(edit: PageEdit, count: number) {
     case "move":
       return reorderedPages(count, edit.pages, edit.to).some((page, index) => page !== index);
     case "insert":
+    case "label":
       return true;
     default:
       return edit.pages.some((page) => page >= 0 && page < count);
@@ -149,6 +154,9 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
       extra.push(inserted);
       break;
     }
+    case "label":
+      writePageLabels(doc, edit.numbering && relabelRange(labels, refs.length, edit.from, edit.to, edit.numbering));
+      return save(doc);
   }
   if (edit.kind !== "rotate") {
     relabelPages(doc, { refs, labels }, pageRefsOf(doc), extra);

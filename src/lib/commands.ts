@@ -73,6 +73,7 @@ export type CommandId =
   | "rotatePagesRight"
   | "deletePages"
   | "extractPages"
+  | "pageLabels"
   | "nextTab"
   | "previousTab"
   | "splitRight"
@@ -191,6 +192,7 @@ export const commands: Command[] = [
   { id: "deletePages", label: "Delete Pages", menu: "Pages", combos: [], needsDocument: true },
   { id: "extractPages", label: "Extract Pages to New Tab", menu: "Pages", combos: [], needsDocument: true },
   { id: "exportSelectedPagesAsImages", label: "Export Selected Pages as Images…", menu: "Pages", combos: [], needsDocument: true },
+  { id: "pageLabels", label: "Page Labels…", menu: "Pages", combos: [], needsDocument: true },
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
   { id: "previousTab", label: "Show Previous Tab", menu: "Window", combos: ["mod+shift+[", "ctrl+shift+Tab"] },
