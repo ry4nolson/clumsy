@@ -110,6 +110,7 @@ export default function App() {
   const activeTab = ws.focusedTab(workspace);
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
+  const viewMenuState = viewControls.menuState(hasDocument ? activeSnapshot : undefined);
   const editorOptions = useEditorOptions(activeViewer, activeSnapshot);
 
   const openSourceRef = useRef(openSource);
@@ -183,6 +184,7 @@ export default function App() {
     hasDocument,
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
+    documentMapAvailable: viewMenuState.documentMapAvailable,
     isMac,
     tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),
     recent: recentFiles ?? [],
@@ -269,7 +271,7 @@ export default function App() {
       toggleSidebar: () => setSidebarOpen((open) => !open),
       showPages: () => showSidebar("thumbnails"),
       showOutline: () => showSidebar("outline"),
-      toggleDocumentMap: () => setDocumentMap((shown) => !shown),
+      toggleDocumentMap: () => viewMenuState.documentMapAvailable && setDocumentMap((shown) => !shown),
       actualSize: () => viewer?.setZoom(1),
       zoomIn: () => viewer?.zoom(1),
       zoomOut: () => viewer?.zoom(-1),
@@ -328,7 +330,7 @@ export default function App() {
       documentMap,
       darkPages,
       invertImages: darkPagesImages === "invert",
-      ...viewControls.menuState(hasDocument ? activeSnapshot : undefined),
+      ...viewMenuState,
     },
     recentFiles,
   );

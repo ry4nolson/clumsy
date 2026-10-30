@@ -53,6 +53,12 @@ describe("paletteItems", () => {
     expect(ids).toContain("open");
     expect(ids).toContain("moveTabRight");
   });
+
+  it("hides the Document Map toggle while the map can't show", () => {
+    const context = { hasDocument: true, split: false, comparing: false, isMac: true };
+    expect(paletteItems(context).map((item) => item.id)).toContain("toggleDocumentMap");
+    expect(paletteItems({ ...context, documentMapAvailable: false }).map((item) => item.id)).not.toContain("toggleDocumentMap");
+  });
 });
 
 describe("quickOpenItems", () => {
