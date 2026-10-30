@@ -8,6 +8,7 @@ import { documentText } from "../lib/pdfText";
 import { downloadPdf, isDesktop, pickPdf, pickSavePath, showError, writePdf, type PdfSource } from "../lib/platform";
 import { changeAtLocation, syncLocation } from "../lib/scrollSync";
 import { createPaneId, type DocTab } from "../lib/tabs";
+import { scrollsVertically } from "../lib/viewModes";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -28,6 +29,7 @@ export type CompareView = Omit<ComparisonState, "tabs" | "result" | "inView"> & 
   inView: number;
   side: Side;
   otherName: string;
+  linkable: boolean;
   onSelect: (index: number) => void;
   onStep: (direction: 1 | -1) => void;
   onSwap: () => void;
@@ -147,7 +149,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
         const source = handles.current.get(ids[from])?.viewer;
         const target = handles.current.get(ids[to])?.viewer;
         const location = source?.scrollPosition();
-        if (!source || !target || !location) {
+        if (!source || !target || !location || !scrollsVertically(source.scrollMode) || !scrollsVertically(target.scrollMode)) {
           return;
         }
         const rotation = { [from]: source.rotation(), [to]: target.rotation() } as Record<Side, number>;
@@ -214,6 +216,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
       for (const side of sides) {
         const viewer = handles.current.get(latest.tabs[side])?.viewer;
         const rect = changeRect(change, side);
+        viewer?.recordStop();
         const before = viewer?.containerRef.current?.scrollTop;
         const after = viewer && rect ? viewer.reveal(rect) : null;
         if (after !== null && after !== before) {
@@ -349,7 +352,8 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     }
     const { tabs, result: comparison, inView, ...rest } = state;
     const other = docTab(tabs[otherSide(side)]);
-    return { ...rest, comparison, inView: inView[side], side, otherName: other?.name ?? "", onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onExport: exportReport, onEnd: end };
+    const linkable = sides.every((candidate) => scrollsVertically(snapshots[tabs[candidate]]?.scrollMode ?? "vertical"));
+    return { ...rest, comparison, inView: inView[side], side, otherName: other?.name ?? "", linkable, onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onExport: exportReport, onEnd: end };
   };
 
   return { comparing: !!state, runCompareCommand, viewFor };

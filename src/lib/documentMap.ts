@@ -1,4 +1,4 @@
-export type PageBox = { top: number; width: number; height: number };
+export type PageBox = { top: number; left?: number; width: number; height: number };
 export type MapRect = { top: number; left: number; width: number; height: number };
 export type MapArea = { width: number; height: number };
 export type MapLayout = { pages: MapRect[]; width: number; height: number; viewerStops: number[]; mapStops: number[] };
@@ -9,25 +9,57 @@ export const MAP_PADDING = 3;
 export const MAP_GAP = 1;
 export const MIN_PAGE_WIDTH = 18;
 
+type Row = { indices: number[]; top: number; bottom: number; left: number; right: number };
+
+export function pageRows(boxes: PageBox[]): Row[] {
+  const rows: Row[] = [];
+  boxes.forEach((box, index) => {
+    const left = box.left ?? 0;
+    const row = rows.at(-1);
+    if (row && box.left !== undefined && box.top < row.bottom) {
+      row.indices.push(index);
+      row.top = Math.min(row.top, box.top);
+      row.bottom = Math.max(row.bottom, box.top + box.height);
+      row.left = Math.min(row.left, left);
+      row.right = Math.max(row.right, left + box.width);
+    } else {
+      rows.push({ indices: [index], top: box.top, bottom: box.top + box.height, left, right: left + box.width });
+    }
+  });
+  return rows;
+}
+
 export function layoutMap(boxes: PageBox[], viewerHeight: number, area: MapArea, minWidth = MIN_PAGE_WIDTH): MapLayout {
-  const widest = Math.max(0, ...boxes.map((box) => box.width));
+  const rows = pageRows(boxes);
+  const widest = Math.max(0, ...rows.map((row) => row.right - row.left));
   const fullWidth = Math.max(0, area.width - 2 * MAP_PADDING);
   if (!boxes.length || !widest || !fullWidth) {
     return { pages: [], width: 0, height: 0, viewerStops: [0, viewerHeight], mapStops: [0, 0] };
   }
-  const heightPerWidth = boxes.reduce((sum, box) => sum + box.height / widest, 0);
-  const fixed = (boxes.length - 1) * MAP_GAP + 2 * MAP_PADDING;
+  const heightPerWidth = rows.reduce((sum, row) => sum + (row.bottom - row.top) / widest, 0);
+  const fixed = (rows.length - 1) * MAP_GAP + 2 * MAP_PADDING;
   const fitted = (area.height - fixed) / heightPerWidth;
-  const pageWidth = Math.min(fullWidth, Math.max(Math.min(minWidth, fullWidth), fitted));
+  const widestPage = Math.max(...boxes.map((box) => box.width));
+  const minRowWidth = (minWidth * widest) / widestPage;
+  const pageWidth = Math.min(fullWidth, Math.max(Math.min(minRowWidth, fullWidth), fitted));
+  const scale = pageWidth / widest;
   const pages: MapRect[] = [];
   const viewerStops = [0];
   const mapStops = [0];
   let top = MAP_PADDING;
-  for (const box of boxes) {
-    const width = (box.width / widest) * pageWidth;
-    const height = (box.height / widest) * pageWidth;
-    pages.push({ top, left: MAP_PADDING + (pageWidth - width) / 2, width, height });
-    viewerStops.push(box.top, box.top + box.height);
+  for (const row of rows) {
+    const inset = MAP_PADDING + (widest - (row.right - row.left)) * scale * 0.5;
+    for (const index of row.indices) {
+      const box = boxes[index];
+      pages[index] = {
+        top: top + (box.top - row.top) * scale,
+        left: inset + ((box.left ?? 0) - row.left) * scale,
+        width: box.width * scale,
+        height: box.height * scale,
+      };
+    }
+    const height = (row.bottom - row.top) * scale;
+    viewerStops.push(row.top, row.bottom);
     mapStops.push(top, top + height);
     top += height + MAP_GAP;
   }

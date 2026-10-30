@@ -41,14 +41,25 @@ export type CommandId =
   | "rotateLeft"
   | "toggleDarkPages"
   | "toggleInvertImages"
+  | "scrollVertical"
+  | "scrollHorizontal"
+  | "scrollWrapped"
+  | "scrollPage"
+  | "spreadNone"
+  | "spreadOdd"
+  | "spreadEven"
+  | "toggleCaretBrowsing"
   | "previousPage"
   | "nextPage"
   | "firstPage"
   | "lastPage"
   | "goToPage"
+  | "goBack"
+  | "goForward"
   | "quickOpen"
   | "commandPalette"
   | "toolSelect"
+  | "toolHand"
   | "toolHighlight"
   | "toolText"
   | "toolDraw"
@@ -141,17 +152,28 @@ export const commands: Command[] = [
   { id: "endComparison", label: "End Comparison", menu: "View", combos: [], needsComparison: true },
   { id: "toggleDarkPages", label: "Dark Pages", menu: "View", combos: ["mod+shift+d"] },
   { id: "toggleInvertImages", label: "Invert Images in Dark Pages", menu: "View", combos: [] },
+  { id: "scrollVertical", label: "Vertical Scrolling", menu: "View", combos: [], needsDocument: true },
+  { id: "scrollHorizontal", label: "Horizontal Scrolling", menu: "View", combos: [], needsDocument: true },
+  { id: "scrollWrapped", label: "Wrapped Scrolling", menu: "View", combos: [], needsDocument: true },
+  { id: "scrollPage", label: "Page Scrolling", menu: "View", combos: [], needsDocument: true },
+  { id: "spreadNone", label: "No Spreads", menu: "View", combos: [], needsDocument: true },
+  { id: "spreadOdd", label: "Odd Spreads", menu: "View", combos: [], needsDocument: true },
+  { id: "spreadEven", label: "Even Spreads", menu: "View", combos: [], needsDocument: true },
+  { id: "toggleCaretBrowsing", label: "Caret Browsing", menu: "View", combos: ["F7"] },
 
   { id: "previousPage", label: "Previous Page", menu: "Go", combos: ["alt+mod+ArrowUp", "p", "k"], needsDocument: true },
   { id: "nextPage", label: "Next Page", menu: "Go", combos: ["alt+mod+ArrowDown", "n", "j"], needsDocument: true },
   { id: "firstPage", label: "First Page", menu: "Go", combos: ["mod+ArrowUp", "Home"], needsDocument: true },
   { id: "lastPage", label: "Last Page", menu: "Go", combos: ["mod+ArrowDown", "End"], needsDocument: true },
   { id: "goToPage", label: "Go to Page…", menu: "Go", combos: ["ctrl+g"], needsDocument: true },
+  { id: "goBack", label: "Go Back", menu: "Go", combos: ["ctrl+-"], needsDocument: true },
+  { id: "goForward", label: "Go Forward", menu: "Go", combos: ["ctrl+shift+-"], needsDocument: true },
   { id: "nextChange", label: "Next Change", menu: "Go", combos: ["alt+F5"], needsComparison: true },
   { id: "previousChange", label: "Previous Change", menu: "Go", combos: ["shift+alt+F5"], needsComparison: true },
   { id: "quickOpen", label: "Go to File…", menu: "Go", combos: ["mod+p"] },
 
   { id: "toolSelect", label: "Select", menu: "Tools", combos: ["v"], needsDocument: true },
+  { id: "toolHand", label: "Hand", menu: "Tools", combos: [], needsDocument: true },
   { id: "toolHighlight", label: "Highlight", menu: "Tools", combos: ["ctrl+mod+h", "h"], needsDocument: true },
   { id: "toolText", label: "Text Note", menu: "Tools", combos: ["ctrl+mod+t", "t"], needsDocument: true },
   { id: "toolDraw", label: "Draw", menu: "Tools", combos: ["ctrl+mod+p", "d"], needsDocument: true },
@@ -241,6 +263,8 @@ export function isPlainCombo(combo: string) {
   return !MODIFIERS.some((modifier) => normalize(combo).startsWith(`${modifier}+`));
 }
 
+const isFunctionKey = (combo: string) => /^F\d{1,2}$/.test(normalize(combo).split("+").pop()!);
+
 const caretKeys = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
 const caretModifiers = new Set(["", "mod", "alt"]);
 
@@ -272,7 +296,7 @@ const acceleratorKeys: Record<string, string> = {
 };
 
 export function acceleratorFor(combo: string) {
-  if (isPlainCombo(combo)) {
+  if (isPlainCombo(combo) && !isFunctionKey(combo)) {
     return null;
   }
   const parts = normalize(combo).split("+");

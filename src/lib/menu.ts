@@ -1,6 +1,7 @@
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
 import { acceleratorFor, commandById, type CommandId, type MenuName } from "./commands";
 import type { RecentEntry } from "./recent";
+import type { ScrollModeName, SpreadModeName, ViewModes } from "./viewModes";
 
 type Predefined = "Services" | "Hide" | "HideOthers" | "ShowAll" | "Cut" | "Copy" | "Paste" | "SelectAll" | "Fullscreen" | "Minimize" | "Maximize" | "BringAllToFront";
 type Slot = CommandId | "-" | "recent" | { predefined: Predefined };
@@ -69,15 +70,25 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "rotateLeft",
       "rotateRight",
       "-",
+      "scrollVertical",
+      "scrollHorizontal",
+      "scrollWrapped",
+      "scrollPage",
+      "-",
+      "spreadNone",
+      "spreadOdd",
+      "spreadEven",
+      "-",
+      "toggleCaretBrowsing",
       "toggleDarkPages",
       "toggleInvertImages",
       "-",
       { predefined: "Fullscreen" },
     ],
   ],
-  ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "quickOpen", "goToPage", "-", "nextChange", "previousChange"]],
+  ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "goBack", "goForward", "-", "quickOpen", "goToPage", "-", "nextChange", "previousChange"]],
   ["Pages", ["insertPages", "-", "rotatePagesLeft", "rotatePagesRight", "-", "deletePages", "extractPages"]],
-  ["Tools", ["toolSelect", "toolHighlight", "toolText", "toolDraw", "-", "addImage", "sign"]],
+  ["Tools", ["toolSelect", "toolHand", "toolHighlight", "toolText", "toolDraw", "-", "addImage", "sign"]],
   [
     "Window",
     [
@@ -99,9 +110,48 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
   ["Help", ["keyboardShortcuts", "whatsNew", "-", "openGitHub", "reportIssue"]],
 ];
 
-const checkCommands = new Set<CommandId>(["toggleDocumentMap", "toggleDarkPages", "toggleInvertImages"]);
+const scrollModeCommands: Record<ScrollModeName, CommandId> = {
+  vertical: "scrollVertical",
+  horizontal: "scrollHorizontal",
+  wrapped: "scrollWrapped",
+  page: "scrollPage",
+};
 
-export type MenuState = { hasDocument: boolean; split: boolean; comparing: boolean; documentMap: boolean; darkPages: boolean; invertImages: boolean };
+const spreadModeCommands: Record<SpreadModeName, CommandId> = { none: "spreadNone", odd: "spreadOdd", even: "spreadEven" };
+
+const radioCommands = new Set<CommandId>([...Object.values(scrollModeCommands), ...Object.values(spreadModeCommands)]);
+
+const checkCommands = new Set<CommandId>([
+  "toggleDocumentMap",
+  "toggleDarkPages",
+  "toggleInvertImages",
+  "toggleCaretBrowsing",
+  ...Object.values(scrollModeCommands),
+  ...Object.values(spreadModeCommands),
+]);
+
+export type MenuState = {
+  hasDocument: boolean;
+  split: boolean;
+  comparing: boolean;
+  documentMap: boolean;
+  documentMapAvailable: boolean;
+  darkPages: boolean;
+  invertImages: boolean;
+  caretBrowsing: boolean;
+} & ViewModes;
+
+export function checkedCommands(state: MenuState): Set<CommandId> {
+  const checks: Array<[CommandId, boolean]> = [
+    ["toggleDocumentMap", state.documentMap && state.documentMapAvailable],
+    ["toggleDarkPages", state.darkPages],
+    ["toggleInvertImages", state.invertImages],
+    ["toggleCaretBrowsing", state.caretBrowsing],
+    [scrollModeCommands[state.scrollMode], state.hasDocument],
+    [spreadModeCommands[state.spreadMode], state.hasDocument],
+  ];
+  return new Set(checks.flatMap(([id, checked]) => (checked ? [id] : [])));
+}
 
 export type AppMenu = {
   activate: () => Promise<void>;
@@ -125,7 +175,16 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const commandItem = async (id: CommandId) => {
     const command = commandById.get(id)!;
     const accelerator = command.combos.map(acceleratorFor).find(Boolean) ?? undefined;
-    const options = { text: command.label, accelerator, action: () => callbacks.onCommand(id) };
+    const options = {
+      text: command.label,
+      accelerator,
+      action: () => {
+        callbacks.onCommand(id);
+        if (radioCommands.has(id)) {
+          checkItems.get(id)?.setChecked(true);
+        }
+      },
+    };
     const item = checkCommands.has(id) ? await CheckMenuItem.new({ ...options, checked: false }) : await MenuItem.new(options);
     if (item instanceof CheckMenuItem) {
       checkItems.set(id, item);
@@ -170,14 +229,14 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     async activate() {
       await menu.setAsAppMenu();
     },
-    async setState({ hasDocument, split, comparing, documentMap, darkPages, invertImages }) {
+    async setState(state) {
+      const checked = checkedCommands(state);
       await Promise.all([
-        ...documentItems.map((item) => item.setEnabled(hasDocument)),
-        ...splitItems.map((item) => item.setEnabled(split)),
-        ...comparisonItems.map((item) => item.setEnabled(comparing)),
-        checkItems.get("toggleDocumentMap")?.setChecked(documentMap),
-        checkItems.get("toggleDarkPages")?.setChecked(darkPages),
-        checkItems.get("toggleInvertImages")?.setChecked(invertImages),
+        ...documentItems.map((item) => item.setEnabled(state.hasDocument)),
+        ...splitItems.map((item) => item.setEnabled(state.split)),
+        ...comparisonItems.map((item) => item.setEnabled(state.comparing)),
+        checkItems.get("toggleDocumentMap")?.setEnabled(state.documentMapAvailable),
+        ...[...checkItems].map(([id, item]) => item.setChecked(checked.has(id))),
       ]);
     },
     async setRecent(entries) {

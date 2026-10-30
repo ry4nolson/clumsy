@@ -30,6 +30,10 @@ export function scrollLocation(viewer: ScrollableViewer, container: HTMLElement,
       high = middle - 1;
     }
   }
+  const height = (page: number) => viewer.getPageView(page)?.div?.offsetHeight ?? 0;
+  while (low > 0 && Math.abs(top(low - 1) - top(low)) < Math.min(height(low - 1), height(low)) / 2) {
+    low--;
+  }
   const div = viewer.getPageView(low)?.div;
   return div?.offsetHeight ? { page: low, y: Math.min((at - top(low)) / div.offsetHeight, 1) } : null;
 }

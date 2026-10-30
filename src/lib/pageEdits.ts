@@ -1,4 +1,5 @@
 import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
+import { pageRefsOf, readPageLabels, relabelPages, type LabelSource } from "./pdfPageLabels";
 import { collectGarbage, flattenPageTree, importPageRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 export type PageEdit =
@@ -109,10 +110,18 @@ export async function pageCount(bytes: Uint8Array) {
   return (await load(bytes)).getPageCount();
 }
 
+async function importLabeled(target: PDFDocument, bytes: Uint8Array): Promise<LabelSource> {
+  const source = await load(bytes);
+  const labels = readPageLabels(source);
+  return { refs: importPageRefs(target, source), labels };
+}
+
 export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
   const doc = await load(bytes);
   const pages = doc.getPages();
+  const labels = readPageLabels(doc);
   const refs = flattenPageTree(doc);
+  const extra: LabelSource[] = [];
   switch (edit.kind) {
     case "move":
       setPageRefs(doc, reorderedPages(refs.length, edit.pages, edit.to).map((index) => refs[index]));
@@ -134,33 +143,43 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
       }
       break;
     case "insert": {
-      const inserted = importPageRefs(doc, await load(edit.data));
+      const inserted = await importLabeled(doc, edit.data);
       const at = Math.min(Math.max(0, edit.at), refs.length);
-      setPageRefs(doc, [...refs.slice(0, at), ...inserted, ...refs.slice(at)]);
+      setPageRefs(doc, [...refs.slice(0, at), ...inserted.refs, ...refs.slice(at)]);
+      extra.push(inserted);
       break;
     }
+  }
+  if (edit.kind !== "rotate") {
+    relabelPages(doc, { refs, labels }, pageRefsOf(doc), extra);
   }
   return save(doc);
 }
 
 export async function extractPages(bytes: Uint8Array, pages: number[]) {
   const doc = await load(bytes);
+  const labels = readPageLabels(doc);
   const refs = flattenPageTree(doc);
   const keep = new Set(uniqueSorted(pages).filter((page) => page >= 0 && page < refs.length));
   if (!keep.size) {
     throw new PageEditError("No pages to extract.");
   }
   removePageRefs(doc, refs, new Set(refs.filter((_, index) => !keep.has(index))));
+  relabelPages(doc, { refs, labels }, pageRefsOf(doc));
   return save(doc);
 }
 
 export async function combinePdfs(files: Uint8Array[]) {
   const [first, ...rest] = files;
   const doc = await load(first);
+  const labels = readPageLabels(doc);
   const refs = flattenPageTree(doc);
+  const extra: LabelSource[] = [];
   for (const bytes of rest) {
-    refs.push(...importPageRefs(doc, await load(bytes)));
+    extra.push(await importLabeled(doc, bytes));
   }
-  setPageRefs(doc, refs);
+  const combined = [...refs, ...extra.flatMap((source) => source.refs)];
+  setPageRefs(doc, combined);
+  relabelPages(doc, { refs, labels }, combined, extra);
   return save(doc);
 }

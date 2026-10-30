@@ -1,4 +1,5 @@
 import { commands, displayCombo, type CommandId } from "./commands";
+import { hasCustomLabels, pageFromInput, pageLabelOf } from "./pageLabels";
 import type { RecentEntry } from "./recent";
 
 export type QuickPickItem = { id: string; label: string; detail?: string; hint?: string | null };
@@ -59,4 +60,28 @@ export function quickOpenTarget(id: string): QuickOpenTarget | null {
     return { kind: "recent", path: id.slice(7) };
   }
   return null;
+}
+
+export type PageTargets = { labels: string[] | null; count: number };
+
+export function pageJumpItem(query: string, { labels, count }: PageTargets): QuickPickItem | null {
+  if (!query.startsWith(":") || count < 1) {
+    return null;
+  }
+  const text = query.slice(1).trim();
+  const labeled = hasCustomLabels(labels);
+  if (!text) {
+    return { id: "page:", label: `Type a page number${labeled ? " or label" : ""} (1–${count})` };
+  }
+  const page = pageFromInput(text, labels, count);
+  if (!page) {
+    return { id: "page:", label: `No page “${text}”` };
+  }
+  const label = pageLabelOf(labels, page);
+  return { id: `page:${page}`, label: labeled && label !== String(page) ? `Go to page ${label} (${page} of ${count})` : `Go to page ${page} of ${count}` };
+}
+
+export function pageJumpTarget(id: string) {
+  const page = id.startsWith("page:") ? Number(id.slice(5)) : 0;
+  return page > 0 ? page : null;
 }

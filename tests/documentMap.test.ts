@@ -56,6 +56,43 @@ describe("layoutMap", () => {
   });
 });
 
+describe("layoutMap with spreads", () => {
+  const spread = (count: number): PageBox[] =>
+    Array.from({ length: count }, (_, index) => ({ top: 16 + Math.floor(index / 2) * 816, left: 20 + (index % 2) * 610, width: 600, height: 800 }));
+
+  it("puts pages that share a row side by side", () => {
+    const pages = spread(4);
+    const layout = layoutMap(pages, viewerHeight(pages), { width: 96, height: 1000 });
+    const scale = FULL / 1210;
+    expect(layout.pages[0]).toMatchObject({ top: MAP_PADDING, left: MAP_PADDING });
+    expect(layout.pages[1].top).toBe(MAP_PADDING);
+    expect(layout.pages[1].left).toBeCloseTo(MAP_PADDING + 610 * scale);
+    expect(layout.pages[0].width).toBeCloseTo(600 * scale);
+    expect(layout.pages[2].top).toBeCloseTo(MAP_PADDING + 800 * scale + MAP_GAP);
+    expect(layout.viewerStops).toEqual([0, 16, 816, 832, 1632, viewerHeight(pages)]);
+  });
+
+  it("centers a short last row and a shorter page in its row", () => {
+    const pages: PageBox[] = [...spread(2), { top: 832, left: 325, width: 600, height: 800 }, { top: 1700, left: 20, width: 600, height: 600 }, { top: 1648, left: 630, width: 600, height: 800 }];
+    const layout = layoutMap(pages, 2500, { width: 96, height: 1000 });
+    const scale = FULL / 1210;
+    expect(layout.pages[2].left).toBeCloseTo(MAP_PADDING + 305 * scale);
+    expect(layout.pages[3].top - layout.pages[4].top).toBeCloseTo(52 * scale);
+  });
+
+  it("applies the minimum width to each page, not the whole row", () => {
+    const pages = spread(400);
+    const layout = layoutMap(pages, viewerHeight(pages), { width: 96, height: 800 }, 18);
+    expect(layout.pages[0].width).toBeCloseTo(18);
+    expect(layout.width).toBeCloseTo((18 * 1210) / 600 + 2 * MAP_PADDING);
+  });
+
+  it("keeps one page per row without horizontal positions", () => {
+    const pages = boxes(3).map(({ top, width, height }) => ({ top, width, height }));
+    expect(layoutMap(pages, viewerHeight(pages), { width: 96, height: 1000 }).viewerStops).toHaveLength(8);
+  });
+});
+
 describe("toMap", () => {
   const pages = boxes(3);
   const layout = layoutMap(pages, viewerHeight(pages), { width: 96, height: 1000 });

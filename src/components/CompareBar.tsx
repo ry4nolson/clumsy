@@ -45,8 +45,15 @@ export function CompareBar({ view }: { view: CompareView }) {
       <button type="button" className="icon-button" disabled={!hasChanges} onClick={() => view.onStep(1)} title={withShortcut("Next change", "nextChange")}>
         <ChevronDown size={16} />
       </button>
-      <button type="button" className="icon-button" aria-pressed={view.linked} onClick={view.onToggleLinked} title={view.linked ? "Unlink scrolling" : "Link scrolling"}>
-        {view.linked ? <Link size={15} /> : <Unlink size={15} />}
+      <button
+        type="button"
+        className="icon-button"
+        aria-pressed={view.linked && view.linkable}
+        disabled={!view.linkable}
+        onClick={view.onToggleLinked}
+        title={!view.linkable ? "Linked scrolling needs vertical or wrapped scrolling on both sides" : view.linked ? "Unlink scrolling" : "Link scrolling"}
+      >
+        {view.linked && view.linkable ? <Link size={15} /> : <Unlink size={15} />}
       </button>
       <button type="button" className="icon-button" onClick={view.onSwap} title="Swap sides">
         <ArrowLeftRight size={15} />

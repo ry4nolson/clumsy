@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Scrolling and spreads**: View > Vertical, Horizontal, Wrapped, or Page Scrolling, and No, Odd, or Even Spreads. Each tab keeps its own, and new tabs start with your last choice. The Document Map shows spreads side by side; it hides in horizontal and page scrolling, and linked scrolling in a comparison pauses until both sides scroll up and down again
+- **Go Back and Go Forward** (⌃- / ⌃⇧-, or the mouse's back and forward buttons) retrace jumps from links, the outline, Go to Page, first and last page, search results, and comparison changes. Each tab keeps its own history, even when it moves to another window
+- **Page labels**: documents that number their pages "iv" or "A-3" show that label in the page box, with the page number beside it, and on thumbnails. Go to Page takes a label or a number, and so do the Command Palette and Go to File after a colon (`:iv`)
+- Documents can choose how they open: the page or spot to start on, Outline or Pages in the sidebar, and one or two pages at a time. This only applies the first time you open a file; after that, your own settings win
+- **Hand tool** (Tools > Hand) drags the page around. Hold Space to use it for a moment from any tool; a quick tap of Space still scrolls a screen
+- **Drawing options**: thickness and opacity for Draw, font size for Text Note, and thickness for freehand highlights sit next to the colors. They change the selected markup, or the next one you add, and are remembered
+- **Match Diacritics** in the find bar: off by default, so "cafe" finds "café". Works with regular expressions too
+- **Caret Browsing** (View > Caret Browsing, F7) puts a text cursor in the page so the arrow keys, Home, and End move through the text and Shift selects it
+
+### Fixed
+- Moving, deleting, inserting, or extracting pages keeps each page's label with it, instead of leaving labels where the old pages were
+- Regular-expression search now finds accented words typed with accents
+
 ## [0.4.0] - 2026-10-30
 
 ### Added

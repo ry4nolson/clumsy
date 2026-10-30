@@ -11,6 +11,7 @@ type SidebarProps = {
   onTab: (tab: SidebarTab) => void;
   pdfDocument: PDFDocumentProxy;
   currentPage: number;
+  pageLabels: string[] | null;
   selection: number[];
   onSelectPage: (page: number, modifiers: SelectModifiers) => void;
   onMovePages: (page: number, slot: number) => void;
@@ -46,6 +47,7 @@ export function Sidebar(props: SidebarProps) {
           <Thumbnails
             pdfDocument={pdfDocument}
             currentPage={currentPage}
+            pageLabels={props.pageLabels}
             selection={props.selection}
             onSelect={props.onSelectPage}
             onMove={props.onMovePages}

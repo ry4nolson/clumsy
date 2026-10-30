@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { AnnotationEditorParamsType } from "pdfjs-dist";
 import type { AboutTab } from "./components/AboutWindow";
 import { DocumentTab } from "./components/DocumentTab";
 import { PaneGrid } from "./components/PaneGrid";
@@ -9,10 +8,11 @@ import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
 import type { TabItem } from "./components/TabStrip";
-import { Toolbar, inkColors } from "./components/Toolbar";
+import { Toolbar } from "./components/Toolbar";
 import { Welcome } from "./components/Welcome";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useComparison } from "./hooks/useComparison";
+import { colorParams, useEditorOptions } from "./hooks/useEditorOptions";
 import { useExternalChanges } from "./hooks/useExternalChanges";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { usePageEdits } from "./hooks/usePageEdits";
@@ -22,8 +22,9 @@ import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
 import { useUpdatePrompt } from "./hooks/useUpdatePrompt";
 import { useQuickPick } from "./hooks/useQuickPick";
 import { useRecentFiles } from "./hooks/useRecentFiles";
-import { highlightColors, type EditorTool } from "./hooks/usePdfViewer";
+import type { EditorTool } from "./hooks/usePdfViewer";
 import { useTabTransfer } from "./hooks/useTabTransfer";
+import { useViewControls } from "./hooks/useViewControls";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { hasCaret, moveCaretToEdge } from "./lib/caret";
 import { commandById, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
@@ -55,12 +56,6 @@ import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
 import { createPaneId, createStartTab, isModified } from "./lib/tabs";
 import * as ws from "./lib/workspace";
 import { repoUrl } from "./lib/updates";
-
-const colorParams: Partial<Record<EditorTool, number>> = {
-  highlight: AnnotationEditorParamsType.HIGHLIGHT_COLOR,
-  text: AnnotationEditorParamsType.FREETEXT_COLOR,
-  draw: AnnotationEditorParamsType.INK_COLOR,
-};
 
 export default function App() {
   const workspaceApi = useWorkspace();
@@ -107,32 +102,22 @@ export default function App() {
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
   const { recentFiles, openRecent } = useRecentFiles(openSource);
-  const [toolColors, setToolColors] = useState<Record<string, string>>({
-    highlight: Object.values(highlightColors)[0],
-    text: inkColors[0],
-    draw: inkColors[0],
-  });
+  const activeViewer = () => activeHandle()?.viewer;
+  const viewControls = useViewControls(activeViewer);
   const systemDark = useSystemDarkMode();
   const darkPages = darkPagesPreference === "on" || (darkPagesPreference === "auto" && systemDark);
 
   const activeTab = ws.focusedTab(workspace);
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
+  const editorOptions = useEditorOptions(activeViewer, activeSnapshot);
 
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
   const changeTool = (tool: EditorTool) => activeHandle()?.viewer.setTool(tool);
 
-  const changeToolColor = (color: string) => {
-    const tool = activeSnapshot?.tool;
-    const param = tool && colorParams[tool];
-    if (!tool || param === undefined) {
-      return;
-    }
-    setToolColors((colors) => ({ ...colors, [tool]: color }));
-    activeHandle()?.viewer.setEditorParam(param, color);
-  };
+  const toolColorParam = colorParams[activeSnapshot?.tool ?? "select"];
 
   const toggleFind = () => {
     const handle = activeHandle();
@@ -201,7 +186,9 @@ export default function App() {
     isMac,
     tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),
     recent: recentFiles ?? [],
+    pages: hasDocument && activeSnapshot ? { labels: activeSnapshot.pageLabels, count: activeSnapshot.pagesCount } : null,
     onCommand: (id) => runCommandRef.current(id),
+    onGoToPage: (page) => activeViewer()?.goToPage(page, true),
     onShowTab: selectTab,
     onOpenRecent: openRecent,
   });
@@ -221,7 +208,7 @@ export default function App() {
     if (commandById.get(id)?.needsDocument && (!handle || !hasDocument || !activeSnapshot)) {
       return;
     }
-    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id)) {
+    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -229,7 +216,6 @@ export default function App() {
       return;
     }
     const viewer = handle?.viewer;
-    const page = activeSnapshot?.pageNumber ?? 1;
     const tabIndex = /^tab(\d)$/.exec(id)?.[1];
     if (tabIndex) {
       update((current) => ws.selectTabAt(current, Number(tabIndex) - 1));
@@ -293,10 +279,10 @@ export default function App() {
       rotateRight: () => viewer?.rotate(1),
       toggleDarkPages: () => setDarkPagesPreference(darkPages ? "off" : "on"),
       toggleInvertImages: () => setDarkPagesImages((current) => (current === "keep" ? "invert" : "keep")),
-      previousPage: () => viewer?.goToPage(page - 1),
-      nextPage: () => viewer?.goToPage(page + 1),
-      firstPage: () => viewer?.goToPage(1),
-      lastPage: () => viewer?.goToPage(activeSnapshot?.pagesCount ?? 1),
+      previousPage: () => viewer?.stepPage(-1),
+      nextPage: () => viewer?.stepPage(1),
+      firstPage: () => viewer?.goToPage(1, true),
+      lastPage: () => viewer?.goToPage(activeSnapshot?.pagesCount ?? 1, true),
       goToPage: () => document.querySelector<HTMLInputElement>(".page-nav input")?.focus(),
       quickOpen: () => quickPick.toggle("quickOpen"),
       commandPalette: () => quickPick.toggle("palette"),
@@ -335,7 +321,15 @@ export default function App() {
 
   useAppMenu(
     { onCommand: (id) => runCommand(id, true), onOpenRecent: openRecent },
-    { hasDocument, split: workspace.panes.length > 1, comparing: comparison.comparing, documentMap, darkPages, invertImages: darkPagesImages === "invert" },
+    {
+      hasDocument,
+      split: workspace.panes.length > 1,
+      comparing: comparison.comparing,
+      documentMap,
+      darkPages,
+      invertImages: darkPagesImages === "invert",
+      ...viewControls.menuState(hasDocument ? activeSnapshot : undefined),
+    },
     recentFiles,
   );
 
@@ -377,19 +371,22 @@ export default function App() {
         onDarkPagesImages={setDarkPagesImages}
         pageNumber={activeSnapshot?.pageNumber ?? 1}
         pagesCount={activeSnapshot?.pagesCount ?? 0}
+        pageLabels={activeSnapshot?.pageLabels ?? null}
         scale={activeSnapshot?.scale ?? 1}
         scaleValue={activeSnapshot?.scaleValue ?? "page-width"}
         tool={activeSnapshot?.tool ?? "select"}
-        toolColor={toolColors[activeSnapshot?.tool ?? "select"] ?? ""}
+        toolColor={toolColorParam === undefined ? "" : String(editorOptions.shown[toolColorParam] ?? "")}
+        editorParams={editorOptions.shown}
+        onEditorParam={editorOptions.change}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onOpen={() => openSource(pickPdf())}
         onSave={() => save(false)}
-        onPage={(page) => viewer?.goToPage(page)}
+        onPage={(page) => viewer?.goToPage(page, true)}
         onZoom={(direction) => viewer?.zoom(direction)}
         onZoomValue={(value) => viewer?.setZoom(value)}
         onRotate={() => viewer?.rotate(1)}
         onTool={changeTool}
-        onToolColor={changeToolColor}
+        onToolColor={(color) => toolColorParam !== undefined && editorOptions.change(toolColorParam, color)}
         onImage={() => runCommand("addImage")}
         onSign={() => setSignatureOpen(true)}
         onToggleFind={toggleFind}
@@ -452,6 +449,10 @@ export default function App() {
                 documentMap={documentMap}
                 darkPages={darkPages}
                 keepImages={darkPagesImages === "keep"}
+                defaultModes={viewControls.defaultModes}
+                caretBrowsing={viewControls.caretBrowsing && pane.id === workspace.focusedPaneId}
+                editorDefaults={editorOptions.remembered}
+                onDocumentSidebar={showSidebar}
                 requestPassword={passwords.requestPassword}
                 onSnapshot={handleSnapshot}
                 onLoaded={(id, source) => {

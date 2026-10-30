@@ -44,7 +44,7 @@ describe("command table", () => {
     for (const command of commands.filter((candidate) => candidate.menu)) {
       const accelerator = command.combos.map(acceleratorFor).find(Boolean);
       if (accelerator) {
-        expect(accelerator).toMatch(/^((Ctrl|Shift|Alt|CmdOrCtrl)\+)+([A-Z0-9]|Equal|Minus|Backslash|BracketLeft|BracketRight|Slash|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Tab|F\d{1,2})$/);
+        expect(accelerator).toMatch(/^(((Ctrl|Shift|Alt|CmdOrCtrl)\+)+([A-Z0-9]|Equal|Minus|Backslash|BracketLeft|BracketRight|Slash|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Tab|F\d{1,2})|F\d{1,2})$/);
       }
     }
   });
@@ -90,6 +90,9 @@ describe("resolveCommand", () => {
     expect(resolveCommand(eventFor("mod+p"), true, false)).toBe("quickOpen");
     expect(resolveCommand(eventFor("mod+shift+p"), true, false)).toBe("commandPalette");
     expect(resolveCommand(eventFor("mod+1"), true, false)).toBe("tab1");
+    expect(resolveCommand(eventFor("ctrl+-"), true, false)).toBe("goBack");
+    expect(resolveCommand(eventFor("ctrl+shift+-"), true, false)).toBe("goForward");
+    expect(resolveCommand(eventFor("F7"), true, false)).toBe("toggleCaretBrowsing");
   });
 
   it("ignores unlisted combos", () => {
@@ -134,6 +137,8 @@ describe("acceleratorFor and displayCombo", () => {
     expect(acceleratorFor("alt+mod+ArrowDown")).toBe("Alt+CmdOrCtrl+ArrowDown");
     expect(acceleratorFor("mod+\\")).toBe("CmdOrCtrl+Backslash");
     expect(acceleratorFor("h")).toBeNull();
+    expect(acceleratorFor("F7")).toBe("F7");
+    expect(acceleratorFor("ctrl+shift+-")).toBe("Ctrl+Shift+Minus");
   });
 
   it("formats macOS symbols in Apple's order", () => {

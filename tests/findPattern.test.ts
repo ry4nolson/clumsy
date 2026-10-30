@@ -69,3 +69,42 @@ describe("escapeFindPattern", () => {
     expect(findPatternMatches(compileFindPattern(escapeFindPattern(text), true)!, text, false)).toEqual([{ index: 0, length: text.length }]);
   });
 });
+
+describe("diacritics", () => {
+  const page = "Le café crème, Café noir, cafe, naïve".normalize("NFD");
+  const found = (source: string, matchDiacritics: boolean, { caseSensitive = false, entireWord = false } = {}) =>
+    findPatternMatches(compileFindPattern(source, caseSensitive, matchDiacritics)!, page, entireWord, matchDiacritics).map(({ index, length }) =>
+      page.slice(index, index + length).normalize("NFC"),
+    );
+
+  it("ignores accents by default, in the pattern and on the page", () => {
+    expect(found("cafe", false)).toEqual(["café", "Café", "cafe"]);
+    expect(found("café", false)).toEqual(["café", "Café", "cafe"]);
+    expect(found("caf.", false)).toEqual(["café", "Café", "cafe"]);
+    expect(found("naive", false)).toEqual(["naïve"]);
+  });
+
+  it("covers the whole accented letter in the match", () => {
+    const content = "café".normalize("NFD");
+    expect(findPatternMatches(compileFindPattern("caf", false)!, content, false)).toEqual([{ index: 0, length: 3 }]);
+    expect(findPatternMatches(compileFindPattern("cafe", false)!, content, false)).toEqual([{ index: 0, length: 5 }]);
+  });
+
+  it("matches accents exactly when asked", () => {
+    expect(found("café", true)).toEqual(["café", "Café"]);
+    expect(found("cafe", true)).toEqual(["cafe"]);
+    expect(found("caf\\w", true)).toEqual(["cafe"]);
+    expect(found("Café", true, { caseSensitive: true })).toEqual(["Café"]);
+  });
+
+  it("still respects whole words", () => {
+    expect(found("caf", false, { entireWord: true })).toEqual([]);
+    expect(found("cafe", false, { entireWord: true })).toEqual(["café", "Café", "cafe"]);
+  });
+
+  it("keeps marks that change a letter, not just its accent", () => {
+    const hindi = "क्ष".normalize("NFD");
+    expect(findPatternMatches(compileFindPattern("कष", false)!, hindi, false)).toEqual([]);
+    expect(findPatternMatches(compileFindPattern("क्ष", false)!, hindi, false)).toEqual([{ index: 0, length: 3 }]);
+  });
+});

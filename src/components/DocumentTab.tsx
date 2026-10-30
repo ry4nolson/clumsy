@@ -1,11 +1,13 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { CompareView } from "../hooks/useComparison";
 import { useMapMarks } from "../hooks/useMapMarks";
-import { usePdfViewer, type FindQuery, type PdfViewerApi } from "../hooks/usePdfViewer";
+import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi, type ViewStart } from "../hooks/usePdfViewer";
 import type { ViewState } from "../lib/documentWindows";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
-import { readPdfFromPath, type PdfSource } from "../lib/platform";
+import { getRecentFiles, readPdfFromPath, type PdfSource } from "../lib/platform";
+import { documentView, scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
 import { ChangesList } from "./ChangesList";
 import { CompareBar } from "./CompareBar";
 import { DocumentMap } from "./DocumentMap";
@@ -21,6 +23,11 @@ export type TabSnapshot = {
   tool: PdfViewerApi["tool"];
   modified: boolean;
   findOpen: boolean;
+  scrollMode: PdfViewerApi["scrollMode"];
+  spreadMode: PdfViewerApi["spreadMode"];
+  pageLabels: string[] | null;
+  editorParams: EditorParams;
+  selectedEditor: boolean;
 };
 
 export type PageAction = { kind: "move"; pages: number[]; slot: number } | { kind: "menu"; page: number } | { kind: "delete" };
@@ -47,6 +54,10 @@ type DocumentTabProps = {
   documentMap: boolean;
   darkPages: boolean;
   keepImages: boolean;
+  defaultModes: ViewModes;
+  caretBrowsing: boolean;
+  editorDefaults: EditorParams;
+  onDocumentSidebar: (sidebar: DocumentSidebar) => void;
   requestPassword: (fileName: string, incorrect: boolean) => Promise<string | null>;
   onSnapshot: (id: string, snapshot: TabSnapshot) => void;
   onLoaded: (id: string, source: PdfSource) => void;
@@ -55,6 +66,27 @@ type DocumentTabProps = {
   onPageAction: (id: string, action: PageAction) => void;
   compare: CompareView | null;
 };
+
+type StartWithSidebar = ViewStart & { sidebar?: DocumentSidebar };
+
+async function viewStart(doc: PDFDocumentProxy, path: string | null, view: ViewState | undefined, modes: ViewModes): Promise<StartWithSidebar> {
+  if (view) {
+    return { view, modes };
+  }
+  const recent = path ? await getRecentFiles().catch(() => null) : null;
+  if (recent?.some((entry) => entry.path === path)) {
+    return { modes };
+  }
+  const [pageMode, pageLayout, openAction] = await Promise.all([
+    doc.getPageMode().catch(() => null),
+    doc.getPageLayout().catch(() => null),
+    doc.getOpenAction().catch(() => null),
+  ]);
+  const { sidebar, ...documentModes } = documentView(pageMode, pageLayout);
+  const dest: unknown = openAction?.get("dest");
+  const destination = Array.isArray(dest) ? dest : null;
+  return { modes: { ...modes, ...documentModes }, destination, sidebar };
+}
 
 export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function DocumentTab(
   {
@@ -71,6 +103,10 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     documentMap,
     darkPages,
     keepImages,
+    defaultModes,
+    caretBrowsing,
+    editorDefaults,
+    onDocumentSidebar,
     requestPassword,
     onSnapshot,
     onLoaded,
@@ -91,8 +127,9 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   selectionRef.current = selection;
   const loaded = !!viewer.pdfDocument;
 
-  const callbacks = useRef({ requestPassword, onLoaded, onFailed, initialView, initialSelection });
-  callbacks.current = { requestPassword, onLoaded, onFailed, initialView, initialSelection };
+  const findRecorded = useRef(false);
+  const callbacks = useRef({ requestPassword, onLoaded, onFailed, onDocumentSidebar, initialView, initialSelection, defaultModes });
+  callbacks.current = { requestPassword, onLoaded, onFailed, onDocumentSidebar, initialView, initialSelection, defaultModes };
 
   useEffect(() => {
     let cancelled = false;
@@ -101,15 +138,22 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     const bytes = reread ? readPdfFromPath(reread).then((fresh) => fresh.data) : Promise.resolve(source.data);
     bytes
       .then((data) => loadPdf(data, (incorrect) => callbacks.current.requestPassword(source.name, incorrect)))
-      .then((doc) => {
+      .then(async (doc) => {
         loadedDocument = doc;
         if (cancelled) {
           doc.loadingTask.destroy();
           return;
         }
+        const { sidebar, ...start } = await viewStart(doc, source.path, callbacks.current.initialView, callbacks.current.defaultModes);
+        if (cancelled) {
+          return;
+        }
         const pages = callbacks.current.initialSelection ?? [];
         setSelection({ pages, anchor: pages[0] ?? null });
-        viewer.setDocument(doc, callbacks.current.initialView);
+        viewer.setDocument(doc, start);
+        if (sidebar) {
+          callbacks.current.onDocumentSidebar(sidebar);
+        }
         callbacks.current.onLoaded(id, source);
       })
       .catch((error: unknown) => {
@@ -134,8 +178,29 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       tool: viewer.tool,
       modified: viewer.modified,
       findOpen,
+      scrollMode: viewer.scrollMode,
+      spreadMode: viewer.spreadMode,
+      pageLabels: viewer.pageLabels,
+      editorParams: viewer.editorParams,
+      selectedEditor: viewer.selectedEditor,
     });
-  }, [id, onSnapshot, loaded, viewer.pageNumber, viewer.pagesCount, viewer.scale, viewer.scaleValue, viewer.tool, viewer.modified, findOpen]);
+  }, [
+    id,
+    onSnapshot,
+    loaded,
+    viewer.pageNumber,
+    viewer.pagesCount,
+    viewer.scale,
+    viewer.scaleValue,
+    viewer.tool,
+    viewer.modified,
+    findOpen,
+    viewer.scrollMode,
+    viewer.spreadMode,
+    viewer.pageLabels,
+    viewer.editorParams,
+    viewer.selectedEditor,
+  ]);
 
   useEffect(() => {
     if (!active && viewer.tool !== "select") {
@@ -143,9 +208,14 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     }
   }, [active, viewer]);
 
+  const { setCaretBrowsing, setEditorDefaults } = viewer;
+  useEffect(() => setCaretBrowsing(caretBrowsing && active && loaded), [setCaretBrowsing, caretBrowsing, active, loaded]);
+  useEffect(() => setEditorDefaults(editorDefaults), [setEditorDefaults, editorDefaults]);
+
   const currentPage = viewer.pageNumber - 1;
   const shownSelection = followCurrentPage(selection, currentPage);
-  const mapMarks = useMapMarks(viewer, compare, documentMap);
+  const mapShown = documentMap && scrollsVertically(viewer.scrollMode);
+  const mapMarks = useMapMarks(viewer, compare, mapShown);
 
   const choosePage = (page: number, modifiers: { toggle: boolean; range: boolean }) => {
     const next = selectPage(shownSelection, page, modifiers);
@@ -156,8 +226,22 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
 
   const closeFind = useCallback(() => {
     setFindOpen(false);
+    findRecorded.current = false;
     viewer.closeFind();
   }, [viewer]);
+
+  const runFind = useCallback(
+    (query: FindQuery, type: FindType, previous = false) => {
+      if (!query.query) {
+        findRecorded.current = false;
+      } else if (type === "again" || !findRecorded.current) {
+        findRecorded.current = true;
+        viewer.recordStop();
+      }
+      viewer.find(query, type, previous);
+    },
+    [viewer],
+  );
 
   useImperativeHandle(
     ref,
@@ -172,11 +256,11 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       closeFind,
       findAgain: (previous) => {
         if (lastQuery.current) {
-          viewer.find(lastQuery.current, "again", previous);
+          runFind(lastQuery.current, "again", previous);
         }
       },
     }),
-    [viewer, closeFind],
+    [viewer, closeFind, runFind],
   );
 
   useEffect(() => {
@@ -205,6 +289,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           onTab={onSidebarTab}
           pdfDocument={viewer.pdfDocument}
           currentPage={viewer.pageNumber}
+          pageLabels={viewer.pageLabels}
           selection={shownSelection.pages}
           onSelectPage={choosePage}
           onMovePages={(page, slot) =>
@@ -226,7 +311,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
             seed={findSeed}
             onFind={(query, type, previous) => {
               lastQuery.current = query;
-              viewer.find(query, type, previous);
+              runFind(query, type, previous);
             }}
             onClose={closeFind}
           />
@@ -236,13 +321,14 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         </div>
         {!loaded && <div className="tab-loading">Opening {source.name}…</div>}
       </main>
-      {loaded && documentMap && viewer.pdfDocument && (
+      {loaded && mapShown && viewer.pdfDocument && (
         <DocumentMap
           pdfDocument={viewer.pdfDocument}
           containerRef={viewer.containerRef}
           rotation={viewer.pagesRotation}
           selection={shownSelection.pages}
           marks={mapMarks}
+          fixedWidth={viewer.scrollMode === "wrapped"}
         />
       )}
     </div>

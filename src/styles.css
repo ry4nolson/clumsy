@@ -186,6 +186,69 @@ body {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
 }
 
+.page-nav input.labeled {
+  width: 64px;
+}
+
+.tool-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tool-option input {
+  width: 64px;
+  accent-color: var(--accent);
+}
+
+.tool-option-value {
+  min-width: 34px;
+}
+
+.diacritics-toggle span {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.viewer-container.hand {
+  cursor: grab;
+}
+
+.viewer-container.hand .pdfViewer,
+.viewer-container.hand .pdfViewer * {
+  cursor: inherit !important;
+  user-select: none;
+}
+
+.viewer-container.grabbing {
+  cursor: grabbing;
+}
+
+.caret-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.caret-mark.blink {
+  animation: caret-blink 1.06s steps(1) 0.5s infinite;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
 .workspace {
   position: relative;
   flex: 1;

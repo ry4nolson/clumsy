@@ -3,7 +3,7 @@ import { rankItems } from "../lib/fuzzy";
 import type { QuickPickItem } from "../lib/quickPick";
 import "./QuickPick.css";
 
-export type QuickPickMode = { key: string; placeholder: string; items: QuickPickItem[]; empty: string };
+export type QuickPickMode = { key: string; placeholder: string; items: QuickPickItem[]; empty: string; jump?: (query: string) => QuickPickItem | null };
 
 type QuickPickProps = {
   mode: QuickPickMode | null;
@@ -43,7 +43,13 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
 
-  const results = useMemo(() => (mode ? rankItems(query, mode.items, (item) => item.label, (item) => item.detail ?? "") : []), [mode, query]);
+  const results = useMemo(() => {
+    const jump = mode?.jump?.(query);
+    if (jump) {
+      return [{ item: jump, match: { indices: [] as number[] } }];
+    }
+    return mode ? rankItems(query, mode.items, (item) => item.label, (item) => item.detail ?? "") : [];
+  }, [mode, query]);
 
   const hide = () => {
     dialogRef.current?.close();
