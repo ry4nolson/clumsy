@@ -8,6 +8,9 @@ export type CommandId =
   | "moveTabToNewWindow"
   | "open"
   | "combineFiles"
+  | "newPdfFromImages"
+  | "exportPagesAsImages"
+  | "exportSelectedPagesAsImages"
   | "compareWithFile"
   | "compareSplitPanes"
   | "exportComparison"
@@ -116,6 +119,8 @@ export const commands: Command[] = [
   { id: "reopenClosedTab", label: "Reopen Closed Tab", menu: "File", combos: ["mod+shift+t"] },
   { id: "open", label: "Open…", menu: "File", combos: ["mod+o"] },
   { id: "combineFiles", label: "Combine Files…", menu: "File", combos: [] },
+  { id: "newPdfFromImages", label: "New PDF from Images…", menu: "File", combos: [] },
+  { id: "exportPagesAsImages", label: "Export Pages as Images…", menu: "File", combos: [], needsDocument: true },
   { id: "compareWithFile", label: "Compare With File…", menu: "File", combos: [], needsDocument: true },
   { id: "exportComparison", label: "Export Comparison Report…", menu: "File", combos: [], needsComparison: true },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
@@ -185,6 +190,7 @@ export const commands: Command[] = [
   { id: "rotatePagesRight", label: "Rotate Pages Right", menu: "Pages", combos: [], needsDocument: true },
   { id: "deletePages", label: "Delete Pages", menu: "Pages", combos: [], needsDocument: true },
   { id: "extractPages", label: "Extract Pages to New Tab", menu: "Pages", combos: [], needsDocument: true },
+  { id: "exportSelectedPagesAsImages", label: "Export Selected Pages as Images…", menu: "Pages", combos: [], needsDocument: true },
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
   { id: "previousTab", label: "Show Previous Tab", menu: "Window", combos: ["mod+shift+[", "ctrl+shift+Tab"] },

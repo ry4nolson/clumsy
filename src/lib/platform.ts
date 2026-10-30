@@ -43,7 +43,7 @@ export async function readPdfFromFile(file: File): Promise<PdfSource> {
   return { name: file.name, path: null, data: new Uint8Array(await file.arrayBuffer()) };
 }
 
-function pickFilesInBrowser(accept: string, multiple: boolean): Promise<File[]> {
+export function pickFilesInBrowser(accept: string, multiple: boolean): Promise<File[]> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
@@ -206,33 +206,6 @@ export async function revealInFinder(path: string) {
   }
 }
 
-const imageTypes: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  gif: "image/gif",
-  svg: "image/svg+xml",
-};
-
-async function pickImageInBrowser() {
-  return (await pickFilesInBrowser(Object.values(imageTypes).join(","), false))[0] ?? null;
-}
-
-export async function pickImage(): Promise<File | null> {
-  if (!isDesktop) {
-    return pickImageInBrowser();
-  }
-  const path = await invoke<string | null>("pick_image");
-  if (!path) {
-    return null;
-  }
-  const buffer = await invoke<ArrayBuffer>("read_image", { path });
-  const name = fileNameFromPath(path);
-  const extension = name.split(".").pop()?.toLowerCase() ?? "";
-  return new File([buffer], name, { type: imageTypes[extension] ?? "application/octet-stream" });
-}
-
 export async function reportDocuments(paths: string[], unsaved: string[]) {
   if (isDesktop) {
     await invoke("report_documents", { paths, unsaved });
@@ -278,10 +251,9 @@ export async function onOpenedFiles(handler: (paths: string[]) => void) {
 
 export type DropPoint = { x: number; y: number };
 
-export async function onFileDrop(
-  handler: (sources: Array<Promise<PdfSource>>, point: DropPoint | null) => void,
-  onHover: (point: DropPoint | null) => void,
-) {
+export type DroppedFile = string | File;
+
+export async function onFileDrop(handler: (files: DroppedFile[], point: DropPoint | null) => void, onHover: (point: DropPoint | null) => void) {
   if (isDesktop) {
     let last: DropPoint | null = null;
     return getCurrentWebview().onDragDropEvent(({ payload }) => {
@@ -291,12 +263,9 @@ export async function onFileDrop(
         return;
       }
       onHover(null);
-      if (payload.type === "drop") {
+      if (payload.type === "drop" && payload.paths.length) {
         const point = { x: payload.position.x / window.devicePixelRatio, y: payload.position.y / window.devicePixelRatio };
-        const paths = payload.paths.filter((candidate) => /\.pdf$/i.test(candidate));
-        if (paths.length) {
-          handler(paths.map(readPdfFromPath), point ?? last);
-        }
+        handler(payload.paths, point ?? last);
       }
     });
   }
@@ -313,11 +282,9 @@ export async function onFileDrop(
   const drop = (event: DragEvent) => {
     event.preventDefault();
     onHover(null);
-    const files = Array.from(event.dataTransfer?.files ?? []).filter(
-      (candidate) => candidate.type === "application/pdf" || /\.pdf$/i.test(candidate.name),
-    );
+    const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length) {
-      handler(files.map(readPdfFromFile), { x: event.clientX, y: event.clientY });
+      handler(files, { x: event.clientX, y: event.clientY });
     }
   };
   window.addEventListener("dragover", over);

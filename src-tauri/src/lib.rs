@@ -13,7 +13,7 @@ use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, DragDropEvent, Emitter, Manager, Runtime, Window, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, MessageDialogButtons, MessageDialogKind};
 
-use files::{AllowedPaths, is_image, is_pdf};
+use files::{AllowedFolders, AllowedPaths, IMAGE_EXTENSIONS, is_export_image, is_image, is_pdf};
 use recent::RecentFiles;
 use windows::{Documents, FocusTracker, Transfers, WindowDocuments};
 
@@ -90,6 +90,37 @@ async fn pick_image(app: AppHandle, window: Window) -> Option<String> {
 }
 
 #[tauri::command]
+async fn pick_images(app: AppHandle, window: Window, include_pdfs: bool) -> Vec<String> {
+    let dialog = file_dialog(&window);
+    let dialog = if include_pdfs {
+        dialog.add_filter("PDFs and Images", &[&["pdf"], &IMAGE_EXTENSIONS[..]].concat())
+    } else {
+        dialog.add_filter("Images", &IMAGE_EXTENSIONS)
+    };
+    let picked = dialog.blocking_pick_files().unwrap_or_default();
+    picked.into_iter().filter_map(|path| chosen(&app, Some(path), |path| path)).collect()
+}
+
+#[tauri::command]
+async fn pick_folder(app: AppHandle, window: Window) -> Option<String> {
+    let folder = file_dialog(&window).set_can_create_directories(true).blocking_pick_folder()?.into_path().ok()?;
+    app.state::<AllowedFolders>().allow(&folder);
+    Some(folder.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+async fn pick_image_save_path(app: AppHandle, window: Window, suggested_name: String, format: String) -> Option<String> {
+    let (label, extensions): (&str, &[&str]) = if format == "jpeg" { ("JPEG", &["jpg", "jpeg"]) } else { ("PNG", &["png"]) };
+    let picked = file_dialog(&window)
+        .add_filter(label, extensions)
+        .set_file_name(suggested_name)
+        .blocking_save_file();
+    let path = files::with_extension_from(picked?.into_path().ok()?, extensions);
+    app.state::<AllowedPaths>().allow(&path);
+    Some(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 async fn pick_save_path(app: AppHandle, window: Window, suggested_name: String) -> Option<String> {
     let picked = file_dialog(&window)
         .add_filter("PDF", &["pdf"])
@@ -132,6 +163,41 @@ async fn write_pdf(app: AppHandle, request: Request<'_>) -> Result<String, Strin
     let decoded = percent_decode_str(encoded).decode_utf8().map_err(|err| err.to_string())?;
     let path = allowed_path(&app, &decoded, is_pdf)?;
     files::write_atomically(&path, bytes, header(&request, "x-expected-stamp"))
+}
+
+fn image_target(app: &AppHandle, request: &Request<'_>) -> Result<(PathBuf, bool), String> {
+    let decoded = |name: &str| -> Result<String, String> {
+        let encoded = header(request, name).ok_or("Missing destination path")?;
+        Ok(percent_decode_str(encoded).decode_utf8().map_err(|err| err.to_string())?.into_owned())
+    };
+    if header(request, "x-folder").is_none() {
+        return Ok((allowed_path(app, &decoded("x-path")?, is_export_image)?, true));
+    }
+    let (folder, name) = (PathBuf::from(decoded("x-folder")?), decoded("x-name")?);
+    let path = app
+        .state::<AllowedFolders>()
+        .file_in(&folder, &name)
+        .filter(|path| is_export_image(path))
+        .ok_or_else(|| format!("Clumsy wasn't given access to {}", folder.join(&name).display()))?;
+    Ok((path, header(request, "x-overwrite") == Some("1")))
+}
+
+#[tauri::command]
+async fn write_image(app: AppHandle, request: Request<'_>) -> Result<(), String> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err("Expected raw image bytes".into());
+    };
+    let (path, overwrite) = image_target(&app, &request)?;
+    files::write_file(&path, bytes, overwrite)
+}
+
+#[tauri::command]
+async fn existing_files(app: AppHandle, folder: String, names: Vec<String>) -> Result<Vec<String>, String> {
+    let folder = PathBuf::from(folder);
+    if !app.state::<AllowedFolders>().is_allowed(&folder) {
+        return Err(format!("Clumsy wasn't given access to {}", folder.display()));
+    }
+    Ok(files::existing_names(&folder, &names))
 }
 
 #[tauri::command]
@@ -235,6 +301,7 @@ pub fn run() {
         .manage(FocusTracker::default())
         .manage(Transfers::default())
         .manage(AllowedPaths::default())
+        .manage(AllowedFolders::default())
         .manage(Documents::default())
         .manage(QuitPrompt::default())
         .on_window_event(|window, event| match event {
@@ -261,11 +328,16 @@ pub fn run() {
             pick_pdf,
             pick_pdfs,
             pick_image,
+            pick_images,
+            pick_folder,
+            pick_image_save_path,
             pick_save_path,
             read_pdf,
             read_image,
             file_stamp,
             write_pdf,
+            write_image,
+            existing_files,
             report_documents,
             document_window,
             request_quit,

@@ -1514,6 +1514,66 @@ body {
   max-height: 150px;
 }
 
+.export-options {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.export-label {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.export-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export-options input {
+  accent-color: var(--accent);
+}
+
+.select-input {
+  justify-self: start;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.export-quality {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-quality input {
+  flex: 1;
+  max-width: 240px;
+}
+
+.export-quality output {
+  min-width: 3.5ch;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.export-progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
 .checkbox {
   display: flex;
   align-items: center;
