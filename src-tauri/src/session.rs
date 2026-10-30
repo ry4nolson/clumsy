@@ -109,7 +109,11 @@ pub fn accept_window(mut window: SessionWindow, access: impl Fn(&str) -> Access)
                     tab.read_only = true;
                     true
                 }
-                Access::Denied => false,
+                Access::Denied => {
+                    tab.path = None;
+                    tab.stamp = None;
+                    tab.transfer_id.is_some()
+                }
             }
         });
     }
@@ -198,16 +202,23 @@ fn session_dir(app: &AppHandle) -> Option<PathBuf> {
 fn finish(app: &AppHandle, capture: Capture) {
     let focused = app.state::<FocusTracker>().last();
     let windows = order_windows(capture.windows, focused.as_deref());
-    let written = session_dir(app).is_some_and(|dir| write_session(&dir, &windows, &capture.blobs).is_ok());
-    if written {
-        app.restart();
+    if let Some(dir) = session_dir(app) {
+        if write_session(&dir, &windows, &capture.blobs).is_ok() {
+            app.restart();
+        }
+        let _ = fs::remove_dir_all(&dir);
     }
     crate::confirm_quit(app, true);
 }
 
-fn abandon(app: &AppHandle) {
-    *app.state::<RestartSession>().capture.lock().unwrap() = None;
-    crate::confirm_quit(app, true);
+fn abandon(app: &AppHandle, id: u64) {
+    let state = app.state::<RestartSession>();
+    let mut capture = state.capture.lock().unwrap();
+    if capture.as_ref().is_some_and(|capture| capture.id == id) {
+        *capture = None;
+        drop(capture);
+        crate::confirm_quit(app, true);
+    }
 }
 
 #[tauri::command]
@@ -223,24 +234,21 @@ pub fn request_restart(app: AppHandle) {
         *capture = Some(Capture { id, expected: expected.clone(), windows: Vec::new(), blobs: HashMap::new() });
     }
     for label in &expected {
-        let _ = app.emit_to(label.as_str(), "capture-session", ());
+        let _ = app.emit_to(label.as_str(), "capture-session", id);
     }
     let handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(CAPTURE_TIMEOUT);
-        let pending = handle.state::<RestartSession>().capture.lock().unwrap().as_ref().is_some_and(|capture| capture.id == id);
-        if pending {
-            let app = handle.clone();
-            let _ = handle.run_on_main_thread(move || abandon(&app));
-        }
+        let app = handle.clone();
+        let _ = handle.run_on_main_thread(move || abandon(&app, id));
     });
 }
 
 #[tauri::command]
-pub fn report_session(app: AppHandle, window: Window, session: Option<SessionWindow>) {
+pub fn report_session(app: AppHandle, window: Window, id: u64, session: Option<SessionWindow>) {
     let state = app.state::<RestartSession>();
     let mut guard = state.capture.lock().unwrap();
-    let Some(capture) = guard.as_mut() else {
+    let Some(capture) = guard.as_mut().filter(|capture| capture.id == id) else {
         return;
     };
     if !capture.expected.remove(window.label()) {
@@ -264,7 +272,7 @@ pub fn report_session(app: AppHandle, window: Window, session: Option<SessionWin
     });
     let Some(session) = accepted else {
         drop(guard);
-        abandon(&app);
+        abandon(&app, id);
         return;
     };
     capture.windows.push((window.label().to_string(), session));
@@ -292,7 +300,11 @@ pub fn load(app: &AppHandle) -> bool {
                 let Some(path) = tab.path.as_deref().map(PathBuf::from) else {
                     return true;
                 };
-                if !is_document(&path) || (tab.transfer_id.is_none() && !path.is_file()) {
+                if !is_document(&path) {
+                    tab.path = None;
+                    return tab.transfer_id.is_some();
+                }
+                if tab.transfer_id.is_none() && !path.is_file() {
                     return false;
                 }
                 if tab.read_only {
@@ -310,8 +322,8 @@ pub fn load(app: &AppHandle) -> bool {
 }
 
 #[tauri::command]
-pub fn restored_windows(state: tauri::State<'_, RestartSession>) -> usize {
-    state.restored.lock().unwrap().len()
+pub fn restored_windows(state: tauri::State<'_, RestartSession>) -> Vec<usize> {
+    state.restored.lock().unwrap().iter().enumerate().filter(|(_, window)| window.is_some()).map(|(index, _)| index).collect()
 }
 
 #[tauri::command]
@@ -342,7 +354,15 @@ mod tests {
         let mut claimed = tab(Some("/ok.pdf"), None);
         claimed.read_only = true;
         let accepted = accept_window(
-            window(vec![claimed, tab(Some("/secret.pdf"), None), tab(Some("/linked.pdf"), None), tab(None, Some("t-1")), tab(None, None), start.clone()]),
+            window(vec![
+                claimed,
+                tab(Some("/secret.pdf"), None),
+                tab(Some("/linked.pdf"), None),
+                tab(None, Some("t-1")),
+                tab(None, None),
+                start.clone(),
+                tab(Some("/moved.pdf"), Some("t-2")),
+            ]),
             |path| match path {
                 "/ok.pdf" => Access::Writable,
                 "/linked.pdf" => Access::ReadOnly,
@@ -350,9 +370,10 @@ mod tests {
             },
         );
         let tabs = &accepted.panes[0].tabs;
-        assert_eq!(tabs.iter().map(|tab| tab.path.as_deref()).collect::<Vec<_>>(), [Some("/ok.pdf"), Some("/linked.pdf"), None, None]);
+        assert_eq!(tabs.iter().map(|tab| tab.path.as_deref()).collect::<Vec<_>>(), [Some("/ok.pdf"), Some("/linked.pdf"), None, None, None]);
         assert!(!tabs[0].read_only && tabs[1].read_only);
         assert_eq!(tabs[3], start);
+        assert_eq!(tabs[4].transfer_id.as_deref(), Some("t-2"));
     }
 
     #[test]

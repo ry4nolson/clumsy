@@ -6,7 +6,7 @@ import {
   onCaptureSession,
   openDocumentWindow,
   reportSession,
-  restoredWindowCount,
+  restoredWindows,
   restoreWindowBounds,
   takeRestoredWindow,
   transferSource,
@@ -41,7 +41,7 @@ export function useRestartSession(api: WorkspaceApi, settled: (tabId: string) =>
   settledRef.current = settled;
 
   useEffect(() => {
-    const capture = async () => {
+    const capture = async (id: number) => {
       try {
         const current = apiRef.current.workspaceRef.current;
         const panes: SessionPane[] = [];
@@ -57,12 +57,12 @@ export function useRestartSession(api: WorkspaceApi, settled: (tabId: string) =>
           panes.push({ size: pane.size, active: pane.tabIds.indexOf(pane.activeTabId), tabs });
         }
         const focusedPane = current.panes.findIndex((pane) => pane.id === current.focusedPaneId);
-        await reportSession({ panes, focusedPane, bounds: await currentWindowBounds() });
+        await reportSession(id, { panes, focusedPane, bounds: await currentWindowBounds() });
       } catch {
-        await reportSession(null);
+        await reportSession(id, null);
       }
     };
-    const listening = onCaptureSession(() => void capture());
+    const listening = onCaptureSession((id) => void capture(id));
     return () => {
       listening.then((dispose) => dispose());
     };
@@ -87,7 +87,7 @@ export function useRestartSession(api: WorkspaceApi, settled: (tabId: string) =>
       );
       apiRef.current.commit(buildWorkspace(panes, session.focusedPane, createPaneId, createStartTab));
       if (session.bounds) {
-        await restoreWindowBounds(session.bounds, !!session.focused);
+        await restoreWindowBounds(session.bounds, !!session.focused).catch(() => {});
       }
       if (failed.length) {
         await showError(`Couldn’t reopen ${failed.map((name) => `“${name}”`).join(", ")} after restarting.`);
@@ -101,11 +101,11 @@ export function useRestartSession(api: WorkspaceApi, settled: (tabId: string) =>
         }
         return;
       }
-      const count = await restoredWindowCount();
-      for (let index = 1; index < count; index++) {
+      const indices = await restoredWindows();
+      for (const index of indices.filter((index) => index > 0)) {
         await openDocumentWindow(null, undefined, index);
       }
-      if (count) {
+      if (indices.includes(0)) {
         await restore(await takeRestoredWindow(0));
       }
     };

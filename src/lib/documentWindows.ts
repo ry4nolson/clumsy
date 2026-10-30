@@ -81,19 +81,19 @@ export async function requestRestart() {
   }
 }
 
-export async function reportSession(session: SessionWindow | null) {
-  await invoke("report_session", { session });
+export async function reportSession(id: number, session: SessionWindow | null) {
+  await invoke("report_session", { id, session });
 }
 
-export async function onCaptureSession(handler: () => void) {
+export async function onCaptureSession(handler: (id: number) => void) {
   if (!isDesktop) {
     return () => {};
   }
-  return getCurrentWebviewWindow().listen("capture-session", handler);
+  return getCurrentWebviewWindow().listen<number>("capture-session", ({ payload }) => handler(payload));
 }
 
-export async function restoredWindowCount() {
-  return isDesktop ? invoke<number>("restored_windows") : 0;
+export async function restoredWindows() {
+  return isDesktop ? invoke<number[]>("restored_windows") : ([] as number[]);
 }
 
 export async function takeRestoredWindow(index: number) {

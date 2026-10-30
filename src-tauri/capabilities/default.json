@@ -17,6 +17,8 @@
     "opener:default",
     "core:webview:allow-create-webview-window",
     "core:window:allow-set-focus",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
     "core:window:allow-show",
     "core:window:allow-unminimize"
   ]
