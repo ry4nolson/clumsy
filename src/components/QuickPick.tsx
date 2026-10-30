@@ -52,7 +52,11 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
   }, [mode, query]);
 
   const hide = () => {
-    dialogRef.current?.close();
+    const dialog = dialogRef.current;
+    dialog?.close();
+    if (dialog?.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     returnFocus.current?.focus();
     returnFocus.current = null;
   };

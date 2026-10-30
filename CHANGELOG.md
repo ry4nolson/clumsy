@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Undo and Redo from the Command Palette work again; they acted on the palette's search field instead of the document
+- The Document Map toggle no longer shows in the Command Palette or responds to ⌥⌘B while scrolling horizontally or by page, where the map can't show
+
 ## [0.4.1] - 2026-10-30
 
 ### Added
