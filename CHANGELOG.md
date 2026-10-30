@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-30
+
 ### Added
 - **Export Pages as Images**: File > Export Pages as Images… (also Pages > Export Selected Pages as Images… and the thumbnail menu) saves pages as PNG or JPEG at 72, 150, or 300 dpi. Export every page, the current page, the selected pages, or a range like “1-3, 5”. Highlights, notes, and filled-in forms come out the way they'd print, even before you save. Several pages go into a folder you choose, named “Report - page 01.png” and so on, and Clumsy asks before replacing any files already there. Longer exports show progress and can be cancelled, and when an export finishes you can jump to the files in Finder
 - **New PDF from Images**: File > New PDF from Images… makes a PDF with one page per image and opens it in a new tab. Dropping images on the window does the same, and dropping PDFs and images together opens the PDFs and puts the images in one new PDF. Works with PNG, JPEG, HEIC, WebP, GIF, TIFF, BMP, and AVIF. Phone photos come out right side up, and JPEGs keep their original quality
