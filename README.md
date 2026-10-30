@@ -4,6 +4,8 @@ No tricks, no acrobatics.
 
 Clumsy is a small, fast PDF viewer, built because opening a PDF shouldn’t require an update first. It opens PDFs in tabs and lets you search, highlight, annotate, fill forms, and sign, saving everything straight back into the file. Dark mode inverts the text while leaving images alone.
 
+[![Watch Clumsy 0.4 in 45 seconds](docs/media/clumsy-0.4-tour.jpg)](docs/media/clumsy-0.4-tour.mp4)
+
 ## Download
 
 Grab `Clumsy.dmg` from the [latest release](https://github.com/ry4nolson/clumsy/releases/latest). Builds are currently for macOS: universal (Apple Silicon and Intel), signed, and notarized. Windows and Linux builds are planned.
