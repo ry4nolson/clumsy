@@ -183,12 +183,13 @@ fn image_target(app: &AppHandle, request: &Request<'_>) -> Result<(PathBuf, bool
 }
 
 #[tauri::command]
-async fn write_image(app: AppHandle, request: Request<'_>) -> Result<(), String> {
+async fn write_image(app: AppHandle, request: Request<'_>) -> Result<String, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
         return Err("Expected raw image bytes".into());
     };
     let (path, overwrite) = image_target(&app, &request)?;
-    files::write_file(&path, bytes, overwrite)
+    files::write_file(&path, bytes, overwrite)?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]

@@ -46,9 +46,20 @@ export function pageImageNames(documentName: string, pages: number[], pageCount:
   return pages.map((page) => pageImageName(documentName, page, format, pageCount));
 }
 
-export function exportTargets(selection: number[], pageCount: number) {
-  const pages = [...new Set(selection)].filter((page) => page >= 0 && page < pageCount).sort((a, b) => a - b);
-  return pages.length ? pages : Array.from({ length: pageCount }, (_, page) => page);
+export type PageChoice = "all" | "current" | "selected" | "range";
+
+export type PageChoiceContext = { pageCount: number; currentPage: number; selection: number[]; range: number[] | null };
+
+export function pagesToExport(choice: PageChoice, { pageCount, currentPage, selection, range }: PageChoiceContext) {
+  const inDocument = (pages: number[]) => [...new Set(pages)].filter((page) => page >= 0 && page < pageCount).sort((a, b) => a - b);
+  const pages =
+    choice === "current" ? inDocument([currentPage]) : choice === "selected" ? inDocument(selection) : choice === "range" ? inDocument(range ?? []) : null;
+  return pages ?? Array.from({ length: pageCount }, (_, page) => page);
+}
+
+export function exportSummary(written: number, total: number) {
+  const images = (count: number) => (count === 1 ? "1 image" : `${count} images`);
+  return written < total ? `Exported ${written} of ${images(total)} before you cancelled.` : `Exported ${images(written)}.`;
 }
 
 export function renderScale(width: number, height: number, dpi: number, maxPixels = MAX_CANVAS_PIXELS, maxSide = MAX_CANVAS_SIDE) {
@@ -56,4 +67,10 @@ export function renderScale(width: number, height: number, dpi: number, maxPixel
   const byArea = Math.sqrt(maxPixels / (width * height));
   const bySide = maxSide / Math.max(width, height);
   return Math.min(wanted, byArea, bySide);
+}
+
+export function exportPixelSize(width: number, height: number, dpi: number) {
+  const scale = renderScale(width, height, dpi);
+  const pixels = (side: number) => Math.max(1, Math.floor(side * scale + 1e-6));
+  return { width: pixels(width), height: pixels(height) };
 }

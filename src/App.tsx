@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { AboutTab } from "./components/AboutWindow";
+import { AboutDialog, type AboutRequest, type AboutTab } from "./components/AboutDialog";
 import { DocumentTab } from "./components/DocumentTab";
 import { ExportImagesDialog } from "./components/ExportImagesDialog";
 import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { QuickPick } from "./components/QuickPick";
+import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
@@ -35,7 +36,6 @@ import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import { pickImage } from "./lib/imageFiles";
 import {
   clearRecentFiles,
-  closeFocusedAuxWindow,
   closeWindow,
   hasOverlayTitlebar,
   isMac,
@@ -44,7 +44,6 @@ import {
   onFullscreenChange,
   onOpenedFiles,
   onShowDocument,
-  openAuxWindow,
   openExternal,
   pickPdf,
   readPdfFromPath,
@@ -104,6 +103,7 @@ export default function App() {
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
   const [signatureOpen, setSignatureOpen] = useState(false);
+  const [infoSheet, setInfoSheet] = useState<({ kind: "about" } & AboutRequest) | { kind: "shortcuts" } | null>(null);
   const { recentFiles, openRecent } = useRecentFiles(openSource);
   const activeViewer = () => activeHandle()?.viewer;
   const viewControls = useViewControls(activeViewer);
@@ -202,7 +202,7 @@ export default function App() {
     }
   };
 
-  const openAbout = (tab: AboutTab, checkForUpdates = false) => openAuxWindow("about", checkForUpdates ? { tab, check: "1" } : { tab });
+  const openAbout = (tab: AboutTab, check = false) => setInfoSheet({ kind: "about", tab, check, token: Date.now() });
 
   const runCommand = (id: CommandId, fromMenu = false) => {
     const handle = activeHandle();
@@ -236,22 +236,14 @@ export default function App() {
       newWindow: () => openDocumentWindow(null),
       moveTabToNewWindow: () => moveTabToWindow(ws.focusedTab(workspaceRef.current).id, {}),
       open: () => openSource(pickPdf()),
-      closeTab: async () => {
-        if (!(await closeFocusedAuxWindow())) {
-          closeTab(ws.focusedTab(workspaceRef.current).id);
-        }
-      },
+      closeTab: () => (infoSheet ? setInfoSheet(null) : closeTab(ws.focusedTab(workspaceRef.current).id)),
       quit: async () => {
         const tabs = ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" ? [tab] : []));
         const unsaved = tabs.filter((tab) => hasUnsavedChanges(tab)).map((tab) => tab.name);
         await reportDocuments(tabs.flatMap((tab) => (tab.path ? [tab.path] : [])), unsaved);
         await requestQuit();
       },
-      closeWindow: async () => {
-        if (!(await closeFocusedAuxWindow())) {
-          closeWindow();
-        }
-      },
+      closeWindow: () => (infoSheet ? setInfoSheet(null) : closeWindow()),
       save: () => save(false),
       saveAs: () => save(true),
       saveAll: () => saveAll(),
@@ -309,7 +301,7 @@ export default function App() {
       focusRightPane: () => update((current) => ws.focusAdjacentPane(current, 1)),
       moveTabLeft: () => update((current) => ws.moveTabToAdjacentPane(current, -1, createPaneId())),
       moveTabRight: () => update((current) => ws.moveTabToAdjacentPane(current, 1, createPaneId())),
-      keyboardShortcuts: () => openAuxWindow("shortcuts"),
+      keyboardShortcuts: () => setInfoSheet(infoSheet?.kind === "shortcuts" ? null : { kind: "shortcuts" }),
       whatsNew: () => openAbout("changelog"),
       openGitHub: () => openExternal(repoUrl),
       reportIssue: () => openExternal(`${repoUrl}/issues/new`),
@@ -492,6 +484,8 @@ export default function App() {
         onDownload={updatePrompt.download}
       />
       <ExportImagesDialog {...imageExport.dialog} />
+      <AboutDialog request={infoSheet?.kind === "about" ? infoSheet : null} onClose={() => setInfoSheet(null)} />
+      <ShortcutsDialog open={infoSheet?.kind === "shortcuts"} isMac={isMac} onClose={() => setInfoSheet(null)} />
       <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>
   );

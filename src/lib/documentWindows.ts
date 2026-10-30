@@ -6,7 +6,6 @@ import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { isDesktop } from "./platform";
 import type { NavHistory } from "./navHistory";
 import type { ScrollModeName, SpreadModeName } from "./viewModes";
-import type { Rect } from "./windowPlacement";
 
 export type ViewState = {
   page: number;
@@ -23,7 +22,8 @@ export type TabTransfer =
   | { kind: "start" }
   | { kind: "document"; transferId: string; name: string; path: string | null; stamp: string | null; modified: boolean; view?: ViewState };
 
-const auxiliaryWindows = new Set(["about", "shortcuts"]);
+type Rect = { x: number; y: number; width: number; height: number };
+
 const CASCADE = 28;
 
 export function currentWindowLabel() {
@@ -61,7 +61,7 @@ async function logicalRect(target: Window): Promise<Rect> {
 
 async function otherDocumentWindows() {
   const current = currentWindowLabel();
-  return (await getAllWebviewWindows()).filter((candidate) => candidate.label !== current && !auxiliaryWindows.has(candidate.label));
+  return (await getAllWebviewWindows()).filter((candidate) => candidate.label !== current && (candidate.label === "main" || candidate.label.startsWith("doc-")));
 }
 
 export async function hasOtherDocumentWindows() {

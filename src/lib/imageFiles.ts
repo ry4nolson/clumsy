@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { ExportFormat } from "./imageExport";
 import type { ImageFile } from "./imagePdf";
-import { fileNameFromPath, isDesktop, pickFilesInBrowser, readPdfFromFile, readPdfFromPath, type DroppedFile, type PdfSource } from "./platform";
+import { fileNameFromPath, isDesktop, pickFilesInBrowser, readPdfFromFile, readPdfFromPath, revealInFinder, type DroppedFile, type PdfSource } from "./platform";
 
 export type OpenedFile = { kind: "pdf"; source: Promise<PdfSource> } | { kind: "image"; image: Promise<ImageFile> };
 
@@ -83,12 +83,12 @@ export async function existingFiles(folder: string, names: string[]) {
 }
 
 export async function writeImage(path: string, data: Uint8Array) {
-  await invoke("write_image", data, { headers: { "x-path": encodeURIComponent(path) } });
+  return invoke<string>("write_image", data, { headers: { "x-path": encodeURIComponent(path) } });
 }
 
 export async function writeImageInFolder(folder: string, name: string, data: Uint8Array, overwrite: boolean) {
   const headers = { "x-folder": encodeURIComponent(folder), "x-name": encodeURIComponent(name), "x-overwrite": overwrite ? "1" : "0" };
-  await invoke("write_image", data, { headers });
+  return invoke<string>("write_image", data, { headers });
 }
 
 export function downloadImage(name: string, data: Uint8Array, type: string) {
@@ -98,6 +98,12 @@ export function downloadImage(name: string, data: Uint8Array, type: string) {
   link.download = name;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function offerToShowExport(summary: string, path: string) {
+  if (await ask(summary, { title: "Export finished", kind: "info", okLabel: "Show in Finder", cancelLabel: "Done" })) {
+    await revealInFinder(path);
+  }
 }
 
 export async function confirmReplace(names: string[], folder: string) {

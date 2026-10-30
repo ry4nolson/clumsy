@@ -1,18 +1,25 @@
 import { useCallback, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
-import { confirmReplace, downloadImage, existingFiles, pickFolder, pickImageSavePath, writeImage, writeImageInFolder } from "../lib/imageFiles";
-import { defaultExportOptions, exportTargets, mimeTypeFor, normalizeExportOptions, pageImageNames, type ExportOptions } from "../lib/imageExport";
+import { confirmReplace, downloadImage, existingFiles, offerToShowExport, pickFolder, pickImageSavePath, writeImage, writeImageInFolder } from "../lib/imageFiles";
+import { defaultExportOptions, exportSummary, mimeTypeFor, normalizeExportOptions, pageImageNames, type ExportOptions } from "../lib/imageExport";
 import { ExportCancelledError, renderPageImage } from "../lib/pageImages";
 import { isDesktop, showError } from "../lib/platform";
 import { usePersistentState } from "../lib/preferences";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
-export type ExportRequest = { tabId: string; name: string; selection: number[]; pageCount: number };
+export type ExportRequest = {
+  tabId: string;
+  name: string;
+  selection: number[];
+  pageCount: number;
+  currentPage: number;
+  pageSize: { width: number; height: number };
+};
 
 export type ExportProgress = { done: number; total: number };
 
-type Write = (name: string, bytes: Uint8Array) => Promise<void>;
+type Write = (name: string, bytes: Uint8Array) => Promise<string | void>;
 
 const exportCommands = new Set<CommandId>(["exportPagesAsImages", "exportSelectedPagesAsImages"]);
 
@@ -49,13 +56,17 @@ export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled:
     const handle = handles.current.get(tab.id);
     const doc = handle?.viewer.pdfDocument;
     if (tab.kind === "document" && handle && doc && !running.current) {
-      setRequest({ tabId: tab.id, name: tab.name, selection: handle.explicitPages(), pageCount: doc.numPages });
+      const currentPage = handle.viewer.pageNumber - 1;
+      const selection = handle.explicitPages();
+      doc.getPage(currentPage + 1).then((page) => {
+        const { width, height } = page.getViewport({ scale: 1 });
+        setRequest({ tabId: tab.id, name: tab.name, selection, pageCount: doc.numPages, currentPage, pageSize: { width, height } });
+      });
     }
     return true;
   }, []);
 
-  const exportPages = async (target: ExportRequest, options: ExportOptions, selectionOnly: boolean) => {
-    const pages = exportTargets(selectionOnly ? target.selection : [], target.pageCount);
+  const exportPages = async (target: ExportRequest, options: ExportOptions, pages: number[]) => {
     const names = pageImageNames(target.name, pages, target.pageCount, options.format);
     const write = await chooseDestination(names, options);
     if (!write) {
@@ -63,6 +74,9 @@ export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled:
     }
     const controller = new AbortController();
     running.current = controller;
+    let written = 0;
+    let firstPath: string | null = null;
+    let failed = false;
     try {
       await settled(target.tabId);
       const viewer = handles.current.get(target.tabId)?.viewer;
@@ -79,24 +93,32 @@ export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled:
         if (pages.length > 1) {
           setProgress({ done: index, total: pages.length });
         }
-        await write(names[index], await renderPageImage(doc, storage, page, options, controller.signal));
+        const path = await write(names[index], await renderPageImage(doc, storage, page, options, controller.signal));
+        written += 1;
+        firstPath ??= path || null;
       }
     } catch (error) {
-      if (!(error instanceof ExportCancelledError) && handles.current.has(target.tabId)) {
-        await showError(`Couldn't export the pages.\n\n${error instanceof Error ? error.message : String(error)}`);
+      if (!(error instanceof ExportCancelledError)) {
+        failed = true;
+        if (handles.current.has(target.tabId)) {
+          await showError(`Couldn't export the pages.\n\n${error instanceof Error ? error.message : String(error)}`);
+        }
       }
     } finally {
       running.current = null;
       setProgress(null);
     }
+    if (!failed && firstPath) {
+      await offerToShowExport(exportSummary(written, pages.length), firstPath);
+    }
   };
 
-  const start = (options: ExportOptions, selectionOnly: boolean) => {
+  const start = (options: ExportOptions, pages: number[]) => {
     const target = request;
     setStored(options);
     setRequest(null);
     if (target) {
-      exportPages(target, options, selectionOnly);
+      exportPages(target, options, pages);
     }
   };
 

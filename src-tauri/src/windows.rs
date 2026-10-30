@@ -5,10 +5,8 @@ use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Manager, WebviewWindow};
 
-const AUXILIARY_WINDOWS: [&str; 2] = ["about", "shortcuts"];
-
 pub fn is_document_window(label: &str) -> bool {
-    !AUXILIARY_WINDOWS.contains(&label)
+    label == "main" || label.starts_with("doc-")
 }
 
 pub fn choose_document_window(last_focused: Option<&str>, open: &[String]) -> Option<String> {

@@ -1,12 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for document, About, and Keyboard Shortcuts windows",
+  "description": "Capability for document windows",
   "windows": [
     "main",
-    "doc-*",
-    "about",
-    "shortcuts"
+    "doc-*"
   ],
   "permissions": [
     "core:default",

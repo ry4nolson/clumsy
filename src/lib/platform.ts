@@ -1,14 +1,13 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emitTo, listen } from "@tauri-apps/api/event";
-import { currentMonitor, getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { WebviewWindow, getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppStatus } from "./defaultApp";
 import type { RecentEntry } from "./recent";
-import { placeOverWindow } from "./windowPlacement";
 
 export type PdfSource = {
   name: string;
@@ -297,94 +296,6 @@ export async function onFileDrop(handler: (files: DroppedFile[], point: DropPoin
   };
 }
 
-export type AuxWindowKind = "about" | "shortcuts";
-
-const auxWindowLabels = new Set<string>(["about", "shortcuts"]);
-export type AuxWindowParams = Record<string, string>;
-
-const auxWindows: Record<AuxWindowKind, { title: string; width: number; height: number; minWidth: number; minHeight: number }> = {
-  about: { title: "About Clumsy", width: 560, height: 680, minWidth: 460, minHeight: 520 },
-  shortcuts: { title: "Keyboard Shortcuts", width: 780, height: 660, minWidth: 420, minHeight: 360 },
-};
-
-export function currentWindowKind(): AuxWindowKind | null {
-  const kind = new URLSearchParams(window.location.search).get("window");
-  return kind === "about" || kind === "shortcuts" ? kind : null;
-}
-
-export function initialWindowParams(): AuxWindowParams {
-  return Object.fromEntries(new URLSearchParams(window.location.search));
-}
-
-export async function openAuxWindow(kind: AuxWindowKind, params: AuxWindowParams = {}) {
-  const query = new URLSearchParams({ window: kind, ...params }).toString();
-  if (!isDesktop) {
-    window.open(`?${query}`, `clumsy-${kind}`);
-    return;
-  }
-  const existing = await WebviewWindow.getByLabel(kind);
-  if (existing) {
-    await existing.unminimize();
-    await existing.show();
-    await existing.setFocus();
-    await emitTo(kind, "aux-window-params", params);
-    return;
-  }
-  const options = auxWindows[kind];
-  const placement = await placementOverMainWindow(options);
-  new WebviewWindow(kind, {
-    url: `index.html?${query}`,
-    ...options,
-    ...(placement ?? { center: true }),
-    maximizable: false,
-  });
-}
-
-async function placementOverMainWindow(size: { width: number; height: number }) {
-  const main = getCurrentWindow();
-  const [monitor, position, outerSize, scale] = await Promise.all([currentMonitor(), main.outerPosition(), main.outerSize(), main.scaleFactor()]);
-  if (!monitor) {
-    return null;
-  }
-  const owner = { x: position.x / scale, y: position.y / scale, width: outerSize.width / scale, height: outerSize.height / scale };
-  const { workArea, scaleFactor } = monitor;
-  const screen = {
-    x: workArea.position.x / scaleFactor,
-    y: workArea.position.y / scaleFactor,
-    width: workArea.size.width / scaleFactor,
-    height: workArea.size.height / scaleFactor,
-  };
-  return placeOverWindow(owner, screen, size);
-}
-
-export async function onAuxWindowParams(handler: (params: AuxWindowParams) => void) {
-  if (!isDesktop) {
-    return () => {};
-  }
-  return getCurrentWebview().listen<AuxWindowParams>("aux-window-params", ({ payload }) => handler(payload));
-}
-
-export async function closeFocusedAuxWindow() {
-  if (!isDesktop) {
-    return false;
-  }
-  for (const auxWindow of await getAllWebviewWindows()) {
-    if (auxWindowLabels.has(auxWindow.label) && (await auxWindow.isFocused())) {
-      await auxWindow.close();
-      return true;
-    }
-  }
-  return false;
-}
-
-async function closeAuxWindows() {
-  for (const auxWindow of await getAllWebviewWindows()) {
-    if (auxWindowLabels.has(auxWindow.label)) {
-      await auxWindow.close();
-    }
-  }
-}
-
 export async function closeWindow() {
   if (isDesktop) {
     await getCurrentWindow().close();
@@ -404,11 +315,6 @@ export async function onCloseRequested(isDirty: () => boolean, documentNames: ()
   return getCurrentWindow().onCloseRequested(async (event) => {
     if (isDirty() && !(await confirmDiscard(documentNames()))) {
       event.preventDefault();
-      return;
-    }
-    const others = (await getAllWebviewWindows()).filter((other) => other.label !== getCurrentWindow().label && !auxWindowLabels.has(other.label));
-    if (!others.length) {
-      await closeAuxWindows();
     }
   });
 }

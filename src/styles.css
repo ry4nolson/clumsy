@@ -1532,6 +1532,33 @@ body {
   gap: 6px 18px;
 }
 
+.export-choices.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.export-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-range .text-input {
+  width: 160px;
+  height: 28px;
+}
+
+.export-range .text-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.export-note {
+  grid-column: 2;
+  margin: -6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .radio {
   display: flex;
   align-items: center;
@@ -1540,16 +1567,6 @@ body {
 
 .export-options input {
   accent-color: var(--accent);
-}
-
-.select-input {
-  justify-self: start;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--bg);
-  cursor: pointer;
 }
 
 .export-quality {
@@ -1603,20 +1620,43 @@ body {
   font-size: 12px;
 }
 
-.aux-window {
-  display: flex;
+.info-sheet {
   flex-direction: column;
-  height: 100%;
-  background: var(--surface);
-  color: var(--text);
+  height: min(680px, calc(100vh - 70px));
+  padding: 0;
+  overflow: hidden;
+}
+
+.info-sheet[open] {
+  display: flex;
+}
+
+.about-sheet {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.shortcuts-sheet {
+  width: min(780px, calc(100vw - 32px));
+}
+
+.info-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.info-sheet-header h2 {
+  margin: 0 0 0 6px;
+  font-size: 13px;
 }
 
 .about-tabs {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 10px 10px 10px 14px;
-  border-bottom: 1px solid var(--border);
 }
 
 .about-tabs [role="tab"] {
@@ -2016,13 +2056,16 @@ body {
   user-select: text;
 }
 
-.shortcuts-groups {
+.shortcuts-body {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+}
+
+.shortcuts-groups {
   columns: 2 300px;
   column-gap: 32px;
   padding: 16px 20px 20px;
-  overflow-y: auto;
 }
 
 .shortcuts-groups section {
