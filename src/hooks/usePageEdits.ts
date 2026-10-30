@@ -14,6 +14,7 @@ import {
   selectionAfterEdit,
   type PageEdit,
 } from "../lib/pageEdits";
+import { remapStops } from "../lib/navHistory";
 import { trimHistory, type Version } from "../lib/pageHistory";
 import { pickPdf, pickPdfs, showContextMenu, showError, type DropPoint, type PdfSource } from "../lib/platform";
 import * as ws from "../lib/workspace";
@@ -107,7 +108,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     return bytes ? { bytes, page: snapshot.pageNumber - 1, count: snapshot.pagesCount } : null;
   };
 
-  const show = (tabId: string, version: Version, selection: number[], baseline: PdfSource | null) => {
+  const show = (tabId: string, version: Version, selection: number[], baseline: PdfSource | null, pageAt?: (page: number) => number) => {
     const edits = editsFor(tabId);
     const tab = docTab(tabId);
     if (!tab || tab.source !== baseline) {
@@ -117,6 +118,8 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     const page = Math.min(Math.max(0, selection[0] ?? version.page), version.count - 1);
     const samePage = previous?.page === page + 1;
     const view = {
+      ...previous,
+      history: previous?.history && pageAt ? remapStops(previous.history, pageAt) : previous?.history,
       page: page + 1,
       scaleValue: previous?.scaleValue ?? "page-width",
       left: samePage ? previous.left : null,
@@ -143,7 +146,13 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     const inserted = edit.kind === "insert" ? await pageCount(edit.data) : 0;
     const bytes = await applyPageEdit(before.bytes, edit);
     const page = pageAfterEdit(edit, before.page, before.count, inserted);
-    show(tabId, { bytes, page, count: countAfterEdit(edit, before.count, inserted) }, selectionAfterEdit(edit, before.count, inserted), baseline);
+    show(
+      tabId,
+      { bytes, page, count: countAfterEdit(edit, before.count, inserted) },
+      selectionAfterEdit(edit, before.count, inserted),
+      baseline,
+      (old) => pageAfterEdit(edit, old, before.count, inserted),
+    );
     edits.undo = trimHistory([...edits.undo, before]);
     edits.redo = [];
   };

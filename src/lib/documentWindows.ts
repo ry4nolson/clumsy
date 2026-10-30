@@ -4,9 +4,20 @@ import { emitTo } from "@tauri-apps/api/event";
 import { WebviewWindow, getAllWebviewWindows, getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { isDesktop } from "./platform";
+import type { NavHistory } from "./navHistory";
+import type { ScrollModeName, SpreadModeName } from "./viewModes";
 import type { Rect } from "./windowPlacement";
 
-export type ViewState = { page: number; scaleValue: string; left: number | null; top: number | null; rotation: number };
+export type ViewState = {
+  page: number;
+  scaleValue: string;
+  left: number | null;
+  top: number | null;
+  rotation: number;
+  scrollMode?: ScrollModeName;
+  spreadMode?: SpreadModeName;
+  history?: NavHistory;
+};
 
 export type TabTransfer =
   | { kind: "start" }

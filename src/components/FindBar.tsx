@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { CaseSensitive, ChevronDown, ChevronUp, Regex, WholeWord, X } from "lucide-react";
-import type { FindQuery, FindStatus } from "../hooks/usePdfViewer";
+import type { FindQuery, FindStatus, FindType } from "../hooks/usePdfViewer";
 import { escapeFindPattern, isInvalidFindPattern } from "../lib/findPattern";
 
 type FindBarProps = {
   status: FindStatus;
   focusToken: number;
   seed: string | null;
-  onFind: (query: FindQuery, type: "" | "again" | "casesensitivitychange" | "entirewordchange", findPrevious?: boolean) => void;
+  onFind: (query: FindQuery, type: FindType, findPrevious?: boolean) => void;
   onClose: () => void;
 };
 
 export function FindBar({ status, focusToken, seed, onFind, onClose }: FindBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState<FindQuery>({ query: "", caseSensitive: false, entireWord: false, regex: false });
+  const [query, setQuery] = useState<FindQuery>({ query: "", caseSensitive: false, entireWord: false, matchDiacritics: false, regex: false });
 
   useEffect(() => {
     if (seed) {
@@ -27,7 +27,7 @@ export function FindBar({ status, focusToken, seed, onFind, onClose }: FindBarPr
     inputRef.current?.select();
   }, [focusToken]);
 
-  const update = (next: FindQuery, type: "" | "casesensitivitychange" | "entirewordchange") => {
+  const update = (next: FindQuery, type: Exclude<FindType, "again">) => {
     setQuery(next);
     onFind(next, type);
   };
@@ -92,6 +92,16 @@ export function FindBar({ status, focusToken, seed, onFind, onClose }: FindBarPr
         title="Whole words"
       >
         <WholeWord size={18} />
+      </button>
+      <button
+        type="button"
+        className="icon-button diacritics-toggle"
+        aria-pressed={query.matchDiacritics}
+        onClick={() => update({ ...query, matchDiacritics: !query.matchDiacritics }, "diacriticmatchingchange")}
+        title="Match diacritics"
+        aria-label="Match diacritics"
+      >
+        <span aria-hidden="true">é</span>
       </button>
       <button
         type="button"

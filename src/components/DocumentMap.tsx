@@ -21,15 +21,19 @@ function sameGeometry(a: Geometry, b: Geometry) {
   return (
     a.height === b.height &&
     a.boxes.length === b.boxes.length &&
-    a.boxes.every((box, index) => box.top === b.boxes[index].top && box.width === b.boxes[index].width && box.height === b.boxes[index].height)
+    a.boxes.every((box, index) => {
+      const other = b.boxes[index];
+      return box.top === other.top && box.left === other.left && box.width === other.width && box.height === other.height;
+    })
   );
 }
 
 function measure(container: HTMLElement): Geometry {
-  const origin = container.getBoundingClientRect().top - container.scrollTop;
+  const box = container.getBoundingClientRect();
+  const origin = box.top - container.scrollTop;
   const boxes = Array.from(container.querySelectorAll<HTMLElement>(".pdfViewer .page"), (div) => {
     const rect = div.getBoundingClientRect();
-    return { top: rect.top - origin, width: rect.width, height: rect.height };
+    return { top: rect.top - origin, left: rect.left - box.left + container.scrollLeft, width: rect.width, height: rect.height };
   });
   return { boxes, height: container.scrollHeight };
 }
@@ -114,9 +118,10 @@ type DocumentMapProps = {
   rotation: number;
   selection: number[];
   marks: MapMarks;
+  fixedWidth: boolean;
 };
 
-export function DocumentMap({ pdfDocument, containerRef, rotation, selection, marks }: DocumentMapProps) {
+export function DocumentMap({ pdfDocument, containerRef, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -130,8 +135,8 @@ export function DocumentMap({ pdfDocument, containerRef, rotation, selection, ma
   const current = useRef({ layout, area });
   current.current = { layout, area };
   const selected = new Set(selection);
-  const widest = Math.max(0, ...geometry.boxes.map((box) => box.width));
   const fullWidth = Math.max(0, area.width - 2 * MAP_PADDING);
+  const pageWidth = layout.width - 2 * MAP_PADDING;
 
   const paint = useCallback(() => {
     const container = containerRef.current;
@@ -235,7 +240,7 @@ export function DocumentMap({ pdfDocument, containerRef, rotation, selection, ma
     <div
       ref={mapRef}
       className={`document-map${dragging ? " dragging" : ""}`}
-      style={{ width: layout.width || MAP_MAX_WIDTH }}
+      style={{ width: fixedWidth ? MAP_MAX_WIDTH : layout.width || MAP_MAX_WIDTH }}
       aria-hidden="true"
       onPointerDown={onPointerDown}
       onPointerMove={(event) => dragTo(event.clientY)}
@@ -244,7 +249,11 @@ export function DocumentMap({ pdfDocument, containerRef, rotation, selection, ma
       onLostPointerCapture={endDrag}
       onWheel={onWheel}
     >
-      <div ref={contentRef} className="document-map-content" style={{ height: layout.height }}>
+      <div
+        ref={contentRef}
+        className="document-map-content"
+        style={{ height: layout.height, marginLeft: fixedWidth && layout.width ? (MAP_MAX_WIDTH - layout.width) / 2 : 0 }}
+      >
         {layout.pages.map((rect, index) => (
           <MapPage
             key={index}
@@ -252,7 +261,7 @@ export function DocumentMap({ pdfDocument, containerRef, rotation, selection, ma
             index={index}
             rotation={rotation}
             rect={rect}
-            renderWidth={widest ? Math.ceil((fullWidth * geometry.boxes[index].width) / widest) : 0}
+            renderWidth={pageWidth > 0 ? Math.ceil((fullWidth * rect.width) / pageWidth) : 0}
             visible={index >= range.first && index <= range.last}
             selected={selected.has(index)}
             marks={marks.get(index)}

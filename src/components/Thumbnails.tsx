@@ -10,6 +10,7 @@ const AUTOSCROLL_EDGE = 40;
 type ThumbnailProps = {
   pdfDocument: PDFDocumentProxy;
   pageNumber: number;
+  label: string | null;
   aspectRatio: number;
   active: boolean;
   selected: boolean;
@@ -23,6 +24,7 @@ type ThumbnailProps = {
 const Thumbnail = memo(function Thumbnail({
   pdfDocument,
   pageNumber,
+  label,
   aspectRatio,
   active,
   selected,
@@ -93,14 +95,14 @@ const Thumbnail = memo(function Thumbnail({
       onPointerDown={(event) => onPointerDown(pageNumber - 1, event)}
       onClick={(event) => onClick(pageNumber - 1, event)}
       onContextMenu={(event) => onContextMenu(pageNumber - 1, event)}
-      aria-label={`Page ${pageNumber}`}
+      aria-label={label ? `Page ${label} (${pageNumber})` : `Page ${pageNumber}`}
       aria-current={active ? "page" : undefined}
       aria-pressed={selected}
     >
       <span className="thumbnail-page" style={{ aspectRatio }}>
         <canvas ref={canvasRef} />
       </span>
-      <span className="thumbnail-label">{pageNumber}</span>
+      <span className="thumbnail-label">{label ?? pageNumber}</span>
     </button>
   );
 });
@@ -110,6 +112,7 @@ type Drag = { page: number; startY: number; active: boolean; slot: number | null
 type ThumbnailsProps = {
   pdfDocument: PDFDocumentProxy;
   currentPage: number;
+  pageLabels: string[] | null;
   selection: number[];
   onSelect: (page: number, modifiers: SelectModifiers) => void;
   onMove: (page: number, slot: number) => void;
@@ -117,7 +120,7 @@ type ThumbnailsProps = {
   onDelete: () => void;
 };
 
-export function Thumbnails({ pdfDocument, currentPage, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
+export function Thumbnails({ pdfDocument, currentPage, pageLabels, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState(0.77);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -229,6 +232,7 @@ export function Thumbnails({ pdfDocument, currentPage, selection, onSelect, onMo
           key={index}
           pdfDocument={pdfDocument}
           pageNumber={index + 1}
+          label={pageLabels?.[index] || null}
           aspectRatio={aspectRatio}
           active={currentPage === index + 1}
           selected={selected.has(index)}

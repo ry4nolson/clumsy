@@ -1,13 +1,15 @@
 import { useCallback, useRef, useState } from "react";
 import type { QuickPickMode } from "../components/QuickPick";
 import type { CommandId } from "../lib/commands";
-import { paletteItems, quickOpenItems, quickOpenTarget, rememberCommand, type OpenTab, type PaletteContext } from "../lib/quickPick";
+import { pageJumpItem, pageJumpTarget, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand, type OpenTab, type PageTargets, type PaletteContext } from "../lib/quickPick";
 import type { RecentEntry } from "../lib/recent";
 
 type QuickPickSources = PaletteContext & {
   tabs: OpenTab[];
   recent: RecentEntry[];
+  pages: PageTargets | null;
   onCommand: (id: CommandId) => void;
+  onGoToPage: (page: number) => void;
   onShowTab: (tabId: string) => void;
   onOpenRecent: (entry: RecentEntry) => void;
 };
@@ -31,9 +33,10 @@ export function useQuickPick(sources: QuickPickSources) {
       }
       const latest = sourcesRef.current;
       const key = `${kind}-${++opened.current}`;
+      const jump = (query: string) => (sourcesRef.current.pages ? pageJumpItem(query, sourcesRef.current.pages) : null);
       return kind === "palette"
-        ? { kind, key, placeholder: "Type a command", empty: "No matching commands", items: paletteItems(latest, recentCommands.current) }
-        : { kind, key, placeholder: "Search open and recent files", empty: "No matching files", items: quickOpenItems(latest.tabs, latest.recent) };
+        ? { kind, key, jump, placeholder: "Type a command, or : and a page", empty: "No matching commands", items: paletteItems(latest, recentCommands.current) }
+        : { kind, key, jump, placeholder: "Search open and recent files", empty: "No matching files", items: quickOpenItems(latest.tabs, latest.recent) };
     });
   }, []);
 
@@ -44,6 +47,13 @@ export function useQuickPick(sources: QuickPickSources) {
       const kind = mode?.kind;
       setMode(null);
       const latest = sourcesRef.current;
+      const page = pageJumpTarget(id);
+      if (page || id === "page:") {
+        if (page) {
+          latest.onGoToPage(page);
+        }
+        return;
+      }
       if (kind === "palette") {
         recentCommands.current = rememberCommand(recentCommands.current, id as CommandId);
         latest.onCommand(id as CommandId);

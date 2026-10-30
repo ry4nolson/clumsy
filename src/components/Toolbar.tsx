@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   FolderOpen,
+  Hand,
   Highlighter,
   ImagePlus,
   Minus,
@@ -16,12 +17,12 @@ import {
   Sun,
   Type,
 } from "lucide-react";
-import type { EditorTool } from "../hooks/usePdfViewer";
+import { inkColors, toolOptions } from "../hooks/useEditorOptions";
+import type { EditorParams, EditorTool } from "../hooks/usePdfViewer";
 import { shortcutFor, type CommandId } from "../lib/commands";
+import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { isMac } from "../lib/platform";
 import { highlightColors } from "../hooks/usePdfViewer";
-
-export const inkColors = ["#000000", "#d32f2f", "#1565c0", "#2e7d32"];
 
 const zoomPresets = [
   { value: "auto", label: "Automatic" },
@@ -47,10 +48,13 @@ type ToolbarProps = {
   onDarkPagesImages: (value: "keep" | "invert") => void;
   pageNumber: number;
   pagesCount: number;
+  pageLabels: string[] | null;
   scale: number;
   scaleValue: string;
   tool: EditorTool;
   toolColor: string;
+  editorParams: EditorParams;
+  onEditorParam: (type: number, value: number) => void;
   onToggleSidebar: () => void;
   onOpen: () => void;
   onSave: () => void;
@@ -80,10 +84,12 @@ function IconButton({ title, active, disabled, onClick, children }: { title: str
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { hasDocument, pageNumber, pagesCount, scale, scaleValue, tool, toolColor } = props;
-  const [pageInput, setPageInput] = useState(String(pageNumber));
+  const { hasDocument, pageNumber, pagesCount, pageLabels, scale, scaleValue, tool, toolColor } = props;
+  const pageText = pageLabelOf(pageLabels, pageNumber);
+  const [pageInput, setPageInput] = useState(pageText);
+  const labeled = hasCustomLabels(pageLabels);
 
-  useEffect(() => setPageInput(String(pageNumber)), [pageNumber]);
+  useEffect(() => setPageInput(pageText), [pageText]);
 
   const isPreset = zoomPresets.some((preset) => preset.value === scaleValue);
   const swatches = tool === "highlight" ? Object.values(highlightColors) : tool === "text" || tool === "draw" ? inkColors : [];
@@ -109,23 +115,23 @@ export function Toolbar(props: ToolbarProps) {
               className="page-nav"
               onSubmit={(event) => {
                 event.preventDefault();
-                const page = Number.parseInt(pageInput, 10);
-                if (Number.isFinite(page)) {
+                const page = pageFromInput(pageInput, pageLabels, pagesCount);
+                if (page) {
                   props.onPage(page);
-                } else {
-                  setPageInput(String(pageNumber));
                 }
+                setPageInput(pageText);
               }}
             >
               <input
-                aria-label="Page number"
-                inputMode="numeric"
+                aria-label={labeled ? "Page label or number" : "Page number"}
+                inputMode={labeled ? "text" : "numeric"}
+                className={labeled ? "labeled" : undefined}
                 value={pageInput}
                 onChange={(event) => setPageInput(event.target.value)}
-                onBlur={() => setPageInput(String(pageNumber))}
+                onBlur={() => setPageInput(pageText)}
                 onFocus={(event) => event.target.select()}
               />
-              <span>/ {pagesCount}</span>
+              <span>{labeled && pageText !== String(pageNumber) ? `(${pageNumber} of ${pagesCount})` : `/ ${pagesCount}`}</span>
             </form>
           </div>
 
@@ -152,6 +158,9 @@ export function Toolbar(props: ToolbarProps) {
           <div className="toolbar-group tools" data-tauri-drag-region>
             <IconButton title="Select (V)" active={tool === "select"} onClick={() => props.onTool("select")}>
               <MousePointer2 size={18} />
+            </IconButton>
+            <IconButton title="Hand (hold Space)" active={tool === "hand"} onClick={() => props.onTool("hand")}>
+              <Hand size={18} />
             </IconButton>
             <IconButton title="Highlight (H)" active={tool === "highlight"} onClick={() => props.onTool("highlight")}>
               <Highlighter size={18} />
@@ -184,6 +193,25 @@ export function Toolbar(props: ToolbarProps) {
                 ))}
               </div>
             )}
+            {toolOptions[tool]?.map((option) => {
+              const value = Number(props.editorParams[option.type] ?? option.min);
+              return (
+                <label key={option.type} className="tool-option" title={`${option.label}: ${option.format(value)}`} data-tauri-drag-region>
+                  <input
+                    type="range"
+                    aria-label={option.label}
+                    min={option.min}
+                    max={option.max}
+                    step={option.step}
+                    value={value}
+                    onChange={(event) => props.onEditorParam(option.type, Number(event.target.value))}
+                  />
+                  <span className="tool-option-value" aria-hidden="true">
+                    {option.format(value)}
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </>
       )}

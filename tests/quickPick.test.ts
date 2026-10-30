@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RECENT_COMMAND_LIMIT, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand } from "../src/lib/quickPick";
+import { RECENT_COMMAND_LIMIT, pageJumpItem, pageJumpTarget, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand } from "../src/lib/quickPick";
 import type { RecentEntry } from "../src/lib/recent";
 
 const recent = (path: string, exists = true): RecentEntry => ({
@@ -89,5 +89,32 @@ describe("comparison commands in the palette", () => {
     const ids = paletteItems({ hasDocument: true, split: true, comparing: true, isMac: true }).map((item) => item.id);
     expect(ids).toEqual(expect.arrayContaining(["compareWithFile", "compareSplitPanes", "nextChange", "endComparison"]));
     expect(paletteItems({ hasDocument: true, split: true, comparing: false, isMac: true }).map((item) => item.id)).not.toContain("nextChange");
+  });
+});
+
+describe("pageJumpItem", () => {
+  const labels = ["i", "ii", "1", "2", "3"];
+
+  it("only answers queries that start with a colon", () => {
+    expect(pageJumpItem("12", { labels: null, count: 20 })).toBeNull();
+    expect(pageJumpItem(":3", { labels: null, count: 0 })).toBeNull();
+  });
+
+  it("goes to a page number or a label", () => {
+    expect(pageJumpItem(":12", { labels: null, count: 20 })).toEqual({ id: "page:12", label: "Go to page 12 of 20" });
+    expect(pageJumpItem(":ii", { labels, count: 5 })).toEqual({ id: "page:2", label: "Go to page ii (2 of 5)" });
+    expect(pageJumpItem(": 3", { labels, count: 5 })).toEqual({ id: "page:5", label: "Go to page 3 (5 of 5)" });
+  });
+
+  it("explains an empty or unknown page", () => {
+    expect(pageJumpItem(":", { labels, count: 5 })).toEqual({ id: "page:", label: "Type a page number or label (1–5)" });
+    expect(pageJumpItem(":", { labels: null, count: 5 })?.label).toBe("Type a page number (1–5)");
+    expect(pageJumpItem(":xiv", { labels, count: 5 })).toEqual({ id: "page:", label: "No page “xiv”" });
+  });
+
+  it("reads the page back from the item", () => {
+    expect(pageJumpTarget("page:7")).toBe(7);
+    expect(pageJumpTarget("page:")).toBeNull();
+    expect(pageJumpTarget("tab:page:7")).toBeNull();
   });
 });
