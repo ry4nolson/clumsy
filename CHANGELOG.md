@@ -12,6 +12,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - **New PDF from Images**: File > New PDF from Images… makes a PDF with one page per image and opens it in a new tab. Dropping images on the window does the same, and dropping PDFs and images together opens the PDFs and puts the images in one new PDF. Works with PNG, JPEG, HEIC, WebP, GIF, TIFF, BMP, and AVIF. Phone photos come out right side up, and JPEGs keep their original quality
 - **Insert images as pages**: drop images on the page thumbnails to insert them where you drop, or pick them in Pages > Insert Pages from File…, which now takes several files at once. Undo works like any other page change
 
+### Fixed
+- The **Highlight** button that appears over selected text now highlights it. Before, it only cleared the selection unless the Highlight tool was already on
+
 ## [0.4.2] - 2026-10-30
 
 ### Fixed
