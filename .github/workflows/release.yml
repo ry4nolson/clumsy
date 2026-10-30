@@ -138,7 +138,16 @@ jobs:
             --wait
 
           echo "==> Stapling notarization ticket to app..."
-          xcrun stapler staple "$APP_PATH"
+          for attempt in 1 2 3; do
+            if xcrun stapler staple "$APP_PATH"; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              exit 1
+            fi
+            echo "Stapling failed, retrying in 20 seconds..."
+            sleep 20
+          done
 
           echo "==> Re-creating zip with stapled ticket..."
           rm -f "$DIST_DIR/Clumsy.zip"
@@ -181,7 +190,16 @@ jobs:
             --wait
 
           echo "==> Stapling notarization ticket to DMG..."
-          xcrun stapler staple "$DIST_DIR/Clumsy.dmg"
+          for attempt in 1 2 3; do
+            if xcrun stapler staple "$DIST_DIR/Clumsy.dmg"; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              exit 1
+            fi
+            echo "Stapling failed, retrying in 20 seconds..."
+            sleep 20
+          done
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
