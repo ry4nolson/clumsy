@@ -31,6 +31,39 @@ export type UpdateStatus =
   | UpdateAvailable
   | { state: "error"; message: string };
 
+export type UpdateProgress = { state: "downloading"; received: number; total: number | null } | { state: "installing" };
+
+export type InstallState =
+  | { state: "idle" }
+  | UpdateProgress
+  | { state: "installed"; version: string }
+  | { state: "failed"; message: string };
+
+export function isInstalling(install: InstallState) {
+  return install.state === "downloading" || install.state === "installing";
+}
+
+export function installProgress(install: InstallState): { label: string; value?: number } | null {
+  if (install.state === "installing") {
+    return { label: "Installing…" };
+  }
+  if (install.state !== "downloading") {
+    return null;
+  }
+  if (install.total) {
+    const value = Math.min(1, install.received / install.total);
+    return { label: `Downloading… ${Math.floor(value * 100)}%`, value };
+  }
+  return { label: install.received ? `Downloading… ${(install.received / 1_000_000).toFixed(1)} MB` : "Downloading…" };
+}
+
+export function installFailure(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message ? `Couldn’t install the update: ${message}` : "Couldn’t install the update";
+}
+
+export const NOT_INSTALLABLE = "This release can’t be installed from inside Clumsy. Download it instead.";
+
 export type UpdatePromptPreference = {
   skipped?: string;
   snoozedUntil?: number;

@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -9,6 +9,7 @@ import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppKind, DefaultAppStatus } from "./defaultApp";
 import type { RecentEntry } from "./recent";
 import { decodeText, encodeText, ensureMarkdownExtension, isMarkdownName, type TextFormat } from "./textFile";
+import type { UpdateProgress } from "./updates";
 
 export type PdfSource = {
   name: string;
@@ -302,6 +303,15 @@ export async function requestQuit() {
   if (isDesktop) {
     await invoke("request_quit");
   }
+}
+
+export async function installUpdate(onProgress: (progress: UpdateProgress) => void) {
+  if (!isDesktop) {
+    throw new Error("Updates install from the desktop app");
+  }
+  const progress = new Channel<UpdateProgress>();
+  progress.onmessage = onProgress;
+  return invoke<string | null>("install_update", { progress });
 }
 
 export async function onOpenedFiles(handler: (paths: string[]) => void) {

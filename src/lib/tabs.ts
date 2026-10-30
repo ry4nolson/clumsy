@@ -1,5 +1,5 @@
 import type { ViewState } from "./documentWindows";
-import type { MarkdownSource, PdfSource } from "./platform";
+import type { DocumentSource, MarkdownSource, PdfSource } from "./platform";
 
 export type StartTab = { id: string; kind: "start" };
 
@@ -48,6 +48,27 @@ let paneCounter = 0;
 export const createTabId = () => `tab-${++tabCounter}`;
 export const createStartTab = (): StartTab => ({ id: createTabId(), kind: "start" });
 export const createPaneId = () => `pane-${++paneCounter}`;
+
+export function createFileTab(
+  source: DocumentSource,
+  options: Pick<OpenOptions, "view" | "carriedChanges">,
+  replaces: string | null = null,
+  returnTo: string | null = null,
+): FileTab {
+  const common = {
+    id: createTabId(),
+    name: source.name,
+    path: source.path,
+    replaces,
+    returnTo,
+    carriedChanges: !!options.carriedChanges,
+    stamp: source.stamp ?? null,
+  };
+  const { view } = options;
+  return "text" in source
+    ? { ...common, kind: "markdown", source, view: isMarkdownView(view) ? view : undefined }
+    : { ...common, kind: "document", source, view: isMarkdownView(view) ? undefined : view };
+}
 
 export const isFileTab = (tab: Tab | undefined): tab is FileTab => tab?.kind === "document" || tab?.kind === "markdown";
 

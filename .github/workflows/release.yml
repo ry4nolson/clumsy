@@ -144,6 +144,21 @@ jobs:
           rm -f "$DIST_DIR/Clumsy.zip"
           ditto -c -k --keepParent "$APP_PATH" "$DIST_DIR/Clumsy.zip"
 
+      - name: Create signed update archive
+        if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::warning::No updater signing key configured; this release ships without latest.json, so installed copies can't update to it in place"
+            exit 0
+          fi
+          COPYFILE_DISABLE=1 tar -czf "$DIST_DIR/Clumsy.app.tar.gz" -C "$(dirname "$APP_PATH")" "$(basename "$APP_PATH")"
+          pnpm tauri signer sign --app-version "$VERSION" "$DIST_DIR/Clumsy.app.tar.gz"
+          echo "UPDATER_SIGNED=true" >> $GITHUB_ENV
+
       - name: Create DMG
         run: |
           brew install create-dmg
@@ -175,6 +190,7 @@ jobs:
           path: |
             ${{ env.DIST_DIR }}/Clumsy.zip
             ${{ env.DIST_DIR }}/Clumsy.dmg
+            ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
 
       - name: Write release notes
         run: |
@@ -193,6 +209,12 @@ jobs:
           } > /tmp/release_notes.md
           cat /tmp/release_notes.md
 
+      - name: Write update manifest
+        if: env.UPDATER_SIGNED == 'true'
+        run: |
+          node scripts/update-manifest.mjs "$VERSION" "$DIST_DIR/Clumsy.app.tar.gz.sig" /tmp/release_notes.md "https://github.com/${{ github.repository }}" > "$DIST_DIR/latest.json"
+          cat "$DIST_DIR/latest.json"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -202,6 +224,8 @@ jobs:
           files: |
             ${{ env.DIST_DIR }}/Clumsy.zip
             ${{ env.DIST_DIR }}/Clumsy.dmg
+            ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
+            ${{ env.DIST_DIR }}/latest.json
           body_path: /tmp/release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

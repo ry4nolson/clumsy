@@ -97,6 +97,16 @@ pub fn make_default(kind: &DocumentKind, bundle_id: &str) -> Result<DefaultAppSt
     Ok(status(kind, bundle_id))
 }
 
+#[cfg(target_os = "macos")]
+pub fn is_installed_bundle() -> bool {
+    platform::is_installed_bundle()
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn is_installed_bundle() -> bool {
+    false
+}
+
 #[cfg(not(target_os = "macos"))]
 pub fn status(_kind: &DocumentKind, _bundle_id: &str) -> DefaultAppStatus {
     DefaultAppStatus { supported: false, is_default: false, current_app: None }

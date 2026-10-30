@@ -22,16 +22,18 @@ import { usePageEdits } from "./hooks/usePageEdits";
 import { useSaveAll, useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
+import { useUpdateInstall } from "./hooks/useUpdateInstall";
 import { useUpdatePrompt } from "./hooks/useUpdatePrompt";
 import { useQuickPick } from "./hooks/useQuickPick";
 import { useRecentFiles } from "./hooks/useRecentFiles";
 import type { EditorTool } from "./hooks/usePdfViewer";
+import { useRestartSession } from "./hooks/useRestartSession";
 import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useViewControls } from "./hooks/useViewControls";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { hasCaret, moveCaretToEdge } from "./lib/caret";
 import { commandById, documentAvailable, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
-import { openDocumentWindow } from "./lib/documentWindows";
+import { openDocumentWindow, requestRestart } from "./lib/documentWindows";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import { pickImage } from "./lib/imageFiles";
 import {
@@ -86,6 +88,7 @@ export default function App() {
   const markdown = useMarkdownCommands(workspaceApi);
   const pageEdits = usePageEdits(workspaceApi);
   const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi, pageEdits.settled);
+  useRestartSession(workspaceApi, pageEdits.settled);
   useExternalChanges(workspaceApi);
   const save = useSaveDocument(workspaceApi, pageEdits.settled);
   const imageExport = useImageExport(workspaceApi, pageEdits.settled);
@@ -94,6 +97,7 @@ export default function App() {
   const passwords = usePasswordPrompts();
   useDefaultAppPrompt();
   const updatePrompt = useUpdatePrompt();
+  const updateInstall = useUpdateInstall();
 
   const [dropHover, setDropHover] = useState<"open" | "insert" | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -214,6 +218,13 @@ export default function App() {
 
   const openAbout = (tab: AboutTab, check = false) => setInfoSheet({ kind: "about", tab, check, token: Date.now() });
 
+  const quitApp = async (restart: boolean) => {
+    const tabs = ws.orderedTabs(workspaceRef.current).filter(isFileTab);
+    const unsaved = tabs.filter((tab) => hasUnsavedChanges(tab)).map((tab) => tab.name);
+    await reportDocuments(tabs.flatMap((tab) => (tab.path ? [tab.path] : [])), unsaved);
+    await (restart ? requestRestart() : requestQuit());
+  };
+
   const runCommand = (id: CommandId, fromMenu = false) => {
     const handle = activeHandle();
     const command = commandById.get(id);
@@ -252,12 +263,7 @@ export default function App() {
       moveTabToNewWindow: () => moveTabToWindow(ws.focusedTab(workspaceRef.current).id, {}),
       open: () => openSource(pickDocument()),
       closeTab: () => (infoSheet ? setInfoSheet(null) : closeTab(ws.focusedTab(workspaceRef.current).id)),
-      quit: async () => {
-        const tabs = ws.orderedTabs(workspaceRef.current).filter(isFileTab);
-        const unsaved = tabs.filter((tab) => hasUnsavedChanges(tab)).map((tab) => tab.name);
-        await reportDocuments(tabs.flatMap((tab) => (tab.path ? [tab.path] : [])), unsaved);
-        await requestQuit();
-      },
+      quit: () => quitApp(false),
       closeWindow: () => (infoSheet ? setInfoSheet(null) : closeWindow()),
       save: () => save(false),
       saveAs: () => save(true),
@@ -472,12 +478,19 @@ export default function App() {
       />
       <UpdateDialog
         offer={updatePrompt.offer}
+        updateInstall={updateInstall}
         onLater={updatePrompt.later}
         onSkip={updatePrompt.skip}
         onDownload={updatePrompt.download}
+        onRestart={() => quitApp(true)}
       />
       <ExportImagesDialog {...imageExport.dialog} />
-      <AboutDialog request={infoSheet?.kind === "about" ? infoSheet : null} onClose={() => setInfoSheet(null)} />
+      <AboutDialog
+        request={infoSheet?.kind === "about" ? infoSheet : null}
+        updateInstall={updateInstall}
+        onRestart={() => quitApp(true)}
+        onClose={() => setInfoSheet(null)}
+      />
       <ShortcutsDialog open={infoSheet?.kind === "shortcuts"} isMac={isMac} onClose={() => setInfoSheet(null)} />
       <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>

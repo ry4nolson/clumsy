@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Automatic updates**: when a new version is out, Install Update downloads and installs it from inside Clumsy, then Restart Now opens the new version (or it opens the next time you launch). Restarting brings back every window where it was, with its splits, tabs, pages, and zoom, and unsaved changes come back unsaved, so nothing has to be saved or discarded first. If an update can't install in place (for example when Clumsy runs straight from the disk image or Downloads), Download opens the release page as before
+
 ## [0.7.0] - 2026-10-30
 
 ### Added

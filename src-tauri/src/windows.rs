@@ -28,6 +28,10 @@ impl FocusTracker {
         }
     }
 
+    pub fn last(&self) -> Option<String> {
+        self.0.lock().unwrap().clone()
+    }
+
     pub fn target(&self, app: &AppHandle) -> Option<WebviewWindow> {
         let open: Vec<String> = app.webview_windows().into_keys().collect();
         let last = self.0.lock().unwrap().clone();

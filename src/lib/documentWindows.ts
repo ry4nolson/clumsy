@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-import { LogicalPosition } from "@tauri-apps/api/dpi";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { emitTo } from "@tauri-apps/api/event";
 import { WebviewWindow, getAllWebviewWindows, getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
-import { isDesktop } from "./platform";
+import { isDesktop, markdownSource, readDocumentFromPath, type DocumentSource } from "./platform";
 import type { NavHistory } from "./navHistory";
 import type { AnyViewState } from "./tabs";
 import type { ScrollModeName, SpreadModeName } from "./viewModes";
@@ -24,7 +24,7 @@ export type TabTransfer =
   | {
       kind: "document";
       format?: "markdown";
-      transferId: string;
+      transferId?: string;
       name: string;
       path: string | null;
       stamp: string | null;
@@ -32,7 +32,11 @@ export type TabTransfer =
       view?: AnyViewState;
     };
 
-type Rect = { x: number; y: number; width: number; height: number };
+export type Rect = { x: number; y: number; width: number; height: number };
+
+export type SessionPane = { size: number; active: number; tabs: TabTransfer[] };
+
+export type SessionWindow = { panes: SessionPane[]; focusedPane: number; bounds?: Rect; focused?: boolean };
 
 const CASCADE = 28;
 
@@ -50,6 +54,66 @@ export async function stashTransferBytes(bytes: Uint8Array) {
 
 export async function takeTransferBytes(id: string) {
   return new Uint8Array(await invoke<ArrayBuffer>("take_transfer", { id }));
+}
+
+export async function transferSource(transfer: Extract<TabTransfer, { kind: "document" }>): Promise<DocumentSource> {
+  if (!transfer.transferId) {
+    if (!transfer.path) {
+      throw new Error("The document is no longer available");
+    }
+    return readDocumentFromPath(transfer.path);
+  }
+  const data = await takeTransferBytes(transfer.transferId);
+  return transfer.format === "markdown"
+    ? markdownSource(transfer.name, transfer.path, data, transfer.stamp)
+    : { name: transfer.name, path: transfer.path, data, stamp: transfer.stamp };
+}
+
+export function initialRestoreIndex() {
+  const raw = new URLSearchParams(window.location.search).get("restore");
+  const index = raw === null ? NaN : Number(raw);
+  return Number.isInteger(index) && index > 0 ? index : null;
+}
+
+export async function requestRestart() {
+  if (isDesktop) {
+    await invoke("request_restart");
+  }
+}
+
+export async function reportSession(session: SessionWindow | null) {
+  await invoke("report_session", { session });
+}
+
+export async function onCaptureSession(handler: () => void) {
+  if (!isDesktop) {
+    return () => {};
+  }
+  return getCurrentWebviewWindow().listen("capture-session", handler);
+}
+
+export async function restoredWindowCount() {
+  return isDesktop ? invoke<number>("restored_windows") : 0;
+}
+
+export async function takeRestoredWindow(index: number) {
+  return invoke<SessionWindow | null>("take_restored_window", { index });
+}
+
+export async function currentWindowBounds() {
+  return isDesktop ? logicalRect(getCurrentWindow()) : undefined;
+}
+
+export async function restoreWindowBounds(bounds: Rect, focused: boolean) {
+  if (!isDesktop) {
+    return;
+  }
+  const current = getCurrentWindow();
+  await current.setPosition(new LogicalPosition(bounds.x, bounds.y));
+  await current.setSize(new LogicalSize(bounds.width, bounds.height));
+  if (focused) {
+    await current.setFocus();
+  }
 }
 
 export function initialTransfer(): TabTransfer | null {
@@ -94,14 +158,18 @@ export async function documentWindowAt(screenX: number, screenY: number) {
   return null;
 }
 
-export async function openDocumentWindow(transfer: TabTransfer | null, at?: { x: number; y: number }) {
+export async function openDocumentWindow(transfer: TabTransfer | null, at?: { x: number; y: number }, restore?: number) {
   if (!isDesktop) {
     return;
   }
   const current = getCurrentWindow();
   const rect = await logicalRect(current);
   const label = `doc-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const query = new URLSearchParams({ window: "document", ...(transfer ? { transfer: JSON.stringify(transfer) } : {}) });
+  const query = new URLSearchParams({
+    window: "document",
+    ...(transfer ? { transfer: JSON.stringify(transfer) } : {}),
+    ...(restore ? { restore: String(restore) } : {}),
+  });
   new WebviewWindow(label, {
     url: `index.html?${query}`,
     title: "Clumsy",

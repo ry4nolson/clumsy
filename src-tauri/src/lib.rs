@@ -1,6 +1,8 @@
 mod default_app;
 mod files;
 mod recent;
+mod session;
+mod updates;
 mod windows;
 
 use std::fs;
@@ -17,6 +19,8 @@ use files::{
     AllowedFolders, AllowedPaths, LinkedPaths, IMAGE_EXTENSIONS, MARKDOWN_EXTENSIONS, is_document, is_export_image, is_image, is_markdown, is_pdf,
 };
 use recent::RecentFiles;
+use session::RestartSession;
+use updates::Updates;
 use windows::{Documents, FocusTracker, Transfers, WindowDocuments};
 
 #[derive(Default)]
@@ -293,18 +297,24 @@ fn document_window(window: Window, path: String, documents: tauri::State<'_, Doc
     documents.window_with(&path, window.label())
 }
 
-fn discard_prompt(names: &[String]) -> String {
+fn discard_prompt(names: &[String], action: &str) -> String {
     match names {
-        [name] => format!("“{name}” has unsaved changes. Discard them and quit?"),
-        _ => format!("{} documents have unsaved changes ({}). Discard them and quit?", names.len(), names.join(", ")),
+        [name] => format!("“{name}” has unsaved changes. Discard them and {action}?"),
+        _ => format!("{} documents have unsaved changes ({}). Discard them and {action}?", names.len(), names.join(", ")),
     }
 }
 
-#[tauri::command]
-fn request_quit(app: AppHandle) {
+fn quit(app: &AppHandle, restart: bool) {
+    if restart {
+        app.restart();
+    }
+    app.exit(0);
+}
+
+pub(crate) fn confirm_quit(app: &AppHandle, restart: bool) {
     let unsaved = app.state::<Documents>().unsaved();
     if unsaved.is_empty() {
-        app.exit(0);
+        quit(app, restart);
         return;
     }
     if app.state::<QuitPrompt>().0.swap(true, Ordering::SeqCst) {
@@ -312,16 +322,21 @@ fn request_quit(app: AppHandle) {
     }
     let handle = app.clone();
     app.dialog()
-        .message(discard_prompt(&unsaved))
+        .message(discard_prompt(&unsaved, if restart { "restart" } else { "quit" }))
         .title("Unsaved changes")
         .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom("Discard and Quit".into(), "Cancel".into()))
+        .buttons(MessageDialogButtons::OkCancelCustom(if restart { "Discard and Restart" } else { "Discard and Quit" }.into(), "Cancel".into()))
         .show(move |discard| {
             handle.state::<QuitPrompt>().0.store(false, Ordering::SeqCst);
             if discard {
-                handle.exit(0);
+                quit(&handle, restart);
             }
         });
+}
+
+#[tauri::command]
+fn request_quit(app: AppHandle) {
+    confirm_quit(&app, false);
 }
 
 #[tauri::command]
@@ -366,6 +381,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(PendingFiles::default())
         .manage(RecentFiles::default())
         .manage(FocusTracker::default())
@@ -376,6 +392,8 @@ pub fn run() {
         .plugin(tauri::plugin::Builder::<tauri::Wry>::new("navigation-guard").on_navigation(|_, url| is_app_url(url)).build())
         .manage(Documents::default())
         .manage(QuitPrompt::default())
+        .manage(Updates::default())
+        .manage(RestartSession::default())
         .on_window_event(|window, event| match event {
             WindowEvent::Focused(true) => window.state::<FocusTracker>().focused(window.label()),
             WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => allow_paths(window.app_handle(), paths),
@@ -391,8 +409,10 @@ pub fn run() {
             let recent = app.state::<RecentFiles>();
             recent.load(app.handle());
             allow_paths(app.handle(), &recent.paths());
-            let args = std::env::args().skip(1).map(PathBuf::from).collect();
-            queue_files(app.handle(), args);
+            if !session::load(app.handle()) {
+                let args = std::env::args().skip(1).map(PathBuf::from).collect();
+                queue_files(app.handle(), args);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -419,6 +439,11 @@ pub fn run() {
             report_documents,
             document_window,
             request_quit,
+            session::request_restart,
+            session::report_session,
+            session::restored_windows,
+            session::take_restored_window,
+            updates::install_update,
             default_app_status,
             make_default_app,
             recent_files,
@@ -456,10 +481,10 @@ mod tests {
 
     #[test]
     fn names_the_documents_that_would_be_discarded() {
-        assert_eq!(discard_prompt(&["a.pdf".into()]), "“a.pdf” has unsaved changes. Discard them and quit?");
+        assert_eq!(discard_prompt(&["a.pdf".into()], "quit"), "“a.pdf” has unsaved changes. Discard them and quit?");
         assert_eq!(
-            discard_prompt(&["a.pdf".into(), "b.pdf".into()]),
-            "2 documents have unsaved changes (a.pdf, b.pdf). Discard them and quit?"
+            discard_prompt(&["a.pdf".into(), "b.pdf".into()], "restart"),
+            "2 documents have unsaved changes (a.pdf, b.pdf). Discard them and restart?"
         );
     }
 }

@@ -5,14 +5,13 @@ import type { TabDropTarget } from "../components/PaneGrid";
 import {
   confirmDiscard,
   documentWindowFor,
-  isMarkdownSource,
   recordRecentFile,
   showDocumentInWindow,
   showError,
   type DocumentSource,
 } from "../lib/platform";
 import { rememberClosed, takeClosed, type ClosedTab } from "../lib/closedTabs";
-import { createPaneId, createStartTab, createTabId, isFileTab, isMarkdownView, type FileTab, type OpenOptions, type Tab } from "../lib/tabs";
+import { createFileTab, createPaneId, createStartTab, isFileTab, type FileTab, type OpenOptions, type Tab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 
 const tabWithPath = (workspace: ws.Workspace<Tab>, path: string) =>
@@ -138,19 +137,7 @@ export function useWorkspace() {
       }
       const current = workspaceRef.current;
       const focused = ws.focusedTab(current);
-      const common = {
-        id: createTabId(),
-        name: resolved.name,
-        path: resolved.path,
-        replaces: !split && focused.kind === "start" ? focused.id : null,
-        returnTo: focused.id,
-        carriedChanges: !!options.carriedChanges,
-        stamp: resolved.stamp ?? null,
-      };
-      const { view } = options;
-      const tab: FileTab = isMarkdownSource(resolved)
-        ? { ...common, kind: "markdown", source: resolved, view: isMarkdownView(view) ? view : undefined }
-        : { ...common, kind: "document", source: resolved, view: isMarkdownView(view) ? undefined : view };
+      const tab = createFileTab(resolved, options, !split && focused.kind === "start" ? focused.id : null, focused.id);
       commit(split ? ws.splitWithTab(current, tab, createPaneId()) : ws.addTab(current, tab));
       return tab.id;
     },

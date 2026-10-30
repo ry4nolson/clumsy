@@ -6,10 +6,10 @@ import {
   openDocumentWindow,
   sendTabToWindow,
   stashTransferBytes,
-  takeTransferBytes,
+  transferSource,
   type TabTransfer,
 } from "../lib/documentWindows";
-import { closeWindow, markdownSource, showError } from "../lib/platform";
+import { closeWindow, showError } from "../lib/platform";
 import { encodeText } from "../lib/textFile";
 import { createStartTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
@@ -17,10 +17,62 @@ import type { WorkspaceApi } from "./useWorkspace";
 
 type Destination = { label: string } | { at?: { x: number; y: number } };
 
-export function useTabTransfer(
-  { workspaceRef, snapshotsRef, handles, markdownHandles, hasUnsavedChanges, update, dropTab, openSource }: WorkspaceApi,
+export async function captureTab(
+  { workspaceRef, snapshotsRef, handles, markdownHandles, hasUnsavedChanges, viewStateOf }: WorkspaceApi,
   settled: (tabId: string) => Promise<void>,
-) {
+  tabId: string,
+  keepBytes: boolean,
+): Promise<TabTransfer | null> {
+  await settled(tabId);
+  const tab = workspaceRef.current.tabs[tabId];
+  if (!tab) {
+    return null;
+  }
+  if (tab.kind === "start") {
+    return { kind: "start" };
+  }
+  const format = tab.kind === "markdown" ? ("markdown" as const) : undefined;
+  const modified = hasUnsavedChanges(tab);
+  if (!keepBytes && !modified && tab.path) {
+    return { kind: "document", format, name: tab.name, path: tab.path, stamp: tab.stamp, modified, view: viewStateOf(tab) ?? undefined };
+  }
+  if (tab.kind === "markdown") {
+    const markdown = markdownHandles.current.get(tabId);
+    if (!markdown) {
+      return null;
+    }
+    return {
+      kind: "document",
+      format,
+      transferId: await stashTransferBytes(encodeText(markdown.text(), tab.source.format)),
+      name: tab.name,
+      path: tab.path,
+      stamp: tab.stamp,
+      modified,
+      view: markdown.viewState(),
+    };
+  }
+  const handle = handles.current.get(tabId);
+  if (!handle || !snapshotsRef.current[tabId]?.loaded) {
+    return null;
+  }
+  const bytes = await handle.viewer.save();
+  if (!bytes) {
+    return null;
+  }
+  return {
+    kind: "document",
+    transferId: await stashTransferBytes(bytes),
+    name: tab.name,
+    path: tab.path,
+    stamp: tab.stamp,
+    modified,
+    view: handle.viewer.viewState() ?? undefined,
+  };
+}
+
+export function useTabTransfer(api: WorkspaceApi, settled: (tabId: string) => Promise<void>) {
+  const { workspaceRef, update, dropTab, openSource } = api;
   const receiveTab = useCallback(
     async (transfer: TabTransfer) => {
       if (transfer.kind === "start") {
@@ -28,12 +80,7 @@ export function useTabTransfer(
         return;
       }
       try {
-        const data = await takeTransferBytes(transfer.transferId);
-        const source =
-          transfer.format === "markdown"
-            ? markdownSource(transfer.name, transfer.path, data, transfer.stamp)
-            : { name: transfer.name, path: transfer.path, data, stamp: transfer.stamp };
-        await openSource(source, { view: transfer.view, carriedChanges: transfer.modified, allowDuplicate: true });
+        await openSource(await transferSource(transfer), { view: transfer.view, carriedChanges: transfer.modified, allowDuplicate: true });
       } catch (error) {
         await showError(`Could not move “${transfer.name}” here.\n\n${error instanceof Error ? error.message : String(error)}`);
       }
@@ -55,50 +102,11 @@ export function useTabTransfer(
     };
   }, []);
 
-  const prepareTransfer = async (tabId: string, allowLastTab: boolean): Promise<TabTransfer | null> => {
-    await settled(tabId);
-    const current = workspaceRef.current;
-    const tab = current.tabs[tabId];
-    if (!tab || (!allowLastTab && Object.keys(current.tabs).length < 2)) {
+  const prepareTransfer = async (tabId: string, allowLastTab: boolean) => {
+    if (!allowLastTab && Object.keys(workspaceRef.current.tabs).length < 2) {
       return null;
     }
-    if (tab.kind === "start") {
-      return { kind: "start" };
-    }
-    if (tab.kind === "markdown") {
-      const markdown = markdownHandles.current.get(tabId);
-      if (!markdown) {
-        return null;
-      }
-      return {
-        kind: "document",
-        format: "markdown",
-        transferId: await stashTransferBytes(encodeText(markdown.text(), tab.source.format)),
-        name: tab.name,
-        path: tab.path,
-        stamp: tab.stamp,
-        modified: hasUnsavedChanges(tab),
-        view: markdown.viewState(),
-      };
-    }
-    const handle = handles.current.get(tabId);
-    if (!handle || !snapshotsRef.current[tabId]?.loaded) {
-      return null;
-    }
-    const modified = hasUnsavedChanges(tab);
-    const bytes = await handle.viewer.save();
-    if (!bytes) {
-      return null;
-    }
-    return {
-      kind: "document",
-      transferId: await stashTransferBytes(bytes),
-      name: tab.name,
-      path: tab.path,
-      stamp: tab.stamp,
-      modified,
-      view: handle.viewer.viewState() ?? undefined,
-    };
+    return captureTab(api, settled, tabId, true);
   };
 
   const moveTabToWindow = async (tabId: string, destination: Destination) => {

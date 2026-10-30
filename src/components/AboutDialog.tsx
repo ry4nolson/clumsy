@@ -17,9 +17,11 @@ import { parseChangelog } from "../lib/changelog";
 import type { DefaultAppStatus } from "../lib/defaultApp";
 import { promptForDefaultApp } from "../lib/defaultAppPrompt";
 import { getDefaultAppStatus, openExternal } from "../lib/platform";
-import { appVersion, repoUrl, useUpdateCheck } from "../lib/updates";
+import type { UpdateInstall } from "../hooks/useUpdateInstall";
+import { appVersion, isInstalling, repoUrl, useUpdateCheck } from "../lib/updates";
 import { ChangelogList } from "./ChangelogList";
 import { LicensesView } from "./LicensesView";
+import { InstallProgress } from "./UpdateDialog";
 
 export type AboutTab = "about" | "changelog" | "licenses";
 
@@ -40,11 +42,19 @@ const links = [
   { title: "Issues", icon: MessageSquareWarning, url: `${repoUrl}/issues` },
 ];
 
-export function AboutDialog({ request, onClose }: { request: AboutRequest | null; onClose: () => void }) {
+type AboutDialogProps = {
+  request: AboutRequest | null;
+  updateInstall: UpdateInstall;
+  onRestart: () => void;
+  onClose: () => void;
+};
+
+export function AboutDialog({ request, updateInstall, onRestart, onClose }: AboutDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [tab, setTab] = useState<AboutTab>("about");
   const releases = useMemo(() => parseChangelog(changelogSource), []);
   const { status, check } = useUpdateCheck();
+  const { install, start: installUpdate, dismissFailure } = updateInstall;
   const [defaultApp, setDefaultApp] = useState<DefaultAppStatus | null>(null);
   const onOpenUrl = openExternal;
 
@@ -165,34 +175,75 @@ export function AboutDialog({ request, onClose }: { request: AboutRequest | null
                   <span>Checking for updates…</span>
                 </>
               )}
-              {status.state === "available" && (
+              {install.state === "installed" && (
                 <>
-                  <CircleArrowDown size={14} className="tone-available" />
-                  <strong>v{status.latest} available</strong>
-                  <button type="button" className="button primary small" onClick={() => onOpenUrl(status.url)}>
-                    Download
+                  <CircleCheck size={14} className="tone-current" />
+                  <strong>v{install.version} installed</strong>
+                  <button type="button" className="button primary small" onClick={onRestart}>
+                    Restart Now
                   </button>
                 </>
               )}
-              {status.state === "current" && (
+              {status.state === "available" && install.state !== "installed" && (
+                <>
+                  <CircleArrowDown size={14} className="tone-available" />
+                  <strong>v{status.latest} available</strong>
+                  {install.state === "failed" ? (
+                    <>
+                      <button
+                        type="button"
+                        className="button primary small"
+                        onClick={() => {
+                          dismissFailure();
+                          onOpenUrl(status.url);
+                        }}
+                      >
+                        Download
+                      </button>
+                      <button type="button" className="link-button" onClick={installUpdate}>
+                        Try again
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="button primary small" disabled={isInstalling(install)} onClick={installUpdate}>
+                      Install
+                    </button>
+                  )}
+                </>
+              )}
+              {status.state === "current" && install.state !== "installed" && (
                 <>
                   <CircleCheck size={14} className="tone-current" />
                   <span>Up to date</span>
                 </>
               )}
-              {status.state === "error" && (
+              {status.state === "error" && install.state !== "installed" && (
                 <>
                   <TriangleAlert size={14} className="tone-warning" />
                   <span>{status.message}</span>
                 </>
               )}
-              {status.state !== "checking" && (
-                <button type="button" className="link-button" onClick={check}>
+              {status.state !== "checking" && !isInstalling(install) && install.state !== "installed" && (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    dismissFailure();
+                    check();
+                  }}
+                >
                   Check for updates
                 </button>
               )}
             </div>
-            {status.state === "available" && status.releases.length > 0 && (
+            <InstallProgress install={install} />
+            {status.state === "available" && install.state === "failed" && (
+              <div className="about-update">
+                <TriangleAlert size={14} className="tone-warning" />
+                <span>{install.message}</span>
+              </div>
+            )}
+            {status.state === "available" && install.state !== "installed" && status.releases.length > 0 && (
               <div className="about-update-notes">
                 <ChangelogList releases={status.releases} onOpenUrl={onOpenUrl} expand="all" />
               </div>

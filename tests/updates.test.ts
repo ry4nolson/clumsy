@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  installFailure,
+  installProgress,
   newerReleases,
   releaseNotesFromBody,
   shouldAutoCheck,
@@ -92,5 +94,34 @@ describe("shouldAutoCheck", () => {
     expect(shouldAutoCheck(null, 1000, 500)).toBe(true);
     expect(shouldAutoCheck(100, 599, 500)).toBe(false);
     expect(shouldAutoCheck(100, 600, 500)).toBe(true);
+  });
+});
+
+describe("installProgress", () => {
+  it("shows a percentage when the size is known", () => {
+    expect(installProgress({ state: "downloading", received: 4_500_000, total: 10_000_000 })).toEqual({
+      label: "Downloading… 45%",
+      value: 0.45,
+    });
+  });
+
+  it("falls back to megabytes and an indeterminate bar without a size", () => {
+    expect(installProgress({ state: "downloading", received: 3_250_000, total: null })).toEqual({ label: "Downloading… 3.3 MB" });
+    expect(installProgress({ state: "downloading", received: 0, total: null })).toEqual({ label: "Downloading…" });
+  });
+
+  it("shows nothing when no install is running", () => {
+    expect(installProgress({ state: "installing" })).toEqual({ label: "Installing…" });
+    expect(installProgress({ state: "idle" })).toBeNull();
+    expect(installProgress({ state: "installed", version: "0.8.0" })).toBeNull();
+  });
+});
+
+describe("installFailure", () => {
+  it("prefixes the updater's message", () => {
+    expect(installFailure("Move Clumsy to your Applications folder to install updates")).toBe(
+      "Couldn’t install the update: Move Clumsy to your Applications folder to install updates",
+    );
+    expect(installFailure(new Error(""))).toBe("Couldn’t install the update");
   });
 });
