@@ -31,7 +31,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     if (!parts) {
       return;
     }
-    const { eventBus, hand } = parts;
+    const { eventBus, hand, viewer } = parts;
     const onStates = ({ details }: { details: { hasSelectedEditor?: boolean } }) => {
       if (details.hasSelectedEditor !== undefined) {
         selectedRef.current = details.hasSelectedEditor;
@@ -57,13 +57,18 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
         eventBus.dispatch("switchannotationeditorparams", { source: null, type: Number(type), value });
       }
     };
+    const onShowEditorUi = ({ mode }: { mode: number }) => {
+      viewer.annotationEditorMode = { mode };
+    };
     eventBus.on("editingstateschanged", onStates);
     eventBus.on("annotationeditorparamschanged", onParams);
     eventBus.on("annotationeditormodechanged", onMode);
+    eventBus.on("showannotationeditorui", onShowEditorUi);
     return () => {
       eventBus.off("editingstateschanged", onStates);
       eventBus.off("annotationeditorparamschanged", onParams);
       eventBus.off("annotationeditormodechanged", onMode);
+      eventBus.off("showannotationeditorui", onShowEditorUi);
     };
   }, [partsRef]);
 
