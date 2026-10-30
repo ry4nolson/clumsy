@@ -8,6 +8,19 @@ pub struct DefaultAppStatus {
     pub current_app: Option<String>,
 }
 
+pub struct DocumentKind {
+    content_type: &'static str,
+    label: &'static str,
+}
+
+pub fn document_kind(kind: &str) -> Result<DocumentKind, String> {
+    match kind {
+        "pdf" => Ok(DocumentKind { content_type: "com.adobe.pdf", label: "PDF" }),
+        "markdown" => Ok(DocumentKind { content_type: "net.daringfireball.markdown", label: "Markdown" }),
+        _ => Err(format!("Unknown document kind {kind}")),
+    }
+}
+
 #[cfg(target_os = "macos")]
 mod platform {
     use std::path::Path;
@@ -18,7 +31,6 @@ mod platform {
     use core_foundation::string::{CFString, CFStringRef};
     use core_foundation::url::CFURL;
 
-    const PDF_CONTENT_TYPE: &str = "com.adobe.pdf";
     const ROLES_ALL: u32 = 0xFFFF_FFFF;
 
     #[link(name = "CoreServices", kind = "framework")]
@@ -28,8 +40,8 @@ mod platform {
         fn LSCopyApplicationURLsForBundleIdentifier(bundle_id: CFStringRef, error: *mut CFErrorRef) -> CFArrayRef;
     }
 
-    pub fn current_handler() -> Option<String> {
-        let content_type = CFString::new(PDF_CONTENT_TYPE);
+    pub fn current_handler(content_type: &str) -> Option<String> {
+        let content_type = CFString::new(content_type);
         let handler = unsafe { LSCopyDefaultRoleHandlerForContentType(content_type.as_concrete_TypeRef(), ROLES_ALL) };
         (!handler.is_null()).then(|| unsafe { CFString::wrap_under_create_rule(handler) }.to_string())
     }
@@ -45,8 +57,8 @@ mod platform {
         path.file_stem().map(|stem| stem.to_string_lossy().into_owned())
     }
 
-    pub fn set_handler(bundle_id: &str) -> Result<(), String> {
-        let content_type = CFString::new(PDF_CONTENT_TYPE);
+    pub fn set_handler(content_type: &str, bundle_id: &str) -> Result<(), String> {
+        let content_type = CFString::new(content_type);
         let handler = CFString::new(bundle_id);
         let status = unsafe {
             LSSetDefaultRoleHandlerForContentType(content_type.as_concrete_TypeRef(), ROLES_ALL, handler.as_concrete_TypeRef())
@@ -67,8 +79,8 @@ mod platform {
 }
 
 #[cfg(target_os = "macos")]
-pub fn status(bundle_id: &str) -> DefaultAppStatus {
-    let current = platform::current_handler();
+pub fn status(kind: &DocumentKind, bundle_id: &str) -> DefaultAppStatus {
+    let current = platform::current_handler(kind.content_type);
     DefaultAppStatus {
         supported: platform::is_installed_bundle(),
         is_default: current.as_deref().is_some_and(|id| id.eq_ignore_ascii_case(bundle_id)),
@@ -77,31 +89,37 @@ pub fn status(bundle_id: &str) -> DefaultAppStatus {
 }
 
 #[cfg(target_os = "macos")]
-pub fn make_default(bundle_id: &str) -> Result<DefaultAppStatus, String> {
+pub fn make_default(kind: &DocumentKind, bundle_id: &str) -> Result<DefaultAppStatus, String> {
     if !platform::is_installed_bundle() {
-        return Err("Clumsy has to run from its installed .app to become the default PDF app".into());
+        return Err(format!("Clumsy has to run from its installed .app to become the default {} app", kind.label));
     }
-    platform::set_handler(bundle_id)?;
-    Ok(status(bundle_id))
+    platform::set_handler(kind.content_type, bundle_id)?;
+    Ok(status(kind, bundle_id))
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn status(_bundle_id: &str) -> DefaultAppStatus {
+pub fn status(_kind: &DocumentKind, _bundle_id: &str) -> DefaultAppStatus {
     DefaultAppStatus { supported: false, is_default: false, current_app: None }
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn make_default(_bundle_id: &str) -> Result<DefaultAppStatus, String> {
-    Err("Setting the default PDF app is only supported on macOS".into())
+pub fn make_default(kind: &DocumentKind, _bundle_id: &str) -> Result<DefaultAppStatus, String> {
+    Err(format!("Setting the default {} app is only supported on macOS", kind.label))
 }
 
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
-    use super::platform;
+    use super::{document_kind, platform};
+
+    #[test]
+    fn maps_kinds_to_content_types() {
+        assert_eq!(document_kind("markdown").unwrap().content_type, "net.daringfireball.markdown");
+        assert!(document_kind("com.apple.application").is_err());
+    }
 
     #[test]
     fn reads_the_current_pdf_handler() {
-        let handler = platform::current_handler().expect("macOS always has a PDF handler");
+        let handler = platform::current_handler("com.adobe.pdf").expect("macOS always has a PDF handler");
         assert!(handler.contains('.'), "expected a bundle identifier, got {handler}");
     }
 

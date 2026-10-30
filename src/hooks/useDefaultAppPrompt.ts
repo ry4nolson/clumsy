@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppPreference } from "../lib/defaultApp";
+import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppKind, type DefaultAppPreference } from "../lib/defaultApp";
 import { promptForDefaultApp } from "../lib/defaultAppPrompt";
 import { isMainWindow } from "../lib/documentWindows";
 import { getDefaultAppStatus, isDesktop } from "../lib/platform";
@@ -30,6 +30,6 @@ export function useDefaultAppPrompt() {
   }, []);
 }
 
-export async function requestDefaultApp() {
-  await promptForDefaultApp(await getDefaultAppStatus(), "manual");
+export async function requestDefaultApp(kind: DefaultAppKind = "pdf") {
+  await promptForDefaultApp(await getDefaultAppStatus(kind), "manual", kind);
 }

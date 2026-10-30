@@ -42,9 +42,13 @@ export const pdfsIn = (files: OpenedFile[]) => files.flatMap((file) => (file.kin
 
 export const imagesIn = (files: OpenedFile[]) => files.flatMap((file) => (file.kind === "image" ? [file.image] : []));
 
+export const markdownIn = (files: OpenedFile[]) => files.flatMap((file) => (file.kind === "markdown" ? [file.source] : []));
+
 export async function pagesFrom(files: OpenedFile[]) {
   const runs = groupRuns(files, (file) => file.kind);
-  const sources = await Promise.all(runs.flatMap(({ key, items }) => (key === "pdf" ? pdfsIn(items) : [imagesToSource(imagesIn(items))])));
+  const sources = await Promise.all(
+    runs.flatMap(({ key, items }) => (key === "pdf" ? pdfsIn(items) : key === "image" ? [imagesToSource(imagesIn(items))] : [])),
+  );
   if (!sources.length) {
     return null;
   }

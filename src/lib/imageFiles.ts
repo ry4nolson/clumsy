@@ -2,9 +2,25 @@ import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { ExportFormat } from "./imageExport";
 import type { ImageFile } from "./imagePdf";
-import { fileNameFromPath, isDesktop, pickFilesInBrowser, readPdfFromFile, readPdfFromPath, revealInFinder, type DroppedFile, type PdfSource } from "./platform";
+import {
+  fileNameFromPath,
+  isDesktop,
+  pickFilesInBrowser,
+  readMarkdownFromFile,
+  readMarkdownFromPath,
+  readPdfFromFile,
+  readPdfFromPath,
+  revealInFinder,
+  type DroppedFile,
+  type MarkdownSource,
+  type PdfSource,
+} from "./platform";
+import { isMarkdownName } from "./textFile";
 
-export type OpenedFile = { kind: "pdf"; source: Promise<PdfSource> } | { kind: "image"; image: Promise<ImageFile> };
+export type OpenedFile =
+  | { kind: "pdf"; source: Promise<PdfSource> }
+  | { kind: "image"; image: Promise<ImageFile> }
+  | { kind: "markdown"; source: Promise<MarkdownSource> };
 
 const imageTypes: Record<string, string> = {
   png: "image/png",
@@ -29,6 +45,8 @@ const isPdfName = (name: string) => /\.pdf$/i.test(name);
 
 const isImageName = (name: string) => extensionOf(name) in imageTypes;
 
+export const imageTypeOf = (name: string) => imageTypes[extensionOf(name)] ?? "";
+
 async function readImageFromPath(path: string): Promise<ImageFile> {
   return { name: fileNameFromPath(path), data: new Uint8Array(await invoke<ArrayBuffer>("read_image", { path })) };
 }
@@ -41,6 +59,9 @@ export function openedFile(file: DroppedFile): OpenedFile | null {
   const name = typeof file === "string" ? fileNameFromPath(file) : file.name;
   if (isPdfName(name) || (typeof file !== "string" && file.type === "application/pdf")) {
     return { kind: "pdf", source: typeof file === "string" ? readPdfFromPath(file) : readPdfFromFile(file) };
+  }
+  if (isMarkdownName(name)) {
+    return { kind: "markdown", source: typeof file === "string" ? readMarkdownFromPath(file) : readMarkdownFromFile(file) };
   }
   if (isImageName(name) || (typeof file !== "string" && file.type.startsWith("image/"))) {
     return { kind: "image", image: typeof file === "string" ? readImageFromPath(file) : readImageFromFile(file) };

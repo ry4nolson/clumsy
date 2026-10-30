@@ -2,6 +2,7 @@ export type CommandId =
   | "about"
   | "checkUpdates"
   | "makeDefault"
+  | "makeDefaultMarkdown"
   | "newTab"
   | "reopenClosedTab"
   | "newWindow"
@@ -32,6 +33,7 @@ export type CommandId =
   | "findPrevious"
   | "useSelectionForFind"
   | "toggleSidebar"
+  | "toggleMarkdownSource"
   | "showPages"
   | "showOutline"
   | "toggleDocumentMap"
@@ -98,6 +100,8 @@ export type Command = {
   menu: MenuName | null;
   combos: string[];
   needsDocument?: boolean;
+  markdown?: boolean;
+  needsMarkdown?: boolean;
   needsSplit?: boolean;
   needsComparison?: boolean;
 };
@@ -113,6 +117,7 @@ export const commands: Command[] = [
   { id: "about", label: "About Clumsy", menu: "Clumsy", combos: [] },
   { id: "checkUpdates", label: "Check for Updates…", menu: "Clumsy", combos: [] },
   { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [] },
+  { id: "makeDefaultMarkdown", label: "Make Clumsy the Default Markdown App…", menu: "Clumsy", combos: [] },
   { id: "quit", label: "Quit Clumsy", menu: "Clumsy", combos: ["mod+q"] },
 
   { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+n", "mod+t"] },
@@ -126,26 +131,27 @@ export const commands: Command[] = [
   { id: "exportComparison", label: "Export Comparison Report…", menu: "File", combos: [], needsComparison: true },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"] },
-  { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true },
-  { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true },
+  { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true, markdown: true },
+  { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
-  { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true },
+  { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true },
 
   { id: "undo", label: "Undo", menu: "Edit", combos: ["mod+z"] },
   { id: "redo", label: "Redo", menu: "Edit", combos: ["mod+shift+z"] },
-  { id: "find", label: "Find…", menu: "Edit", combos: ["mod+f"], needsDocument: true },
-  { id: "findNext", label: "Find Next", menu: "Edit", combos: ["mod+g"], needsDocument: true },
-  { id: "findPrevious", label: "Find Previous", menu: "Edit", combos: ["mod+shift+g"], needsDocument: true },
-  { id: "useSelectionForFind", label: "Use Selection for Find", menu: "Edit", combos: ["mod+e"], needsDocument: true },
+  { id: "find", label: "Find…", menu: "Edit", combos: ["mod+f"], needsDocument: true, markdown: true },
+  { id: "findNext", label: "Find Next", menu: "Edit", combos: ["mod+g"], needsDocument: true, markdown: true },
+  { id: "findPrevious", label: "Find Previous", menu: "Edit", combos: ["mod+shift+g"], needsDocument: true, markdown: true },
+  { id: "useSelectionForFind", label: "Use Selection for Find", menu: "Edit", combos: ["mod+e"], needsDocument: true, markdown: true },
 
   { id: "commandPalette", label: "Command Palette…", menu: "View", combos: ["mod+shift+p"] },
-  { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["mod+b"], needsDocument: true },
+  { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["mod+b"], needsDocument: true, markdown: true },
   { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["mod+shift+e"], needsDocument: true },
-  { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true },
+  { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true, markdown: true },
+  { id: "toggleMarkdownSource", label: "Markdown Source", menu: "View", combos: ["mod+shift+v"], needsMarkdown: true },
   { id: "toggleDocumentMap", label: "Document Map", menu: "View", combos: ["alt+mod+b"] },
-  { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true },
-  { id: "zoomIn", label: "Zoom In", menu: "View", combos: ["mod+=", "mod+shift+="], needsDocument: true },
-  { id: "zoomOut", label: "Zoom Out", menu: "View", combos: ["mod+-"], needsDocument: true },
+  { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true, markdown: true },
+  { id: "zoomIn", label: "Zoom In", menu: "View", combos: ["mod+=", "mod+shift+="], needsDocument: true, markdown: true },
+  { id: "zoomOut", label: "Zoom Out", menu: "View", combos: ["mod+-"], needsDocument: true, markdown: true },
   { id: "fitWidth", label: "Fit Width", menu: "View", combos: ["mod+9"], needsDocument: true },
   { id: "fitPage", label: "Fit Page", menu: "View", combos: ["alt+mod+9"], needsDocument: true },
   { id: "rotateLeft", label: "Rotate Left", menu: "View", combos: ["mod+l"], needsDocument: true },
@@ -169,8 +175,8 @@ export const commands: Command[] = [
 
   { id: "previousPage", label: "Previous Page", menu: "Go", combos: ["alt+mod+ArrowUp", "p", "k"], needsDocument: true },
   { id: "nextPage", label: "Next Page", menu: "Go", combos: ["alt+mod+ArrowDown", "n", "j"], needsDocument: true },
-  { id: "firstPage", label: "First Page", menu: "Go", combos: ["mod+ArrowUp", "Home"], needsDocument: true },
-  { id: "lastPage", label: "Last Page", menu: "Go", combos: ["mod+ArrowDown", "End"], needsDocument: true },
+  { id: "firstPage", label: "First Page", menu: "Go", combos: ["mod+ArrowUp", "Home"], needsDocument: true, markdown: true },
+  { id: "lastPage", label: "Last Page", menu: "Go", combos: ["mod+ArrowDown", "End"], needsDocument: true, markdown: true },
   { id: "goToPage", label: "Go to Page…", menu: "Go", combos: ["ctrl+g"], needsDocument: true },
   { id: "goBack", label: "Go Back", menu: "Go", combos: ["ctrl+-"], needsDocument: true },
   { id: "goForward", label: "Go Forward", menu: "Go", combos: ["ctrl+shift+-"], needsDocument: true },
@@ -212,6 +218,19 @@ export const commands: Command[] = [
 ];
 
 export const commandById = new Map(commands.map((command) => [command.id, command]));
+
+export type CommandContext = { hasDocument: boolean; hasMarkdown?: boolean; split: boolean; comparing: boolean };
+
+export function documentAvailable(command: Command, { hasDocument, hasMarkdown = false }: Pick<CommandContext, "hasDocument" | "hasMarkdown">) {
+  if (command.needsMarkdown) {
+    return hasMarkdown;
+  }
+  return !command.needsDocument || hasDocument || (hasMarkdown && !!command.markdown);
+}
+
+export function commandAvailable(command: Command, context: CommandContext) {
+  return documentAvailable(command, context) && (context.split || !command.needsSplit) && (context.comparing || !command.needsComparison);
+}
 
 const MODIFIERS = ["ctrl", "shift", "alt", "mod"] as const;
 

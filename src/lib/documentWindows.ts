@@ -5,6 +5,7 @@ import { WebviewWindow, getAllWebviewWindows, getCurrentWebviewWindow } from "@t
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { isDesktop } from "./platform";
 import type { NavHistory } from "./navHistory";
+import type { AnyViewState } from "./tabs";
 import type { ScrollModeName, SpreadModeName } from "./viewModes";
 
 export type ViewState = {
@@ -20,7 +21,16 @@ export type ViewState = {
 
 export type TabTransfer =
   | { kind: "start" }
-  | { kind: "document"; transferId: string; name: string; path: string | null; stamp: string | null; modified: boolean; view?: ViewState };
+  | {
+      kind: "document";
+      format?: "markdown";
+      transferId: string;
+      name: string;
+      path: string | null;
+      stamp: string | null;
+      modified: boolean;
+      view?: AnyViewState;
+    };
 
 type Rect = { x: number; y: number; width: number; height: number };
 

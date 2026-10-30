@@ -8,9 +8,11 @@ use std::time::UNIX_EPOCH;
 
 pub const CHANGED_ON_DISK: &str = "changed-on-disk";
 pub const ALREADY_EXISTS: &str = "already-exists";
+pub const NOT_WRITABLE: &str = "not-writable";
 
 pub const IMAGE_EXTENSIONS: [&str; 12] = ["png", "jpg", "jpeg", "webp", "gif", "svg", "heic", "heif", "tif", "tiff", "bmp", "avif"];
 pub const EXPORT_IMAGE_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
+pub const MARKDOWN_EXTENSIONS: [&str; 2] = ["md", "markdown"];
 
 fn has_extension(path: &Path, allowed: &[&str]) -> bool {
     path.extension()
@@ -20,6 +22,14 @@ fn has_extension(path: &Path, allowed: &[&str]) -> bool {
 
 pub fn is_pdf(path: &Path) -> bool {
     has_extension(path, &["pdf"])
+}
+
+pub fn is_markdown(path: &Path) -> bool {
+    has_extension(path, &MARKDOWN_EXTENSIONS)
+}
+
+pub fn is_document(path: &Path) -> bool {
+    is_pdf(path) || is_markdown(path)
 }
 
 pub fn is_image(path: &Path) -> bool {
@@ -44,6 +54,10 @@ pub fn with_pdf_extension(path: PathBuf) -> PathBuf {
     with_extension_from(path, &["pdf"])
 }
 
+pub fn with_markdown_extension(path: PathBuf) -> PathBuf {
+    with_extension_from(path, &MARKDOWN_EXTENSIONS)
+}
+
 pub fn plain_file_name(name: &str) -> Option<&str> {
     let mut components = Path::new(name).components();
     match (components.next(), components.next()) {
@@ -62,6 +76,21 @@ pub fn resolve(path: &Path) -> PathBuf {
     }
 }
 
+pub fn resolve_linked(document: &Path, href: &str) -> Option<PathBuf> {
+    if href.is_empty() || href.contains('\0') {
+        return None;
+    }
+    let target = document.parent()?.join(href);
+    fs::canonicalize(target).ok().filter(|path| path.is_file())
+}
+
+fn saving_path(path: &Path) -> PathBuf {
+    let mut name = std::ffi::OsString::from(".");
+    name.push(path.file_name().unwrap_or_default());
+    name.push(".saving");
+    path.with_file_name(name)
+}
+
 #[derive(Default)]
 pub struct AllowedPaths(Mutex<HashSet<PathBuf>>);
 
@@ -74,6 +103,9 @@ impl AllowedPaths {
         self.0.lock().unwrap().contains(&resolve(path))
     }
 }
+
+#[derive(Default)]
+pub struct LinkedPaths(pub AllowedPaths);
 
 #[derive(Default)]
 pub struct AllowedFolders(AllowedPaths);
@@ -113,10 +145,7 @@ pub fn write_file(path: &Path, bytes: &[u8], overwrite: bool) -> Result<(), Stri
             failed(err)
         });
     }
-    let mut tmp_name = std::ffi::OsString::from(".");
-    tmp_name.push(path.file_name().unwrap_or_default());
-    tmp_name.push(".saving");
-    let tmp = path.with_file_name(tmp_name);
+    let tmp = saving_path(path);
     let result = fs::write(&tmp, bytes).and_then(|_| fs::rename(&tmp, path));
     result.map_err(|err| {
         let _ = fs::remove_file(&tmp);
@@ -138,7 +167,7 @@ pub fn write_atomically(path: &Path, bytes: &[u8], expected_stamp: Option<&str>)
         return Err(CHANGED_ON_DISK.into());
     }
     let permissions = fs::metadata(&target).ok().map(|metadata| metadata.permissions());
-    let tmp = target.with_extension("pdf.saving");
+    let tmp = saving_path(&target);
     let result = fs::write(&tmp, bytes)
         .and_then(|_| permissions.map_or(Ok(()), |permissions| fs::set_permissions(&tmp, permissions)))
         .and_then(|_| fs::rename(&tmp, &target));
@@ -219,6 +248,47 @@ mod tests {
         write_file(&link, b"x", true).unwrap();
         assert_eq!(fs::read(&outside).unwrap(), b"keep");
         assert!(!fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+    }
+
+    #[test]
+    fn recognizes_documents() {
+        assert!(is_markdown(Path::new("/x/README.MD")));
+        assert!(is_markdown(Path::new("/x/notes.markdown")));
+        assert!(is_document(Path::new("/x/a.pdf")));
+        assert!(is_document(Path::new("/x/a.md")));
+        assert!(!is_document(Path::new("/x/a.mdx")));
+        assert!(!is_markdown(Path::new("/x/a.pdf")));
+        assert_eq!(with_markdown_extension(PathBuf::from("/a/b")), PathBuf::from("/a/b.md"));
+        assert_eq!(with_markdown_extension(PathBuf::from("/a/b.markdown")), PathBuf::from("/a/b.markdown"));
+    }
+
+    #[test]
+    fn resolves_links_next_to_a_document() {
+        let dir = scratch("linked");
+        fs::create_dir_all(dir.join("docs/img")).unwrap();
+        fs::write(dir.join("docs/README.md"), b"x").unwrap();
+        fs::write(dir.join("docs/img/a.png"), b"x").unwrap();
+        fs::write(dir.join("logo.png"), b"x").unwrap();
+        let document = dir.join("docs/README.md");
+        let real = |path: &str| fs::canonicalize(dir.join(path)).unwrap();
+        assert_eq!(resolve_linked(&document, "img/a.png"), Some(real("docs/img/a.png")));
+        assert_eq!(resolve_linked(&document, "./img/a.png"), Some(real("docs/img/a.png")));
+        assert_eq!(resolve_linked(&document, "../logo.png"), Some(real("logo.png")));
+        let absolute = real("logo.png");
+        assert_eq!(resolve_linked(&document, absolute.to_str().unwrap()), Some(absolute.clone()));
+        assert_eq!(resolve_linked(&document, "missing.png"), None);
+        assert_eq!(resolve_linked(&document, "img"), None);
+        assert_eq!(resolve_linked(&document, ""), None);
+    }
+
+    #[test]
+    fn saves_markdown_without_a_pdf_temp_name() {
+        let dir = scratch("markdown");
+        let file = dir.join("notes.md");
+        fs::write(&file, b"# one").unwrap();
+        write_atomically(&file, b"# two", None).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), b"# two");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
     }
 
     #[test]

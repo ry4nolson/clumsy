@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { fileNameFromPath, getRecentFiles, onRecentFilesChanged, readPdfFromPath, removeRecentFile, showError, type PdfSource } from "../lib/platform";
+import { fileNameFromPath, getRecentFiles, onRecentFilesChanged, readDocumentFromPath, removeRecentFile, showError, type DocumentSource } from "../lib/platform";
 import type { RecentEntry } from "../lib/recent";
 
-export function useRecentFiles(openSource: (source: Promise<PdfSource | null>) => unknown) {
+export function useRecentFiles(openSource: (source: Promise<DocumentSource | null>) => unknown) {
   const [recentFiles, setRecentFiles] = useState<RecentEntry[] | null>(null);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export function useRecentFiles(openSource: (source: Promise<PdfSource | null>) =
         await showError(`“${fileNameFromPath(entry.path)}” couldn’t be found. It may have been moved or deleted, so it was removed from recent files.`);
         return;
       }
-      openSource(readPdfFromPath(entry.path));
+      openSource(readDocumentFromPath(entry.path));
     },
     [openSource],
   );

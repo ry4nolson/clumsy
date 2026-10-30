@@ -6,8 +6,9 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import type { DefaultAppStatus } from "./defaultApp";
+import type { DefaultAppKind, DefaultAppStatus } from "./defaultApp";
 import type { RecentEntry } from "./recent";
+import { decodeText, encodeText, ensureMarkdownExtension, isMarkdownName, type TextFormat } from "./textFile";
 
 export type PdfSource = {
   name: string;
@@ -16,7 +17,21 @@ export type PdfSource = {
   stamp?: string | null;
 };
 
+export type MarkdownSource = {
+  name: string;
+  path: string | null;
+  text: string;
+  format: TextFormat;
+  stamp?: string | null;
+};
+
+export type DocumentSource = PdfSource | MarkdownSource;
+
+export const isMarkdownSource = (source: DocumentSource): source is MarkdownSource => "text" in source;
+
 export const CHANGED_ON_DISK = "changed-on-disk";
+
+export const NOT_WRITABLE = "not-writable";
 
 export const isDesktop = isTauri();
 
@@ -42,6 +57,53 @@ export async function readPdfFromFile(file: File): Promise<PdfSource> {
   return { name: file.name, path: null, data: new Uint8Array(await file.arrayBuffer()) };
 }
 
+export function markdownSource(name: string, path: string | null, bytes: Uint8Array, stamp?: string | null): MarkdownSource {
+  return { name, path, stamp, ...decodeText(bytes) };
+}
+
+export async function readMarkdownFromPath(path: string): Promise<MarkdownSource> {
+  const stamp = await fileStamp(path);
+  const buffer = await invoke<ArrayBuffer>("read_markdown", { path });
+  return markdownSource(fileNameFromPath(path), path, new Uint8Array(buffer), stamp);
+}
+
+export async function readMarkdownFromFile(file: File): Promise<MarkdownSource> {
+  return markdownSource(file.name, null, new Uint8Array(await file.arrayBuffer()));
+}
+
+export function readDocumentFromPath(path: string): Promise<DocumentSource> {
+  return isMarkdownName(path) ? readMarkdownFromPath(path) : readPdfFromPath(path);
+}
+
+export async function writeMarkdown(path: string, source: Pick<MarkdownSource, "text" | "format">, expectedStamp?: string | null) {
+  const headers: Record<string, string> = { "x-path": encodeURIComponent(path) };
+  if (expectedStamp) {
+    headers["x-expected-stamp"] = expectedStamp;
+  }
+  return invoke<string>("write_markdown", encodeText(source.text, source.format), { headers });
+}
+
+export async function pickMarkdownSavePath(suggestedName: string) {
+  return invoke<string | null>("pick_markdown_save_path", { suggestedName: ensureMarkdownExtension(suggestedName) });
+}
+
+export function downloadMarkdown(name: string, source: Pick<MarkdownSource, "text" | "format">) {
+  const url = URL.createObjectURL(new Blob([encodeText(source.text, source.format) as BlobPart], { type: "text/markdown" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = ensureMarkdownExtension(name);
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function readLinkedImage(document: string, src: string) {
+  return new Uint8Array(await invoke<ArrayBuffer>("read_linked_image", { document, src }));
+}
+
+export async function openLinkedFile(document: string, href: string) {
+  return invoke<string>("open_linked_file", { document, href });
+}
+
 export function pickFilesInBrowser(accept: string, multiple: boolean): Promise<File[]> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -65,6 +127,15 @@ export async function pickPdf(): Promise<PdfSource | null> {
   }
   const selected = await invoke<string | null>("pick_pdf");
   return selected ? readPdfFromPath(selected) : null;
+}
+
+export async function pickDocument(): Promise<DocumentSource | null> {
+  if (!isDesktop) {
+    const file = (await pickFilesInBrowser("application/pdf,.pdf,text/markdown,.md,.markdown", false))[0];
+    return !file ? null : isMarkdownName(file.name) ? readMarkdownFromFile(file) : readPdfFromFile(file);
+  }
+  const selected = await invoke<string | null>("pick_document");
+  return selected ? readDocumentFromPath(selected) : null;
 }
 
 export async function pickPdfs(): Promise<Array<Promise<PdfSource>>> {
@@ -163,15 +234,15 @@ export async function onFullscreenChange(handler: (fullscreen: boolean) => void)
   return window.onResized(sync);
 }
 
-export async function getDefaultAppStatus(): Promise<DefaultAppStatus> {
+export async function getDefaultAppStatus(kind: DefaultAppKind = "pdf"): Promise<DefaultAppStatus> {
   if (!isDesktop) {
     return { supported: false, isDefault: false, currentApp: null };
   }
-  return invoke<DefaultAppStatus>("default_pdf_app");
+  return invoke<DefaultAppStatus>("default_app_status", { kind });
 }
 
-export async function makeDefaultApp() {
-  return invoke<DefaultAppStatus>("make_default_pdf_app");
+export async function makeDefaultApp(kind: DefaultAppKind = "pdf") {
+  return invoke<DefaultAppStatus>("make_default_app", { kind });
 }
 
 export async function getRecentFiles(): Promise<RecentEntry[] | null> {

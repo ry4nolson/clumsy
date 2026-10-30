@@ -1,10 +1,10 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { FileText, House, LoaderCircle, Plus, X } from "lucide-react";
+import { FileCode2, FileText, House, LoaderCircle, Plus, X } from "lucide-react";
 
 export type TabItem = {
   id: string;
   title: string;
-  kind: "start" | "document";
+  kind: "start" | "document" | "markdown";
   loading: boolean;
   modified: boolean;
   tooltip?: string;
@@ -29,7 +29,10 @@ function TabIcon({ tab }: { tab: TabItem }) {
   if (tab.loading) {
     return <LoaderCircle size={14} className="spin" />;
   }
-  return tab.kind === "start" ? <House size={14} /> : <FileText size={14} />;
+  if (tab.kind === "start") {
+    return <House size={14} />;
+  }
+  return tab.kind === "markdown" ? <FileCode2 size={14} /> : <FileText size={14} />;
 }
 
 export function TabStrip({

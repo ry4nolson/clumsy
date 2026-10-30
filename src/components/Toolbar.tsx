@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  Code,
   FolderOpen,
   Hand,
   Highlighter,
@@ -22,6 +23,7 @@ import type { EditorParams, EditorTool } from "../hooks/usePdfViewer";
 import { shortcutFor, type CommandId } from "../lib/commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { isMac } from "../lib/platform";
+import type { MarkdownMode } from "../lib/tabs";
 import { highlightColors } from "../hooks/usePdfViewer";
 
 const zoomPresets = [
@@ -41,6 +43,7 @@ const zoomPresets = [
 type ToolbarProps = {
   titlebarInset: boolean;
   hasDocument: boolean;
+  markdownMode: MarkdownMode | null;
   sidebarOpen: boolean;
   findOpen: boolean;
   darkPages: boolean;
@@ -68,6 +71,7 @@ type ToolbarProps = {
   onSign: () => void;
   onToggleFind: () => void;
   onToggleDarkPages: () => void;
+  onToggleSource: () => void;
 };
 
 const withShortcut = (label: string, id: CommandId) => {
@@ -84,7 +88,8 @@ function IconButton({ title, active, disabled, onClick, children }: { title: str
 }
 
 export function Toolbar(props: ToolbarProps) {
-  const { hasDocument, pageNumber, pagesCount, pageLabels, scale, scaleValue, tool, toolColor } = props;
+  const { hasDocument, markdownMode, pageNumber, pagesCount, pageLabels, scale, scaleValue, tool, toolColor } = props;
+  const hasFile = hasDocument || !!markdownMode;
   const pageText = pageLabelOf(pageLabels, pageNumber);
   const [pageInput, setPageInput] = useState(pageText);
   const labeled = hasCustomLabels(pageLabels);
@@ -97,13 +102,13 @@ export function Toolbar(props: ToolbarProps) {
   return (
     <header className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
       <div className="toolbar-group" data-tauri-drag-region>
-        <IconButton title={withShortcut("Toggle sidebar", "toggleSidebar")} active={props.sidebarOpen} disabled={!hasDocument} onClick={props.onToggleSidebar}>
+        <IconButton title={withShortcut("Toggle sidebar", "toggleSidebar")} active={props.sidebarOpen} disabled={!hasFile} onClick={props.onToggleSidebar}>
           <PanelLeft size={18} />
         </IconButton>
         <IconButton title={withShortcut("Open", "open")} onClick={props.onOpen}>
           <FolderOpen size={18} />
         </IconButton>
-        <IconButton title={withShortcut("Save", "save")} disabled={!hasDocument} onClick={props.onSave}>
+        <IconButton title={withShortcut("Save", "save")} disabled={!hasFile} onClick={props.onSave}>
           <Save size={18} />
         </IconButton>
       </div>
@@ -217,6 +222,11 @@ export function Toolbar(props: ToolbarProps) {
       )}
 
       <div className="toolbar-group end" data-tauri-drag-region>
+        {markdownMode && (
+          <IconButton title={withShortcut("Markdown source", "toggleMarkdownSource")} active={markdownMode === "source"} onClick={props.onToggleSource}>
+            <Code size={18} />
+          </IconButton>
+        )}
         {hasDocument && props.darkPages && (
           <select
             aria-label="Images in dark pages"
@@ -231,7 +241,7 @@ export function Toolbar(props: ToolbarProps) {
         <IconButton title={props.darkPages ? "Light pages" : "Dark pages"} active={props.darkPages} disabled={!hasDocument} onClick={props.onToggleDarkPages}>
           {props.darkPages ? <Sun size={18} /> : <Moon size={18} />}
         </IconButton>
-        <IconButton title={withShortcut("Find", "find")} active={props.findOpen} disabled={!hasDocument} onClick={props.onToggleFind}>
+        <IconButton title={withShortcut("Find", "find")} active={props.findOpen} disabled={!hasFile} onClick={props.onToggleFind}>
           <Search size={18} />
         </IconButton>
       </div>

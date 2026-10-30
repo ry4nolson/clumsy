@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Markdown files**: open `.md` files from Finder, the Open dialog, recent files, or by dropping them on the window, and they show up formatted, not as raw text. Press ⇧⌘V (View > Markdown Source) to edit the source and again to go back, and you stay on the same spot either way. Images next to the file, links to other Markdown files and PDFs, code highlighting, tables, task lists, and footnotes all work. The sidebar outlines the headings, a minimap beside the document shows where you are (⌥⌘B, like the Document Map for PDFs), Find works in both views, and the file reloads in place when another app changes it. Clumsy > Make Clumsy the Default Markdown App… makes double-clicking a `.md` file open it here
+
 ## [0.6.0] - 2026-10-30
 
 ### Added

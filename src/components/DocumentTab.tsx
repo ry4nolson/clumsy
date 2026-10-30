@@ -48,7 +48,7 @@ export type DocumentHandle = {
   editPageLabels: () => void;
 };
 
-type DocumentTabProps = {
+export type DocumentTabProps = {
   id: string;
   paneId: string;
   column: number;

@@ -1,19 +1,19 @@
-import type { DocTab } from "./tabs";
+type ReloadableTab = { path: string | null; stamp: string | null; carriedChanges: boolean };
 
-type ViewerState = { loaded: boolean; modified: boolean; tool: string };
+type ViewerState = { loaded: boolean; modified: boolean; tool?: string };
 
 const unfinishedEditTools = new Set(["draw", "text"]);
 const EOF_MARKER = "%%EOF";
 const EOF_WINDOW = 1024;
 
-export function canReload(tab: DocTab, viewer: ViewerState | undefined, diskStamp: string | null) {
+export function canReload(tab: ReloadableTab, viewer: ViewerState | undefined, diskStamp: string | null) {
   if (!tab.path || !tab.stamp || !diskStamp || diskStamp === tab.stamp) {
     return false;
   }
   if (!viewer?.loaded || viewer.modified || tab.carriedChanges) {
     return false;
   }
-  return !unfinishedEditTools.has(viewer.tool);
+  return !unfinishedEditTools.has(viewer.tool ?? "");
 }
 
 export function looksComplete(bytes: Uint8Array) {

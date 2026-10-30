@@ -1,5 +1,5 @@
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
-import { acceleratorFor, commandById, type CommandId, type MenuName } from "./commands";
+import { acceleratorFor, commandById, documentAvailable, type Command, type CommandId, type MenuName } from "./commands";
 import type { RecentEntry } from "./recent";
 import type { ScrollModeName, SpreadModeName, ViewModes } from "./viewModes";
 
@@ -15,6 +15,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "about",
       "checkUpdates",
       "makeDefault",
+      "makeDefaultMarkdown",
       "-",
       { predefined: "Services" },
       "-",
@@ -76,6 +77,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "showPages",
       "showOutline",
       "toggleDocumentMap",
+      "toggleMarkdownSource",
       "-",
       "splitRight",
       "closeSplit",
@@ -147,6 +149,7 @@ const radioCommands = new Set<CommandId>([...Object.values(scrollModeCommands), 
 
 const checkCommands = new Set<CommandId>([
   "toggleDocumentMap",
+  "toggleMarkdownSource",
   "toggleDarkPages",
   "toggleInvertImages",
   "toggleCaretBrowsing",
@@ -156,6 +159,8 @@ const checkCommands = new Set<CommandId>([
 
 export type MenuState = {
   hasDocument: boolean;
+  hasMarkdown: boolean;
+  markdownSource: boolean;
   split: boolean;
   comparing: boolean;
   documentMap: boolean;
@@ -168,6 +173,7 @@ export type MenuState = {
 export function checkedCommands(state: MenuState): Set<CommandId> {
   const checks: Array<[CommandId, boolean]> = [
     ["toggleDocumentMap", state.documentMap && state.documentMapAvailable],
+    ["toggleMarkdownSource", state.hasMarkdown && state.markdownSource],
     ["toggleDarkPages", state.darkPages],
     ["toggleInvertImages", state.invertImages],
     ["toggleCaretBrowsing", state.caretBrowsing],
@@ -190,7 +196,7 @@ type MenuCallbacks = {
 };
 
 export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu> {
-  const documentItems: Array<MenuItem | CheckMenuItem> = [];
+  const documentItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
   const checkItems = new Map<CommandId, CheckMenuItem>();
   const splitItems: MenuItem[] = [];
   const comparisonItems: MenuItem[] = [];
@@ -213,8 +219,8 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     if (item instanceof CheckMenuItem) {
       checkItems.set(id, item);
     }
-    if (command.needsDocument) {
-      documentItems.push(item);
+    if (command.needsDocument || command.needsMarkdown) {
+      documentItems.push([command, item]);
     }
     if (command.needsSplit && item instanceof MenuItem) {
       splitItems.push(item);
@@ -256,7 +262,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     async setState(state) {
       const checked = checkedCommands(state);
       await Promise.all([
-        ...documentItems.map((item) => item.setEnabled(state.hasDocument)),
+        ...documentItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state))),
         ...splitItems.map((item) => item.setEnabled(state.split)),
         ...comparisonItems.map((item) => item.setEnabled(state.comparing)),
         checkItems.get("toggleDocumentMap")?.setEnabled(state.documentMapAvailable),

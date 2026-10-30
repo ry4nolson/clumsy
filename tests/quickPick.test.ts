@@ -54,6 +54,15 @@ describe("paletteItems", () => {
     expect(ids).toContain("moveTabRight");
   });
 
+  it("lists Markdown commands only for Markdown tabs", () => {
+    const markdown = paletteItems({ hasDocument: false, hasMarkdown: true, split: false, comparing: false, isMac: true }).map((item) => item.id);
+    expect(markdown).toContain("toggleMarkdownSource");
+    expect(markdown).toContain("save");
+    expect(markdown).not.toContain("fitWidth");
+    const pdf = paletteItems({ hasDocument: true, split: false, comparing: false, isMac: true }).map((item) => item.id);
+    expect(pdf).not.toContain("toggleMarkdownSource");
+  });
+
   it("hides the Document Map toggle while the map can't show", () => {
     const context = { hasDocument: true, split: false, comparing: false, isMac: true };
     expect(paletteItems(context).map((item) => item.id)).toContain("toggleDocumentMap");

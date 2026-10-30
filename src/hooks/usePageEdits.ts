@@ -15,7 +15,7 @@ import {
   type PageEdit,
 } from "../lib/pageEdits";
 import { openedFiles, pickImages, type OpenedFile } from "../lib/imageFiles";
-import { imagesIn, imagesToSource, pagesFrom, pdfsIn } from "../lib/imageImport";
+import { imagesIn, imagesToSource, markdownIn, pagesFrom, pdfsIn } from "../lib/imageImport";
 import { remapStops } from "../lib/navHistory";
 import { trimHistory, type Version } from "../lib/pageHistory";
 import { pickPdfs, showContextMenu, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
@@ -355,8 +355,13 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
 
   const dropFiles = useCallback(
     (dropped: DroppedFile[], point: DropPoint | null) => {
-      const files = openedFiles(dropped);
+      const opened = openedFiles(dropped);
+      markdownIn(opened).forEach((source) => openSource(source));
+      const files = opened.filter((file) => file.kind !== "markdown");
       const target = point && dropTargetAt(point);
+      if (!files.length) {
+        return;
+      }
       if (target) {
         insertFiles(target.tabId, files, target.slot);
       } else {

@@ -5,7 +5,7 @@ import { formatRelativeTime, type RecentEntry } from "../lib/recent";
 
 const COLLAPSED_COUNT = 8;
 
-type WelcomeProps = {
+export type WelcomeProps = {
   loading: boolean;
   shortcut: string;
   recent: RecentEntry[] | null;
@@ -43,7 +43,7 @@ export function Welcome({ loading, shortcut, recent, onOpen, onOpenRecent, onRem
             <Info size={16} />
             About Clumsy
           </button>
-          <p className="welcome-hint">Or drop a PDF anywhere in this window.</p>
+          <p className="welcome-hint">Or drop a PDF or Markdown file anywhere in this window.</p>
         </section>
 
         {recent && visible && (
@@ -57,7 +57,7 @@ export function Welcome({ loading, shortcut, recent, onOpen, onOpenRecent, onRem
               )}
             </div>
             {recent.length === 0 ? (
-              <p className="welcome-hint">PDFs you open will show up here.</p>
+              <p className="welcome-hint">Files you open will show up here.</p>
             ) : (
               <ul>
                 {visible.map((entry) => (

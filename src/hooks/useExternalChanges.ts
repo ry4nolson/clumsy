@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { canReload, looksComplete } from "../lib/externalChanges";
-import { fileStamp, isDesktop, readPdfFromPath } from "../lib/platform";
+import { fileStamp, isDesktop, isMarkdownSource, readDocumentFromPath } from "../lib/platform";
+import { isFileTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -9,7 +10,7 @@ const SETTLE_MS = 300;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export function useExternalChanges({ workspaceRef, snapshotsRef, handles, update }: WorkspaceApi) {
+export function useExternalChanges({ workspaceRef, snapshotsRef, markdownHandles, viewStateOf, update }: WorkspaceApi) {
   useEffect(() => {
     if (!isDesktop) {
       return;
@@ -17,34 +18,53 @@ export function useExternalChanges({ workspaceRef, snapshotsRef, handles, update
     let checking = false;
     let disposed = false;
 
+    const viewerState = (tabId: string) => {
+      const tab = workspaceRef.current.tabs[tabId];
+      if (tab?.kind !== "markdown") {
+        return snapshotsRef.current[tabId];
+      }
+      const handle = markdownHandles.current.get(tabId);
+      return handle ? { loaded: true, modified: handle.modified() } : undefined;
+    };
+
     const reloadIfChanged = async (tabId: string) => {
       const tab = workspaceRef.current.tabs[tabId];
-      if (tab?.kind !== "document" || !tab.path) {
+      if (!isFileTab(tab) || !tab.path) {
         return;
       }
       const stamp = await fileStamp(tab.path);
-      if (!canReload(tab, snapshotsRef.current[tabId], stamp)) {
+      if (!canReload(tab, viewerState(tabId), stamp)) {
         return;
       }
       await sleep(SETTLE_MS);
       if (disposed || (await fileStamp(tab.path)) !== stamp) {
         return;
       }
-      const fresh = await readPdfFromPath(tab.path);
+      const fresh = await readDocumentFromPath(tab.path);
       const latest = workspaceRef.current.tabs[tabId];
-      const handle = handles.current.get(tabId);
-      if (disposed || !handle || latest?.kind !== "document" || latest.path !== tab.path || !looksComplete(fresh.data)) {
+      if (disposed || !isFileTab(latest) || latest.kind !== tab.kind || latest.path !== tab.path) {
         return;
       }
-      if (!canReload(latest, snapshotsRef.current[tabId], fresh.stamp ?? null)) {
+      if (!isMarkdownSource(fresh) && !looksComplete(fresh.data)) {
         return;
       }
-      const view = handle.viewer.viewState() ?? latest.view;
+      if (!canReload(latest, viewerState(tabId), fresh.stamp ?? null)) {
+        return;
+      }
+      const view = viewStateOf(latest);
       update((current) => {
         const target = current.tabs[tabId];
-        return target?.kind === "document" && target.path === latest.path
-          ? ws.replaceTab(current, { ...target, source: fresh, stamp: fresh.stamp ?? null, view })
-          : current;
+        if (!isFileTab(target) || target.path !== latest.path) {
+          return current;
+        }
+        const stampOf = fresh.stamp ?? null;
+        if (target.kind === "markdown" && isMarkdownSource(fresh)) {
+          return ws.replaceTab(current, { ...target, source: fresh, stamp: stampOf, view: view && "mode" in view ? view : target.view });
+        }
+        if (target.kind === "document" && !isMarkdownSource(fresh)) {
+          return ws.replaceTab(current, { ...target, source: fresh, stamp: stampOf, view: view && !("mode" in view) ? view : target.view });
+        }
+        return current;
       });
     };
 
@@ -69,5 +89,5 @@ export function useExternalChanges({ workspaceRef, snapshotsRef, handles, update
       window.clearInterval(timer);
       window.removeEventListener("focus", check);
     };
-  }, [handles, snapshotsRef, update, workspaceRef]);
+  }, [markdownHandles, snapshotsRef, update, viewStateOf, workspaceRef]);
 }

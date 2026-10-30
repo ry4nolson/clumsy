@@ -13,7 +13,9 @@ use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, DragDropEvent, Emitter, Manager, Runtime, Window, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, MessageDialogButtons, MessageDialogKind};
 
-use files::{AllowedFolders, AllowedPaths, IMAGE_EXTENSIONS, is_export_image, is_image, is_pdf};
+use files::{
+    AllowedFolders, AllowedPaths, LinkedPaths, IMAGE_EXTENSIONS, MARKDOWN_EXTENSIONS, is_document, is_export_image, is_image, is_markdown, is_pdf,
+};
 use recent::RecentFiles;
 use windows::{Documents, FocusTracker, Transfers, WindowDocuments};
 
@@ -31,7 +33,7 @@ fn allow_paths(app: &AppHandle, paths: &[PathBuf]) {
 }
 
 fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
-    let paths: Vec<PathBuf> = paths.into_iter().filter(|path| is_pdf(path) && path.is_file()).collect();
+    let paths: Vec<PathBuf> = paths.into_iter().filter(|path| is_document(path) && path.is_file()).collect();
     if paths.is_empty() {
         return;
     }
@@ -56,6 +58,17 @@ fn allowed_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool)
     }
 }
 
+fn readable_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool) -> Result<PathBuf, String> {
+    allowed_path(app, path, kind).or_else(|err| {
+        let path = PathBuf::from(path);
+        (kind(&path) && app.state::<LinkedPaths>().0.is_allowed(&path)).then_some(path).ok_or(err)
+    })
+}
+
+fn is_app_url(url: &tauri::Url) -> bool {
+    matches!(url.scheme(), "tauri" | "about") || matches!(url.host_str(), Some("tauri.localhost" | "localhost" | "127.0.0.1"))
+}
+
 fn file_dialog<R: Runtime>(window: &Window<R>) -> FileDialogBuilder<R> {
     let dialog = window.dialog().file();
     #[cfg(any(windows, target_os = "macos"))]
@@ -72,6 +85,14 @@ fn chosen(app: &AppHandle, picked: Option<tauri_plugin_dialog::FilePath>, finish
 #[tauri::command]
 async fn pick_pdf(app: AppHandle, window: Window) -> Option<String> {
     let picked = file_dialog(&window).add_filter("PDF", &["pdf"]).blocking_pick_file();
+    chosen(&app, picked, |path| path)
+}
+
+#[tauri::command]
+async fn pick_document(app: AppHandle, window: Window) -> Option<String> {
+    let picked = file_dialog(&window)
+        .add_filter("PDF and Markdown", &[&["pdf"], &MARKDOWN_EXTENSIONS[..]].concat())
+        .blocking_pick_file();
     chosen(&app, picked, |path| path)
 }
 
@@ -130,11 +151,50 @@ async fn pick_save_path(app: AppHandle, window: Window, suggested_name: String) 
 }
 
 #[tauri::command]
+async fn pick_markdown_save_path(app: AppHandle, window: Window, suggested_name: String) -> Option<String> {
+    let picked = file_dialog(&window)
+        .add_filter("Markdown", &MARKDOWN_EXTENSIONS)
+        .set_file_name(suggested_name)
+        .blocking_save_file();
+    chosen(&app, picked, files::with_markdown_extension)
+}
+
+#[tauri::command]
 async fn read_pdf(app: AppHandle, path: String) -> Result<Response, String> {
-    let path = allowed_path(&app, &path, is_pdf)?;
+    let path = readable_path(&app, &path, is_pdf)?;
     fs::read(&path)
         .map(Response::new)
         .map_err(|err| format!("Could not read {}: {err}", path.display()))
+}
+
+#[tauri::command]
+async fn read_markdown(app: AppHandle, path: String) -> Result<Response, String> {
+    let path = readable_path(&app, &path, is_markdown)?;
+    fs::read(&path)
+        .map(Response::new)
+        .map_err(|err| format!("Could not read {}: {err}", path.display()))
+}
+
+fn linked_target(app: &AppHandle, document: &str, href: &str, kind: fn(&std::path::Path) -> bool) -> Result<PathBuf, String> {
+    let document = readable_path(app, document, is_markdown)?;
+    files::resolve_linked(&document, href)
+        .filter(|path| kind(path))
+        .ok_or_else(|| format!("Could not find {href}"))
+}
+
+#[tauri::command]
+async fn read_linked_image(app: AppHandle, document: String, src: String) -> Result<Response, String> {
+    let path = linked_target(&app, &document, &src, is_image)?;
+    fs::read(&path)
+        .map(Response::new)
+        .map_err(|err| format!("Could not read {}: {err}", path.display()))
+}
+
+#[tauri::command]
+async fn open_linked_file(app: AppHandle, document: String, href: String) -> Result<String, String> {
+    let path = linked_target(&app, &document, &href, is_document)?;
+    app.state::<LinkedPaths>().0.allow(&path);
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -147,7 +207,7 @@ async fn read_image(app: AppHandle, path: String) -> Result<Response, String> {
 
 #[tauri::command]
 async fn file_stamp(app: AppHandle, path: String) -> Result<Option<String>, String> {
-    Ok(files::stamp(&allowed_path(&app, &path, is_pdf)?))
+    Ok(files::stamp(&readable_path(&app, &path, is_document)?))
 }
 
 fn header<'a>(request: &'a Request<'_>, name: &str) -> Option<&'a str> {
@@ -156,13 +216,22 @@ fn header<'a>(request: &'a Request<'_>, name: &str) -> Option<&'a str> {
 
 #[tauri::command]
 async fn write_pdf(app: AppHandle, request: Request<'_>) -> Result<String, String> {
+    write_document(&app, &request, is_pdf)
+}
+
+#[tauri::command]
+async fn write_markdown(app: AppHandle, request: Request<'_>) -> Result<String, String> {
+    write_document(&app, &request, is_markdown)
+}
+
+fn write_document(app: &AppHandle, request: &Request<'_>, kind: fn(&std::path::Path) -> bool) -> Result<String, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
-        return Err("Expected raw PDF bytes".into());
+        return Err("Expected raw document bytes".into());
     };
-    let encoded = header(&request, "x-path").ok_or("Missing destination path")?;
+    let encoded = header(request, "x-path").ok_or("Missing destination path")?;
     let decoded = percent_decode_str(encoded).decode_utf8().map_err(|err| err.to_string())?;
-    let path = allowed_path(&app, &decoded, is_pdf)?;
-    files::write_atomically(&path, bytes, header(&request, "x-expected-stamp"))
+    let path = allowed_path(app, &decoded, kind).map_err(|err| if readable_path(app, &decoded, kind).is_ok() { files::NOT_WRITABLE.into() } else { err })?;
+    files::write_atomically(&path, bytes, header(request, "x-expected-stamp"))
 }
 
 fn image_target(app: &AppHandle, request: &Request<'_>) -> Result<(PathBuf, bool), String> {
@@ -204,7 +273,7 @@ async fn existing_files(app: AppHandle, folder: String, names: Vec<String>) -> R
 #[tauri::command]
 async fn stash_transfer(request: Request<'_>, transfers: tauri::State<'_, Transfers>) -> Result<String, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
-        return Err("Expected raw PDF bytes".into());
+        return Err("Expected raw document bytes".into());
     };
     Ok(transfers.stash(bytes.clone()))
 }
@@ -256,13 +325,13 @@ fn request_quit(app: AppHandle) {
 }
 
 #[tauri::command]
-fn default_pdf_app(app: AppHandle) -> default_app::DefaultAppStatus {
-    default_app::status(&app.config().identifier)
+fn default_app_status(app: AppHandle, kind: String) -> Result<default_app::DefaultAppStatus, String> {
+    Ok(default_app::status(&default_app::document_kind(&kind)?, &app.config().identifier))
 }
 
 #[tauri::command]
-fn make_default_pdf_app(app: AppHandle) -> Result<default_app::DefaultAppStatus, String> {
-    default_app::make_default(&app.config().identifier)
+fn make_default_app(app: AppHandle, kind: String) -> Result<default_app::DefaultAppStatus, String> {
+    default_app::make_default(&default_app::document_kind(&kind)?, &app.config().identifier)
 }
 
 #[tauri::command]
@@ -272,7 +341,7 @@ fn recent_files(app: AppHandle) -> Vec<recent::RecentEntry> {
 
 #[tauri::command]
 fn record_recent_file(app: AppHandle, path: String) {
-    if allowed_path(&app, &path, is_pdf).is_ok() {
+    if allowed_path(&app, &path, is_document).is_ok() {
         app.state::<RecentFiles>().add(&app, &path);
     }
 }
@@ -303,6 +372,8 @@ pub fn run() {
         .manage(Transfers::default())
         .manage(AllowedPaths::default())
         .manage(AllowedFolders::default())
+        .manage(LinkedPaths::default())
+        .plugin(tauri::plugin::Builder::<tauri::Wry>::new("navigation-guard").on_navigation(|_, url| is_app_url(url)).build())
         .manage(Documents::default())
         .manage(QuitPrompt::default())
         .on_window_event(|window, event| match event {
@@ -327,23 +398,29 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             take_pending_files,
             pick_pdf,
+            pick_document,
             pick_pdfs,
             pick_image,
             pick_images,
             pick_folder,
             pick_image_save_path,
             pick_save_path,
+            pick_markdown_save_path,
             read_pdf,
+            read_markdown,
+            read_linked_image,
+            open_linked_file,
             read_image,
             file_stamp,
             write_pdf,
+            write_markdown,
             write_image,
             existing_files,
             report_documents,
             document_window,
             request_quit,
-            default_pdf_app,
-            make_default_pdf_app,
+            default_app_status,
+            make_default_app,
             recent_files,
             record_recent_file,
             remove_recent_file,
@@ -365,7 +442,17 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::discard_prompt;
+    use super::{discard_prompt, is_app_url};
+
+    #[test]
+    fn keeps_windows_on_the_app() {
+        for url in ["tauri://localhost/index.html?transfer=1", "http://tauri.localhost/", "http://localhost:1420/", "about:blank"] {
+            assert!(is_app_url(&url.parse().unwrap()), "{url}");
+        }
+        for url in ["https://evil.example/", "file:///etc/passwd", "http://localhost.evil.example/"] {
+            assert!(!is_app_url(&url.parse().unwrap()), "{url}");
+        }
+    }
 
     #[test]
     fn names_the_documents_that_would_be_discarded() {

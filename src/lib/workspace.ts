@@ -1,4 +1,4 @@
-export type WorkspaceTab = { id: string; kind: "start" | "document" };
+export type WorkspaceTab = { id: string; kind: "start" | "document" | "markdown" };
 
 export type Pane = { id: string; tabIds: string[]; activeTabId: string; size: number };
 
@@ -211,7 +211,7 @@ export function closeSplit<T extends WorkspaceTab>(workspace: Workspace<T>): Wor
     return workspace;
   }
   const [first, ...others] = workspace.panes;
-  const extra = others.flatMap((pane) => pane.tabIds).filter((id) => workspace.tabs[id].kind === "document");
+  const extra = others.flatMap((pane) => pane.tabIds).filter((id) => workspace.tabs[id].kind !== "start");
   const keep = new Set([...first.tabIds, ...extra]);
   const tabs = Object.fromEntries(Object.entries(workspace.tabs).filter(([id]) => keep.has(id))) as Record<string, T>;
   const focused = focusedPane(workspace).activeTabId;

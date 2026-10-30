@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { AboutDialog, type AboutRequest, type AboutTab } from "./components/AboutDialog";
-import { DocumentTab } from "./components/DocumentTab";
 import { ExportImagesDialog } from "./components/ExportImagesDialog";
 import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
@@ -8,16 +7,17 @@ import { QuickPick } from "./components/QuickPick";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import type { SidebarTab } from "./components/Sidebar";
 import { SignatureDialog } from "./components/SignatureDialog";
+import { TabContents } from "./components/TabContents";
 import { UpdateDialog } from "./components/UpdateDialog";
 import type { TabItem } from "./components/TabStrip";
 import { Toolbar } from "./components/Toolbar";
-import { Welcome } from "./components/Welcome";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useComparison } from "./hooks/useComparison";
 import { colorParams, useEditorOptions } from "./hooks/useEditorOptions";
 import { useExternalChanges } from "./hooks/useExternalChanges";
 import { useImageExport } from "./hooks/useImageExport";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useMarkdownCommands } from "./hooks/useMarkdownCommands";
 import { usePageEdits } from "./hooks/usePageEdits";
 import { useSaveAll, useSaveDocument } from "./hooks/useSaveDocument";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
@@ -30,7 +30,7 @@ import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useViewControls } from "./hooks/useViewControls";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { hasCaret, moveCaretToEdge } from "./lib/caret";
-import { commandById, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
+import { commandById, documentAvailable, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
 import { openDocumentWindow } from "./lib/documentWindows";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import { pickImage } from "./lib/imageFiles";
@@ -45,8 +45,8 @@ import {
   onOpenedFiles,
   onShowDocument,
   openExternal,
-  pickPdf,
-  readPdfFromPath,
+  pickDocument,
+  readDocumentFromPath,
   removeRecentFile,
   reportDocuments,
   requestQuit,
@@ -54,7 +54,7 @@ import {
   setWindowTitle,
 } from "./lib/platform";
 import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
-import { createPaneId, createStartTab, isModified } from "./lib/tabs";
+import { createPaneId, createStartTab, isFileTab, isModified } from "./lib/tabs";
 import * as ws from "./lib/workspace";
 import { repoUrl } from "./lib/updates";
 
@@ -63,9 +63,12 @@ export default function App() {
   const {
     workspace,
     snapshots,
+    markdownSnapshots,
     workspaceRef,
     activeHandle,
+    activeMarkdown,
     setHandle,
+    setMarkdownHandle,
     hasUnsavedChanges,
     update,
     selectTab,
@@ -77,8 +80,10 @@ export default function App() {
     handleLoaded,
     handleFailed,
     handleSnapshot,
+    handleMarkdownSnapshot,
     moveTab,
   } = workspaceApi;
+  const markdown = useMarkdownCommands(workspaceApi);
   const pageEdits = usePageEdits(workspaceApi);
   const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi, pageEdits.settled);
   useExternalChanges(workspaceApi);
@@ -113,6 +118,10 @@ export default function App() {
   const activeTab = ws.focusedTab(workspace);
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
+  const markdownSnapshot = activeTab.kind === "markdown" ? markdownSnapshots[activeTab.id] : undefined;
+  const hasMarkdown = !!markdownSnapshot;
+  const allSnapshots = { ...snapshots, ...markdownSnapshots };
+  const findOpen = !!(activeSnapshot?.findOpen || markdownSnapshot?.findOpen);
   const viewMenuState = viewControls.menuState(hasDocument ? activeSnapshot : undefined);
   const editorOptions = useEditorOptions(activeViewer, activeSnapshot);
 
@@ -124,26 +133,23 @@ export default function App() {
   const toolColorParam = colorParams[activeSnapshot?.tool ?? "select"];
 
   const toggleFind = () => {
-    const handle = activeHandle();
-    if (!handle || !hasDocument) {
-      return;
-    }
-    if (activeSnapshot?.findOpen) {
-      handle.closeFind();
+    const handle = hasMarkdown ? activeMarkdown() : hasDocument ? activeHandle() : undefined;
+    if (findOpen) {
+      handle?.closeFind();
     } else {
-      handle.openFind();
+      handle?.openFind();
     }
   };
 
-  const windowTitle = activeTab.kind === "document" ? `${activeTab.name}${isModified(activeTab, snapshots) ? " — Edited" : ""}` : "Clumsy";
+  const windowTitle = isFileTab(activeTab) ? `${activeTab.name}${isModified(activeTab, allSnapshots) ? " — Edited" : ""}` : "Clumsy";
 
   useEffect(() => {
     setWindowTitle(windowTitle);
   }, [windowTitle]);
 
-  const documentTabs = ws.orderedTabs(workspace).flatMap((tab) => (tab.kind === "document" ? [tab] : []));
+  const documentTabs = ws.orderedTabs(workspace).filter(isFileTab);
   const openPaths = documentTabs.flatMap((tab) => (tab.path ? [tab.path] : []));
-  const unsavedNames = documentTabs.filter((tab) => isModified(tab, snapshots)).map((tab) => tab.name);
+  const unsavedNames = documentTabs.filter((tab) => isModified(tab, allSnapshots)).map((tab) => tab.name);
   const documentReport = JSON.stringify([openPaths, unsavedNames]);
 
   useEffect(() => {
@@ -153,11 +159,11 @@ export default function App() {
 
   useEffect(() => {
     const modifiedNames = () =>
-      ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" && hasUnsavedChanges(tab) ? [tab.name] : []));
+      ws.orderedTabs(workspaceRef.current).flatMap((tab) => (isFileTab(tab) && hasUnsavedChanges(tab) ? [tab.name] : []));
     const cleanups: Array<Promise<() => void>> = [
       onOpenedFiles(async (paths) => {
         for (const path of paths) {
-          await openSourceRef.current(readPdfFromPath(path));
+          await openSourceRef.current(readDocumentFromPath(path));
         }
       }),
       onFileDrop(
@@ -181,6 +187,7 @@ export default function App() {
 
   const quickPick = useQuickPick({
     hasDocument,
+    hasMarkdown,
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
     documentMapAvailable: viewMenuState.documentMapAvailable,
@@ -195,6 +202,9 @@ export default function App() {
   });
 
   const editingCommand = (name: "undo" | "redo") => {
+    if (markdown.editingCommand(name)) {
+      return;
+    }
     if (isTypingTarget(document.activeElement)) {
       document.execCommand(name);
     } else if (!pageEdits.stepHistory(name)) {
@@ -206,7 +216,11 @@ export default function App() {
 
   const runCommand = (id: CommandId, fromMenu = false) => {
     const handle = activeHandle();
-    if (commandById.get(id)?.needsDocument && (!handle || !hasDocument || !activeSnapshot)) {
+    const command = commandById.get(id);
+    if (command && !documentAvailable(command, { hasDocument: hasDocument && !!handle, hasMarkdown })) {
+      return;
+    }
+    if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
     if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || imageExport.runExportCommand(id)) {
@@ -226,19 +240,20 @@ export default function App() {
       about: () => openAbout("about"),
       checkUpdates: () => openAbout("about", true),
       makeDefault: () => requestDefaultApp(),
+      makeDefaultMarkdown: () => requestDefaultApp("markdown"),
       newTab: () => newTab(),
       reopenClosedTab: () => {
         const closed = takeClosedTab();
         if (closed) {
-          openSource(readPdfFromPath(closed.path), { view: closed.view });
+          openSource(readDocumentFromPath(closed.path), { view: closed.view });
         }
       },
       newWindow: () => openDocumentWindow(null),
       moveTabToNewWindow: () => moveTabToWindow(ws.focusedTab(workspaceRef.current).id, {}),
-      open: () => openSource(pickPdf()),
+      open: () => openSource(pickDocument()),
       closeTab: () => (infoSheet ? setInfoSheet(null) : closeTab(ws.focusedTab(workspaceRef.current).id)),
       quit: async () => {
-        const tabs = ws.orderedTabs(workspaceRef.current).flatMap((tab) => (tab.kind === "document" ? [tab] : []));
+        const tabs = ws.orderedTabs(workspaceRef.current).filter(isFileTab);
         const unsaved = tabs.filter((tab) => hasUnsavedChanges(tab)).map((tab) => tab.name);
         await reportDocuments(tabs.flatMap((tab) => (tab.path ? [tab.path] : [])), unsaved);
         await requestQuit();
@@ -247,7 +262,7 @@ export default function App() {
       save: () => save(false),
       saveAs: () => save(true),
       saveAll: () => saveAll(),
-      revealInFinder: () => activeTab.kind === "document" && activeTab.path && revealInFinder(activeTab.path),
+      revealInFinder: () => isFileTab(activeTab) && activeTab.path && revealInFinder(activeTab.path),
       undo: () => editingCommand("undo"),
       redo: () => editingCommand("redo"),
       find: () => handle?.openFind(),
@@ -290,8 +305,8 @@ export default function App() {
       nextTab: () => update((current) => ws.cycleTabs(current, 1)),
       previousTab: () => update((current) => ws.cycleTabs(current, -1)),
       splitRight: () => {
-        if (activeTab.kind === "document" && activeTab.path) {
-          openSource(readPdfFromPath(activeTab.path), { split: true });
+        if (isFileTab(activeTab) && activeTab.path) {
+          openSource(readDocumentFromPath(activeTab.path), { split: true, view: activeTab.kind === "markdown" ? workspaceApi.viewStateOf(activeTab) : undefined });
         } else {
           update((current) => ws.splitWithTab(current, createStartTab(), createPaneId()));
         }
@@ -316,6 +331,8 @@ export default function App() {
     { onCommand: (id) => runCommand(id, true), onOpenRecent: openRecent },
     {
       hasDocument,
+      hasMarkdown,
+      markdownSource: markdownSnapshot?.mode === "source",
       split: workspace.panes.length > 1,
       comparing: comparison.comparing,
       documentMap,
@@ -327,7 +344,9 @@ export default function App() {
   );
 
   useKeyboardShortcuts(isMac, (id) => runCommandRef.current(id), (typing) => {
-    if (activeSnapshot?.findOpen) {
+    if (markdownSnapshot?.findOpen) {
+      activeMarkdown()?.closeFind();
+    } else if (activeSnapshot?.findOpen) {
       activeHandle()?.closeFind();
     } else if (!typing && hasDocument && activeSnapshot?.tool !== "select") {
       activeHandle()?.viewer.setTool("select");
@@ -341,11 +360,11 @@ export default function App() {
         ? { id: tab.id, kind: "start", title: "Start", loading: false, modified: false }
         : {
             id: tab.id,
-            kind: "document",
+            kind: tab.kind,
             title: tab.name,
             tooltip: tab.path ?? tab.name,
-            loading: !snapshots[tab.id]?.loaded,
-            modified: isModified(tab, snapshots),
+            loading: !allSnapshots[tab.id]?.loaded,
+            modified: isModified(tab, allSnapshots),
           },
     ]),
   );
@@ -357,8 +376,9 @@ export default function App() {
       <Toolbar
         titlebarInset={hasOverlayTitlebar && !fullscreen}
         hasDocument={hasDocument}
+        markdownMode={markdownSnapshot?.mode ?? null}
         sidebarOpen={sidebarOpen}
-        findOpen={!!activeSnapshot?.findOpen}
+        findOpen={findOpen}
         darkPages={darkPages}
         darkPagesImages={darkPagesImages}
         onDarkPagesImages={setDarkPagesImages}
@@ -372,7 +392,7 @@ export default function App() {
         editorParams={editorOptions.shown}
         onEditorParam={editorOptions.change}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        onOpen={() => openSource(pickPdf())}
+        onOpen={() => openSource(pickDocument())}
         onSave={() => save(false)}
         onPage={(page) => viewer?.goToPage(page, true)}
         onZoom={(direction) => viewer?.zoom(direction)}
@@ -384,6 +404,7 @@ export default function App() {
         onSign={() => setSignatureOpen(true)}
         onToggleFind={toggleFind}
         onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
+        onToggleSource={() => activeMarkdown()?.toggleSource()}
       />
       <PaneGrid
         panes={workspace.panes}
@@ -399,71 +420,43 @@ export default function App() {
         onResize={(sizes) => update((current) => ws.resizePanes(current, sizes))}
         onTearOff={tearOffTab}
       >
-        {workspace.panes.flatMap((pane, index) =>
-          pane.tabIds.map((tabId) => {
-            const tab = workspace.tabs[tabId];
-            const active = tabId === pane.activeTabId;
-            const column = index * 2 + 1;
-            return tab.kind === "start" ? (
-              <div
-                key={tab.id}
-                className={`document-tab${active ? "" : " inactive"}`}
-                inert={!active}
-                data-pane-id={pane.id}
-                style={{ gridColumn: column }}
-              >
-                <div className="empty-state">
-                  <Welcome
-                    loading={false}
-                    shortcut={shortcutFor("open", isMac) ?? ""}
-                    recent={recentFiles}
-                    onOpen={() => openSource(pickPdf())}
-                    onOpenRecent={openRecent}
-                    onRemoveRecent={(entry) => removeRecentFile(entry.path)}
-                    onClearRecent={() => clearRecentFiles()}
-                    onAbout={() => openAbout("about")}
-                  />
-                </div>
-              </div>
-            ) : (
-              <DocumentTab
-                key={tab.id}
-                ref={(handle) => setHandle(tab.id, handle)}
-                id={tab.id}
-                paneId={pane.id}
-                column={column}
-                source={tab.source}
-                initialView={tab.view}
-                initialSelection={tab.selection}
-                active={active}
-                sidebarOpen={sidebarOpen}
-                sidebarTab={sidebarTab}
-                onSidebarTab={setSidebarTab}
-                documentMap={documentMap}
-                darkPages={darkPages}
-                keepImages={darkPagesImages === "keep"}
-                defaultModes={viewControls.defaultModes}
-                caretBrowsing={viewControls.caretBrowsing && pane.id === workspace.focusedPaneId}
-                editorDefaults={editorOptions.remembered}
-                onDocumentSidebar={showSidebar}
-                requestPassword={passwords.requestPassword}
-                onSnapshot={handleSnapshot}
-                onLoaded={(id, source) => {
-                  handleLoaded(id);
-                  pageEdits.documentLoaded(id, source);
-                }}
-                onFailed={(id, error, source) => {
-                  if (!pageEdits.documentFailed(id, source)) {
-                    handleFailed(id, error);
-                  }
-                }}
-                onOpenUrl={openExternal}
-                onPageAction={(id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command))}
-                compare={comparison.viewFor(tab.id)}
-              />
-            );
-          }),
-        )}
+        <TabContents
+          workspace={workspace}
+          welcome={{
+            shortcut: shortcutFor("open", isMac) ?? "",
+            recent: recentFiles,
+            onOpen: () => openSource(pickDocument()),
+            onOpenRecent: openRecent,
+            onRemoveRecent: (entry) => removeRecentFile(entry.path),
+            onClearRecent: () => clearRecentFiles(),
+            onAbout: () => openAbout("about"),
+          }}
+          documentProps={{
+            sidebarOpen,
+            sidebarTab,
+            onSidebarTab: setSidebarTab,
+            documentMap,
+            darkPages,
+            keepImages: darkPagesImages === "keep",
+            defaultModes: viewControls.defaultModes,
+            editorDefaults: editorOptions.remembered,
+            onDocumentSidebar: showSidebar,
+            requestPassword: passwords.requestPassword,
+            onSnapshot: handleSnapshot,
+            onLoaded: (id, source) => {
+              handleLoaded(id);
+              pageEdits.documentLoaded(id, source);
+            },
+            onFailed: (id, error, source) => !pageEdits.documentFailed(id, source) && handleFailed(id, error),
+            onOpenUrl: openExternal,
+            onPageAction: (id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command)),
+          }}
+          markdownProps={{ sidebarOpen, documentMap, onSnapshot: handleMarkdownSnapshot, onLoaded: handleLoaded, onOpenUrl: openExternal, onOpenFile: markdown.openLinked }}
+          caretBrowsing={viewControls.caretBrowsing}
+          compareFor={comparison.viewFor}
+          setHandle={setHandle}
+          setMarkdownHandle={setMarkdownHandle}
+        />
       </PaneGrid>
       <SignatureDialog
         open={signatureOpen}

@@ -1,6 +1,6 @@
-import type { ViewState } from "./documentWindows";
+import type { AnyViewState } from "./tabs";
 
-export type ClosedTab = { path: string; view?: ViewState };
+export type ClosedTab = { path: string; view?: AnyViewState };
 
 export const CLOSED_TAB_LIMIT = 20;
 

@@ -1,21 +1,21 @@
-import { commands, displayCombo, type CommandId } from "./commands";
+import { commandAvailable, commands, displayCombo, type CommandContext, type CommandId } from "./commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "./pageLabels";
 import type { RecentEntry } from "./recent";
 
 export type QuickPickItem = { id: string; label: string; detail?: string; hint?: string | null };
 
-export type PaletteContext = { hasDocument: boolean; split: boolean; comparing: boolean; isMac: boolean; documentMapAvailable?: boolean };
+export type PaletteContext = CommandContext & { isMac: boolean; documentMapAvailable?: boolean };
 
 const hiddenFromPalette = new Set<CommandId>(["escape", "commandPalette"]);
 
-export function paletteItems({ hasDocument, split, comparing, isMac, documentMapAvailable = true }: PaletteContext, recentIds: CommandId[] = []): QuickPickItem[] {
+export function paletteItems({ isMac, documentMapAvailable = true, ...context }: PaletteContext, recentIds: CommandId[] = []): QuickPickItem[] {
   const rank = (id: CommandId, menu: string | null) => {
     const recent = recentIds.indexOf(id);
     return recent >= 0 ? recent - recentIds.length : menu === "Clumsy" ? 1 : 0;
   };
   return commands
     .filter((command) => command.menu && !hiddenFromPalette.has(command.id))
-    .filter((command) => (hasDocument || !command.needsDocument) && (split || !command.needsSplit) && (comparing || !command.needsComparison))
+    .filter((command) => commandAvailable(command, context))
     .filter((command) => documentMapAvailable || command.id !== "toggleDocumentMap")
     .map((command, order) => ({ command, order, rank: rank(command.id, command.menu) }))
     .sort((a, b) => a.rank - b.rank || a.order - b.order)

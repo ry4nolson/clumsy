@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { acceleratorFor, commands, comboFromEvent, displayCombo, movesCaret, resolveCommand, shortcutFor, type KeyInput } from "../src/lib/commands";
+import {
+  acceleratorFor,
+  commandAvailable,
+  commandById,
+  commands,
+  comboFromEvent,
+  displayCombo,
+  movesCaret,
+  resolveCommand,
+  shortcutFor,
+  type CommandId,
+  type KeyInput,
+} from "../src/lib/commands";
 
 const codeFor = (key: string) => {
   if (/^[a-z]$/i.test(key)) return `Key${key.toUpperCase()}`;
@@ -47,6 +59,31 @@ describe("command table", () => {
         expect(accelerator).toMatch(/^(((Ctrl|Shift|Alt|CmdOrCtrl)\+)+([A-Z0-9]|Equal|Minus|Backslash|BracketLeft|BracketRight|Slash|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Tab|F\d{1,2})|F\d{1,2})$/);
       }
     }
+  });
+});
+
+describe("commandAvailable", () => {
+  const available = (id: CommandId, context: Parameters<typeof commandAvailable>[1]) => commandAvailable(commandById.get(id)!, context);
+  const markdownTab = { hasDocument: false, hasMarkdown: true, split: false, comparing: false };
+  const pdfTab = { hasDocument: true, hasMarkdown: false, split: false, comparing: false };
+
+  it("offers file commands for Markdown tabs and keeps PDF-only ones off", () => {
+    for (const id of ["save", "saveAs", "find", "findNext", "toggleSidebar", "showOutline", "zoomIn", "firstPage", "toggleMarkdownSource"] as const) {
+      expect(available(id, markdownTab), id).toBe(true);
+    }
+    for (const id of ["fitWidth", "rotateRight", "toolHighlight", "deletePages", "exportPagesAsImages", "compareWithFile", "goToPage", "showPages"] as const) {
+      expect(available(id, markdownTab), id).toBe(false);
+    }
+  });
+
+  it("only offers the source toggle for Markdown tabs", () => {
+    expect(available("toggleMarkdownSource", pdfTab)).toBe(false);
+    expect(available("fitWidth", pdfTab)).toBe(true);
+    expect(available("open", { ...pdfTab, hasDocument: false })).toBe(true);
+  });
+
+  it("binds the source toggle to VS Code's preview shortcut", () => {
+    expect(resolveCommand({ key: "V", code: "KeyV", metaKey: true, ctrlKey: false, shiftKey: true, altKey: false }, true, false)).toBe("toggleMarkdownSource");
   });
 });
 

@@ -26,6 +26,8 @@ describe("menu layout", () => {
 describe("checkedCommands", () => {
   const state: MenuState = {
     hasDocument: true,
+    hasMarkdown: false,
+    markdownSource: false,
     split: false,
     comparing: false,
     documentMap: true,
@@ -43,5 +45,11 @@ describe("checkedCommands", () => {
 
   it("clears the mode checks without a document and the map check when it can't show", () => {
     expect([...checkedCommands({ ...state, hasDocument: false, documentMapAvailable: false, caretBrowsing: true })]).toEqual(["toggleCaretBrowsing"]);
+  });
+
+  it("checks Markdown Source only while a Markdown tab shows its source", () => {
+    expect(checkedCommands({ ...state, markdownSource: true }).has("toggleMarkdownSource")).toBe(false);
+    expect(checkedCommands({ ...state, hasMarkdown: true, markdownSource: true }).has("toggleMarkdownSource")).toBe(true);
+    expect(checkedCommands({ ...state, hasMarkdown: true }).has("toggleMarkdownSource")).toBe(false);
   });
 });

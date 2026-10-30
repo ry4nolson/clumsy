@@ -4,6 +4,13 @@ export type DefaultAppStatus = {
   currentApp: string | null;
 };
 
+export type DefaultAppKind = "pdf" | "markdown";
+
+export const defaultAppWords: Record<DefaultAppKind, { label: string; files: string; file: string }> = {
+  pdf: { label: "PDF", files: "PDFs", file: "a PDF" },
+  markdown: { label: "Markdown", files: "Markdown files", file: "a Markdown file" },
+};
+
 export type DefaultAppPreference = { state: "never" } | { state: "snoozed"; until: number } | null;
 
 export const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
