@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-10-30
+
 ### Fixed
 - Restarting after an update puts each window back where it was and focuses the one you were using, and still names any document it couldn't reopen
 - An unsaved document whose folder was moved or renamed comes back after a restart as an unsaved copy instead of being left out
