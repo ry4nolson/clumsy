@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **About** lists more of what Clumsy does: page changes, comparing documents, Markdown, and tabs, splits, and windows
+
 ## [0.8.0] - 2026-10-30
 
 ### Added

@@ -34,6 +34,10 @@ const features = [
   "Highlights, notes & drawing",
   "Fill forms & sign",
   "Saves straight back into the PDF",
+  "Reorder, insert & combine pages",
+  "Compare two documents",
+  "Markdown with a source toggle",
+  "Tabs, splits & windows",
 ];
 
 const links = [
