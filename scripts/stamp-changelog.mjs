@@ -7,21 +7,25 @@ import { pathToFileURL } from "node:url";
 
 const UNRELEASED = /^## \[Unreleased\][^\n]*\n/im;
 
-export function stampChangelog(content, version, date) {
+export function unreleasedSection(content) {
   const match = UNRELEASED.exec(content);
   if (!match) {
-    return { content, notes: "" };
+    return null;
   }
   const bodyStart = match.index + match[0].length;
   const nextHeading = content.slice(bodyStart).search(/^## \[/m);
   const bodyEnd = nextHeading === -1 ? content.length : bodyStart + nextHeading;
-  const body = content.slice(bodyStart, bodyEnd).trim();
-  if (!/^\s*[-*] /m.test(body)) {
+  return { start: match.index, end: bodyEnd, body: content.slice(bodyStart, bodyEnd).trim() };
+}
+
+export function stampChangelog(content, version, date) {
+  const section = unreleasedSection(content);
+  if (!section || !/^\s*[-*] /m.test(section.body)) {
     return { content, notes: "" };
   }
-  const rest = content.slice(bodyEnd);
-  const stamped = `${content.slice(0, match.index)}## [Unreleased]\n\n## [${version}] - ${date}\n\n${body}\n${rest ? `\n${rest}` : ""}`;
-  return { content: stamped, notes: body };
+  const rest = content.slice(section.end);
+  const stamped = `${content.slice(0, section.start)}## [Unreleased]\n\n## [${version}] - ${date}\n\n${section.body}\n${rest ? `\n${rest}` : ""}`;
+  return { content: stamped, notes: section.body };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

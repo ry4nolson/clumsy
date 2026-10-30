@@ -69,7 +69,7 @@ jobs:
       - name: Determine version
         run: |
           PREVIOUS_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
-          VERSION="$(./scripts/next-version.sh)"
+          VERSION="$(node scripts/next-version.mjs)"
           echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           node scripts/set-version.mjs "$VERSION"

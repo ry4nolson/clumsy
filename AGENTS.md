@@ -63,7 +63,7 @@ src-tauri/src/
   default_app.rs             Launch Services: read/set the default PDF handler
   windows.rs                 last-focused document window, open-document registry, tab-transfer byte stash
 scripts/
-  next-version.sh            computes the next release version
+  next-version.mjs           computes the next release version from the latest tag and [Unreleased]
   set-version.mjs            writes that version into package.json, tauri.conf.json, and Cargo.toml/lock
   stamp-changelog.mjs        moves [Unreleased] under a release heading
   create-dmg.sh              branded DMG via Homebrew create-dmg (scripts/dmg/background.png)
@@ -110,7 +110,7 @@ tests/                       vitest unit tests for src/lib and scripts
 
 Every push to `main` builds, signs, notarizes, and publishes a GitHub release (`.github/workflows/release.yml`). Pull requests run `ci.yml` instead.
 
-- **Versioning** (`scripts/next-version.sh`): bump the patch of the latest `vX.Y.Z` tag. To jump to a new minor or major, set `version` in `src-tauri/tauri.conf.json` (for example `0.3.0`); the next push releases exactly that and later pushes continue from it. Don't hand-edit `package.json` or `Cargo.toml` for releases — the workflow keeps them in sync.
+- **Versioning** (`scripts/next-version.mjs`): the bump comes from the changelog, so nobody picks version numbers. If `[Unreleased]` has an entry under `### Added`, the release bumps the minor of the latest `vX.Y.Z` tag (0.4.2 → 0.5.0); otherwise it bumps the patch (0.5.0 → 0.5.1). Feature branches and parallel sessions never edit version numbers: they only add entries under the right heading, and whatever has landed on `main` when the release runs decides the bump. Use `### Added` for new capabilities (commands, menu items, file formats, tools), not for improvements to existing ones, which go under `### Changed`. Major versions are manual: set `version` in `src-tauri/tauri.conf.json` (for example `1.0.0`); a version there that's ahead of the latest tag is released exactly, and later pushes continue from it. Don't hand-edit `package.json` or `Cargo.toml` for releases — the workflow keeps them in sync.
 - **Changelog**: add user-facing changes under `## [Unreleased]` in `CHANGELOG.md` (Keep a Changelog sections: Added / Changed / Fixed / Removed; `**bold**` renders in the app). On release, the workflow moves those entries under `## [x.y.z] - date`, builds with the stamped file so What's New is correct, uses that section as the release notes, then commits the changelog and version files back to `main` as `Release vx.y.z`. If `[Unreleased]` is empty, the notes list commit subjects instead, but the version files are still committed.
 - **If you've edited `CHANGELOG.md` locally while a release ran**, the pull can silently merge your new entries into the just-stamped version section. Check that they're still under `[Unreleased]` after pulling.
 - **After every release `origin/main` is one commit ahead** (the version + changelog commit). Run `git pull --rebase` before pushing again, or set `git config pull.rebase true`. Pushes made with the workflow's `GITHUB_TOKEN` don't trigger new workflow runs, so there's no release loop.
