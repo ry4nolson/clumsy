@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-30
+
 ### Added
 - **Scrolling and spreads**: View > Vertical, Horizontal, Wrapped, or Page Scrolling, and No, Odd, or Even Spreads. Each tab keeps its own, and new tabs start with your last choice. The Document Map shows spreads side by side; it hides in horizontal and page scrolling, and linked scrolling in a comparison pauses until both sides scroll up and down again
 - **Go Back and Go Forward** (⌃- / ⌃⇧-, or the mouse's back and forward buttons) retrace jumps from links, the outline, Go to Page, first and last page, search results, and comparison changes. Each tab keeps its own history, even when it moves to another window
