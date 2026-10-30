@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AboutTab } from "./components/AboutWindow";
 import { DocumentTab } from "./components/DocumentTab";
+import { ExportImagesDialog } from "./components/ExportImagesDialog";
 import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { QuickPick } from "./components/QuickPick";
@@ -14,6 +15,7 @@ import { useAppMenu } from "./hooks/useAppMenu";
 import { useComparison } from "./hooks/useComparison";
 import { colorParams, useEditorOptions } from "./hooks/useEditorOptions";
 import { useExternalChanges } from "./hooks/useExternalChanges";
+import { useImageExport } from "./hooks/useImageExport";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { usePageEdits } from "./hooks/usePageEdits";
 import { useSaveAll, useSaveDocument } from "./hooks/useSaveDocument";
@@ -30,6 +32,7 @@ import { hasCaret, moveCaretToEdge } from "./lib/caret";
 import { commandById, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
 import { openDocumentWindow } from "./lib/documentWindows";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
+import { pickImage } from "./lib/imageFiles";
 import {
   clearRecentFiles,
   closeFocusedAuxWindow,
@@ -43,7 +46,6 @@ import {
   onShowDocument,
   openAuxWindow,
   openExternal,
-  pickImage,
   pickPdf,
   readPdfFromPath,
   removeRecentFile,
@@ -82,6 +84,7 @@ export default function App() {
   const { moveTabToWindow, tearOffTab } = useTabTransfer(workspaceApi, pageEdits.settled);
   useExternalChanges(workspaceApi);
   const save = useSaveDocument(workspaceApi, pageEdits.settled);
+  const imageExport = useImageExport(workspaceApi, pageEdits.settled);
   const pageEditsRef = useRef(pageEdits);
   pageEditsRef.current = pageEdits;
   const passwords = usePasswordPrompts();
@@ -158,11 +161,7 @@ export default function App() {
         }
       }),
       onFileDrop(
-        (sources, point) => {
-          if (!pageEditsRef.current.dropFiles(sources, point)) {
-            sources.forEach((source) => openSourceRef.current(source));
-          }
-        },
+        (files, point) => pageEditsRef.current.dropFiles(files, point),
         (point) => {
           const target = point && dropTargetAt(point);
           showDropTarget(target);
@@ -210,7 +209,7 @@ export default function App() {
     if (commandById.get(id)?.needsDocument && (!handle || !hasDocument || !activeSnapshot)) {
       return;
     }
-    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id)) {
+    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || imageExport.runExportCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -492,6 +491,7 @@ export default function App() {
         onSkip={updatePrompt.skip}
         onDownload={updatePrompt.download}
       />
+      <ExportImagesDialog {...imageExport.dialog} />
       <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>
   );

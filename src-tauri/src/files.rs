@@ -1,12 +1,16 @@
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::fs::OpenOptions;
+use std::io::{ErrorKind, Write};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
 
 pub const CHANGED_ON_DISK: &str = "changed-on-disk";
+pub const ALREADY_EXISTS: &str = "already-exists";
 
-const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
+pub const IMAGE_EXTENSIONS: [&str; 12] = ["png", "jpg", "jpeg", "webp", "gif", "svg", "heic", "heif", "tif", "tiff", "bmp", "avif"];
+pub const EXPORT_IMAGE_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 
 fn has_extension(path: &Path, allowed: &[&str]) -> bool {
     path.extension()
@@ -22,13 +26,30 @@ pub fn is_image(path: &Path) -> bool {
     has_extension(path, &IMAGE_EXTENSIONS)
 }
 
-pub fn with_pdf_extension(path: PathBuf) -> PathBuf {
-    if is_pdf(&path) {
+pub fn is_export_image(path: &Path) -> bool {
+    has_extension(path, &EXPORT_IMAGE_EXTENSIONS)
+}
+
+pub fn with_extension_from(path: PathBuf, allowed: &[&str]) -> PathBuf {
+    if has_extension(&path, allowed) {
         return path;
     }
     let mut name = path.file_name().unwrap_or_default().to_os_string();
-    name.push(".pdf");
+    name.push(".");
+    name.push(allowed[0]);
     path.with_file_name(name)
+}
+
+pub fn with_pdf_extension(path: PathBuf) -> PathBuf {
+    with_extension_from(path, &["pdf"])
+}
+
+pub fn plain_file_name(name: &str) -> Option<&str> {
+    let mut components = Path::new(name).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(part)), None) if part == name && !name.contains(['/', '\\']) => Some(name),
+        _ => None,
+    }
 }
 
 pub fn resolve(path: &Path) -> PathBuf {
@@ -52,6 +73,55 @@ impl AllowedPaths {
     pub fn is_allowed(&self, path: &Path) -> bool {
         self.0.lock().unwrap().contains(&resolve(path))
     }
+}
+
+#[derive(Default)]
+pub struct AllowedFolders(AllowedPaths);
+
+impl AllowedFolders {
+    pub fn allow(&self, folder: &Path) {
+        self.0.allow(folder);
+    }
+
+    pub fn is_allowed(&self, folder: &Path) -> bool {
+        folder.is_dir() && self.0.is_allowed(folder)
+    }
+
+    pub fn file_in(&self, folder: &Path, name: &str) -> Option<PathBuf> {
+        let name = plain_file_name(name)?;
+        self.is_allowed(folder).then(|| resolve(folder).join(name))
+    }
+}
+
+pub fn existing_names(folder: &Path, names: &[String]) -> Vec<String> {
+    names
+        .iter()
+        .filter(|name| plain_file_name(name).is_some_and(|name| fs::symlink_metadata(folder.join(name)).is_ok()))
+        .cloned()
+        .collect()
+}
+
+pub fn write_file(path: &Path, bytes: &[u8], overwrite: bool) -> Result<(), String> {
+    let failed = |err: std::io::Error| format!("Could not save {}: {err}", path.display());
+    if !overwrite {
+        let mut file = OpenOptions::new().write(true).create_new(true).open(path).map_err(|err| match err.kind() {
+            ErrorKind::AlreadyExists => ALREADY_EXISTS.to_string(),
+            _ => failed(err),
+        })?;
+        return file.write_all(bytes).map_err(|err| {
+            let _ = fs::remove_file(path);
+            failed(err)
+        });
+    }
+    let mut tmp_name = std::ffi::OsString::from(".");
+    tmp_name.push(path.file_name().unwrap_or_default());
+    tmp_name.push(".saving");
+    let tmp = path.with_file_name(tmp_name);
+    let result = fs::write(&tmp, bytes).and_then(|_| fs::rename(&tmp, path));
+    result.map_err(|err| {
+        let _ = fs::remove_file(&tmp);
+        failed(err)
+    })
 }
 
 pub fn stamp(path: &Path) -> Option<String> {
@@ -98,8 +168,65 @@ mod tests {
     }
 
     #[test]
+    fn adds_the_first_allowed_extension_when_missing() {
+        assert_eq!(with_extension_from(PathBuf::from("/a/b.JPEG"), &["jpg", "jpeg"]), PathBuf::from("/a/b.JPEG"));
+        assert_eq!(with_extension_from(PathBuf::from("/a/b"), &["png"]), PathBuf::from("/a/b.png"));
+        assert_eq!(with_extension_from(PathBuf::from("/a/b.pdf"), &["jpg", "jpeg"]), PathBuf::from("/a/b.pdf.jpg"));
+    }
+
+    #[test]
+    fn accepts_only_plain_file_names() {
+        assert_eq!(plain_file_name("doc - page 01.png"), Some("doc - page 01.png"));
+        for name in ["", ".", "..", "../x.png", "a/b.png", "/x.png", "a\\b.png", "./x.png"] {
+            assert_eq!(plain_file_name(name), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn writes_only_into_folders_it_was_given() {
+        let dir = scratch("folders");
+        let folders = AllowedFolders::default();
+        assert_eq!(folders.file_in(&dir, "a.png"), None);
+        folders.allow(&dir);
+        assert_eq!(folders.file_in(&dir, "a.png"), Some(resolve(&dir).join("a.png")));
+        assert_eq!(folders.file_in(&dir, "../a.png"), None);
+        assert_eq!(folders.file_in(&dir.join("sub"), "a.png"), None);
+    }
+
+    #[test]
+    fn refuses_to_replace_a_file_unless_told_to() {
+        let dir = scratch("write");
+        let file = dir.join("page 1.png");
+        write_file(&file, b"one", false).unwrap();
+        assert_eq!(write_file(&file, b"two", false), Err(ALREADY_EXISTS.into()));
+        assert_eq!(fs::read(&file).unwrap(), b"one");
+        assert_eq!(existing_names(&dir, &["page 1.png".into(), "page 2.png".into(), "../page 1.png".into()]), vec!["page 1.png".to_string()]);
+        write_file(&file, b"two", true).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), b"two");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn never_writes_through_a_symlink_it_did_not_create() {
+        use std::os::unix::fs::symlink;
+        let dir = scratch("symlink");
+        let outside = dir.join("outside.txt");
+        fs::write(&outside, b"keep").unwrap();
+        let link = dir.join("page 1.png");
+        symlink(&outside, &link).unwrap();
+        assert_eq!(write_file(&link, b"x", false), Err(ALREADY_EXISTS.into()));
+        write_file(&link, b"x", true).unwrap();
+        assert_eq!(fs::read(&outside).unwrap(), b"keep");
+        assert!(!fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+    }
+
+    #[test]
     fn recognizes_images() {
         assert!(is_image(Path::new("/x/sig.PNG")));
+        assert!(is_image(Path::new("/x/IMG_0001.HEIC")));
+        assert!(is_export_image(Path::new("/x/page.jpg")));
+        assert!(!is_export_image(Path::new("/x/page.heic")));
         assert!(!is_image(Path::new("/x/notes.pdf")));
         assert!(!is_image(Path::new("/x/.ssh/id_ed25519")));
     }

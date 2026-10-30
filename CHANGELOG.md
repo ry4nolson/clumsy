@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Export Pages as Images**: File > Export Pages as Images… (also Pages > Export Selected Pages as Images… and the thumbnail menu) saves pages as PNG or JPEG at 72, 150, or 300 dpi. It exports the selected pages, or every page when nothing is selected. Highlights, notes, and filled-in forms come out the way they'd print, even before you save. Several pages go into a folder you choose, named “Report - page 01.png” and so on, and Clumsy asks before replacing any files already there. Longer exports show progress and can be cancelled
+- **New PDF from Images**: File > New PDF from Images… makes a PDF with one page per image and opens it in a new tab. Dropping images on the window does the same, and dropping PDFs and images together opens the PDFs and puts the images in one new PDF. Works with PNG, JPEG, HEIC, WebP, GIF, TIFF, BMP, and AVIF. Phone photos come out right side up, and JPEGs keep their original quality
+- **Insert images as pages**: drop images on the page thumbnails to insert them where you drop, or pick them in Pages > Insert Pages from File…, which now takes several files at once. Undo works like any other page change
+
 ## [0.4.2] - 2026-10-30
 
 ### Fixed

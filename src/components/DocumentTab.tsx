@@ -35,6 +35,7 @@ export type PageAction = { kind: "move"; pages: number[]; slot: number } | { kin
 export type DocumentHandle = {
   viewer: PdfViewerApi;
   selectedPages: () => number[];
+  explicitPages: () => number[];
   openFind: (query?: string) => void;
   closeFind: () => void;
   findAgain: (previous: boolean) => void;
@@ -248,6 +249,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     () => ({
       viewer,
       selectedPages: () => targetPages(followCurrentPage(selectionRef.current, viewer.pageNumber - 1), viewer.pageNumber - 1),
+      explicitPages: () => followCurrentPage(selectionRef.current, viewer.pageNumber - 1).pages,
       openFind: (query) => {
         setFindSeed(query ?? null);
         setFindOpen(true);

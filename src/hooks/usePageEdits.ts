@@ -14,9 +14,11 @@ import {
   selectionAfterEdit,
   type PageEdit,
 } from "../lib/pageEdits";
+import { openedFiles, pickImages, type OpenedFile } from "../lib/imageFiles";
+import { imagesIn, imagesToSource, pagesFrom, pdfsIn } from "../lib/imageImport";
 import { remapStops } from "../lib/navHistory";
 import { trimHistory, type Version } from "../lib/pageHistory";
-import { pickPdf, pickPdfs, showContextMenu, showError, type DropPoint, type PdfSource } from "../lib/platform";
+import { pickPdfs, showContextMenu, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -242,19 +244,30 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     [enqueue],
   );
 
-  const insertSources = useCallback(
-    (tabId: string, sources: Array<Promise<PdfSource | null>>, at: number) => {
+  const insertFiles = useCallback(
+    (tabId: string, files: OpenedFile[] | Promise<OpenedFile[]>, at: number) => {
       const generation = editsFor(tabId).generation;
       return enqueue(tabId, async () => {
-        const files = (await Promise.all(sources)).filter((source): source is PdfSource => !!source);
-        if (files.length) {
-          const data = files.length === 1 ? files[0].data : await combinePdfs(files.map((file) => file.data));
+        const data = await pagesFrom(await files);
+        if (data) {
           await performEdit(tabId, { kind: "insert", data, at }, generation);
         }
       });
     },
     [enqueue],
   );
+
+  const openFiles = (files: OpenedFile[]) => {
+    pdfsIn(files).forEach((source) => openSource(source));
+    const images = imagesIn(files);
+    if (images.length) {
+      const source = imagesToSource(images).catch(async (error: unknown) => {
+        await showError(`Couldn't make a PDF from these images.\n\n${error instanceof Error ? error.message : String(error)}`);
+        return null;
+      });
+      openSource(source, { carriedChanges: true });
+    }
+  };
 
   const combineFiles = () =>
     pickPdfs()
@@ -275,6 +288,10 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         combineFiles();
         return true;
       }
+      if (id === "newPdfFromImages") {
+        pickImages().then(openFiles).catch(report);
+        return true;
+      }
       const tab = ws.focusedTab(workspaceRef.current);
       const handle = handles.current.get(tab.id);
       if (tab.kind !== "document" || !handle) {
@@ -286,7 +303,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         rotatePagesLeft: () => editPages(tab.id, { kind: "rotate", pages, by: -90 }),
         rotatePagesRight: () => editPages(tab.id, { kind: "rotate", pages, by: 90 }),
         deletePages: () => editPages(tab.id, { kind: "delete", pages }),
-        insertPages: () => insertSources(tab.id, [pickPdf()], Math.max(...pages) + 1),
+        insertPages: () => insertFiles(tab.id, pickImages(true), Math.max(...pages) + 1),
         extractPages: () =>
           enqueue(tab.id, async () => {
             if (editsFor(tab.id).generation !== generation) {
@@ -304,7 +321,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
       action?.();
       return !!action;
     },
-    [editPages, enqueue, insertSources, openSource],
+    [editPages, enqueue, insertFiles, openSource],
   );
 
   const pageAction = useCallback(
@@ -322,6 +339,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
           { label: `Rotate ${plural} Right`, run: () => runCommand("rotatePagesRight") },
           "-",
           { label: `Extract ${plural} to New Tab`, run: () => runCommand("extractPages") },
+          { label: count > 1 ? `Export ${plural} as Images…` : "Export Page as Image…", run: () => runCommand("exportSelectedPagesAsImages") },
           { label: "Insert Pages from File…", run: () => runCommand("insertPages") },
           "-",
           { label: `Delete ${plural}`, enabled: count < (snapshotsRef.current[tabId]?.pagesCount ?? 0), run: () => runCommand("deletePages") },
@@ -332,15 +350,16 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
   );
 
   const dropFiles = useCallback(
-    (sources: Array<Promise<PdfSource>>, point: DropPoint | null) => {
+    (dropped: DroppedFile[], point: DropPoint | null) => {
+      const files = openedFiles(dropped);
       const target = point && dropTargetAt(point);
-      if (!target) {
-        return false;
+      if (target) {
+        insertFiles(target.tabId, files, target.slot);
+      } else {
+        openFiles(files);
       }
-      insertSources(target.tabId, sources, target.slot);
-      return true;
     },
-    [insertSources],
+    [insertFiles, openSource],
   );
 
   return { runPageCommand, pageAction, stepHistory, documentLoaded, documentFailed, dropFiles, settled };
