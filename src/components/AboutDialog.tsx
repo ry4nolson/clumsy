@@ -38,6 +38,8 @@ const features = [
   "Compare two documents",
   "Markdown with a source toggle",
   "Tabs, splits & windows",
+  "Export pages as images",
+  "Make PDFs from images",
 ];
 
 const links = [

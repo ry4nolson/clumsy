@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **About** also lists exporting pages as images and making PDFs from images
+
 ## [0.8.1] - 2026-10-30
 
 ### Changed
