@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-30
+
 ### Added
 - **Page Labels** (Pages > Page Labels…, or right-click a thumbnail): name a range of pages with 1, 2, 3, roman numerals, or letters, an optional prefix like "A-", and a starting number, with a preview. Pages outside the range keep their labels, Remove All Labels goes back to plain page numbers, and Undo works like any other page edit
 
