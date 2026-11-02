@@ -333,10 +333,16 @@ export type DropPoint = { x: number; y: number };
 
 export type DroppedFile = string | File;
 
+const sheetOpen = () => !!document.querySelector("dialog[open]");
+
 export async function onFileDrop(handler: (files: DroppedFile[], point: DropPoint | null) => void, onHover: (point: DropPoint | null) => void) {
   if (isDesktop) {
     let last: DropPoint | null = null;
     return getCurrentWebview().onDragDropEvent(({ payload }) => {
+      if (sheetOpen()) {
+        onHover(null);
+        return;
+      }
       if (payload.type === "enter" || payload.type === "over") {
         last = { x: payload.position.x / window.devicePixelRatio, y: payload.position.y / window.devicePixelRatio };
         onHover(last);
@@ -352,7 +358,7 @@ export async function onFileDrop(handler: (files: DroppedFile[], point: DropPoin
 
   const over = (event: DragEvent) => {
     event.preventDefault();
-    onHover({ x: event.clientX, y: event.clientY });
+    onHover(sheetOpen() ? null : { x: event.clientX, y: event.clientY });
   };
   const leave = (event: DragEvent) => {
     if (!event.relatedTarget) {
@@ -363,7 +369,7 @@ export async function onFileDrop(handler: (files: DroppedFile[], point: DropPoin
     event.preventDefault();
     onHover(null);
     const files = Array.from(event.dataTransfer?.files ?? []);
-    if (files.length) {
+    if (files.length && !sheetOpen()) {
       handler(files, { x: event.clientX, y: event.clientY });
     }
   };

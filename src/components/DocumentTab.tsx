@@ -1,17 +1,21 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { CompareView } from "../hooks/useComparison";
+import { useEditorUi } from "../hooks/useEditorUi";
 import { useMapMarks } from "../hooks/useMapMarks";
 import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi, type ViewStart } from "../hooks/usePdfViewer";
 import type { ViewState } from "../lib/documentWindows";
+import type { SignaturePreview } from "../lib/editorManagers";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
 import { getRecentFiles, readPdfFromPath, type PdfSource } from "../lib/platform";
 import { runEnd, type LabelNumbering } from "../lib/pageLabels";
 import { documentView, scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
 import { ChangesList } from "./ChangesList";
+import { CommentsList } from "./CommentsList";
 import { CompareBar } from "./CompareBar";
 import { DocumentMap } from "./DocumentMap";
+import { EditorSheets, EditorUndoBar } from "./EditorSheets";
 import { FindBar } from "./FindBar";
 import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
@@ -30,6 +34,8 @@ export type TabSnapshot = {
   pageLabels: string[] | null;
   editorParams: EditorParams;
   selectedEditor: boolean;
+  signatures: SignaturePreview[];
+  sheetOpen: boolean;
 };
 
 export type PageAction =
@@ -72,6 +78,7 @@ export type DocumentTabProps = {
   onFailed: (id: string, error: unknown, source: PdfSource) => void;
   onOpenUrl: (url: string) => void;
   onPageAction: (id: string, action: PageAction) => void;
+  onUndoRemoval: (id: string) => void;
   compare: CompareView | null;
 };
 
@@ -121,11 +128,14 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     onFailed,
     onOpenUrl,
     onPageAction,
+    onUndoRemoval,
     compare,
   },
   ref,
 ) {
   const viewer = usePdfViewer();
+  const editorState = useEditorUi(viewer.editorUi);
+  const sheetOpen = !!(editorState.altText || editorState.signature || editorState.description || editorState.comment);
   const [findOpen, setFindOpen] = useState(false);
   const [findFocusToken, setFindFocusToken] = useState(0);
   const [findSeed, setFindSeed] = useState<string | null>(null);
@@ -192,6 +202,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       pageLabels: viewer.pageLabels,
       editorParams: viewer.editorParams,
       selectedEditor: viewer.selectedEditor,
+      signatures: editorState.signatures,
+      sheetOpen,
     });
   }, [
     id,
@@ -209,6 +221,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     viewer.pageLabels,
     viewer.editorParams,
     viewer.selectedEditor,
+    editorState.signatures,
+    sheetOpen,
   ]);
 
   useEffect(() => {
@@ -316,6 +330,11 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           onNavigate={viewer.goToDestination}
           onOpenUrl={onOpenUrl}
           changes={compare && <ChangesList view={compare} />}
+          comments={
+            editorState.comments && (
+              <CommentsList comments={editorState.comments} selected={editorState.selectedComment} pageLabels={viewer.pageLabels} onSelect={(comment) => viewer.editorUi?.showComment(comment)} />
+            )
+          }
         />
       )}
       <main className={`viewer-area${darkPages ? " dark-pages" : ""}${keepImages ? " keep-images" : ""}${compare ? " comparing" : ""}`}>
@@ -336,6 +355,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           <div className="pdfViewer" />
         </div>
         {!loaded && <div className="tab-loading">Opening {source.name}…</div>}
+        <EditorUndoBar editorUi={viewer.editorUi} removed={editorState.removed} onUndo={() => onUndoRemoval(id)} />
       </main>
       {loaded && mapShown && viewer.pdfDocument && (
         <DocumentMap
@@ -347,6 +367,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           fixedWidth={viewer.scrollMode === "wrapped"}
         />
       )}
+      <EditorSheets editorUi={viewer.editorUi} state={editorState} />
       <PageLabelsDialog
         request={labelsRequest}
         onApply={(from, to, numbering) => {

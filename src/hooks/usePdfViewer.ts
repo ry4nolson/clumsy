@@ -4,13 +4,18 @@ import { EventBus, LinkTarget, PDFLinkService, PDFViewer, ScrollMode, SpreadMode
 import "pdfjs-dist/web/pdf_viewer.css";
 import { attachCaretBrowsing, type CaretBrowsing } from "../lib/caretBrowsing";
 import { paintDiffPage, paintDiffPages, type DiffViewer } from "../lib/diffLayer";
+import { createEditorManagers, type EditorManagers } from "../lib/editorManagers";
 import type { ViewState } from "../lib/documentWindows";
 import { attachHandTool, type HandTool } from "../lib/handTool";
 import { restoreImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
+import { notesIn } from "../lib/notes";
+import { writeStickyNotes } from "../lib/notesPdf";
 import { hasCustomLabels } from "../lib/pageLabels";
+import { assetsUrl } from "../lib/pdfjs";
 import { PatternFindController } from "../lib/patternFindController";
 import { defaultViewModes, type ScrollModeName, type SpreadModeName, type ViewModes } from "../lib/viewModes";
+import { useViewerControls } from "./useViewerControls";
 import { useViewerFind } from "./useViewerFind";
 import { useViewerScroll, type DiffState } from "./useViewerScroll";
 import { useViewerTools } from "./useViewerTools";
@@ -41,6 +46,8 @@ type ViewLocation = { pageNumber: number; left: number; top: number; rotation: n
 
 type EditorHost = { _layerProperties?: { annotationEditorUIManager?: { endCurrentEditing?(): void } | null } };
 
+export type EditingAction = "undo" | "redo" | "highlightSelection" | "commentSelection";
+
 export type ViewStart = { view?: ViewState; modes?: Partial<ViewModes>; destination?: unknown[] | null };
 
 let warnedAboutEditorHost = false;
@@ -54,6 +61,7 @@ type ViewerParts = {
   viewer: PDFViewer;
   hand: HandTool;
   caret: CaretBrowsing;
+  editorUi: EditorManagers;
 };
 
 export function usePdfViewer() {
@@ -76,6 +84,7 @@ export function usePdfViewer() {
   const [modes, setModes] = useState<ViewModes>(defaultViewModes);
   const [pageLabels, setPageLabelsState] = useState<string[] | null>(null);
   const [caretBrowsing, setCaretBrowsingState] = useState(false);
+  const [editorUi, setEditorUi] = useState<EditorManagers | null>(null);
 
   const [stops] = useState(() =>
     createNavigator(
@@ -108,6 +117,7 @@ export function usePdfViewer() {
     const eventBus = new EventBus();
     const linkService = new PDFLinkService({ eventBus, externalLinkTarget: LinkTarget.BLANK });
     const findController = new PatternFindController({ eventBus, linkService });
+    const editorUi = createEditorManagers(eventBus, linkService);
     const viewer = new PDFViewer({
       container,
       viewer: viewerElement,
@@ -122,9 +132,11 @@ export function usePdfViewer() {
       enableHighlightFloatingButton: true,
       imagesRightClickMinSize: 0,
       enableDetailCanvas: false,
-      imageResourcesPath: "",
+      imageResourcesPath: `${assetsUrl}images/`,
+      ...editorUi.viewerOptions,
     } as ConstructorParameters<typeof PDFViewer>[0]);
     linkService.setViewer(viewer);
+    editorUi.attachViewer(viewer);
     linkService.setHistory({
       pushCurrentPosition: () => stops.record(),
       push: () => {},
@@ -134,7 +146,8 @@ export function usePdfViewer() {
     } as unknown as Parameters<PDFLinkService["setHistory"]>[0]);
     const hand = attachHandTool(container);
     const caret = attachCaretBrowsing(container);
-    partsRef.current = { eventBus, linkService, findController, viewer, hand, caret };
+    partsRef.current = { eventBus, linkService, findController, viewer, hand, caret, editorUi };
+    setEditorUi(editorUi);
     const paintDiff = (index: number) => paintDiffPage(viewer as unknown as DiffViewer, index, diffRef.current.overlays, diffRef.current.current);
     const paintAllDiffs = () => paintDiffPages(viewer as unknown as DiffViewer, diffRef.current.overlays, diffRef.current.current);
     paintDiffRef.current = paintAllDiffs;
@@ -249,14 +262,16 @@ export function usePdfViewer() {
       container.removeEventListener("change", onFormInput, true);
       hand.dispose();
       caret.dispose();
+      editorUi.dispose();
       partsRef.current = null;
     };
   }, [stops]);
 
   const { findStatus, find, findMatches, closeFind, resetFind } = useViewerFind(partsRef);
   const tools = useViewerTools(partsRef);
-  const { resetTools } = tools;
+  const { resetTools, setTool } = tools;
   const scroll = useViewerScroll(partsRef, containerRef, diffRef, paintDiffRef);
+  const controls = useViewerControls(partsRef);
 
   const setModified = useCallback((value: boolean) => {
     modifiedRef.current = value;
@@ -333,48 +348,7 @@ export function usePdfViewer() {
     [stops],
   );
 
-  const stepPage = useCallback((direction: 1 | -1) => {
-    const viewer = partsRef.current?.viewer;
-    if (viewer?.pdfDocument) {
-      if (direction > 0) {
-        viewer.nextPage();
-      } else {
-        viewer.previousPage();
-      }
-    }
-  }, []);
-
   const navigate = useCallback((direction: NavDirection) => (partsRef.current?.viewer.pdfDocument ? stops.step(direction) : false), [stops]);
-
-  const goToDestination = useCallback((dest: unknown) => {
-    partsRef.current?.linkService.goToDestination(dest as string);
-  }, []);
-
-  const setZoom = useCallback((value: string | number) => {
-    const viewer = partsRef.current?.viewer;
-    if (viewer?.pdfDocument) {
-      viewer.currentScaleValue = String(value);
-    }
-  }, []);
-
-  const zoom = useCallback((direction: 1 | -1) => {
-    const viewer = partsRef.current?.viewer;
-    if (!viewer?.pdfDocument) {
-      return;
-    }
-    if (direction > 0) {
-      viewer.increaseScale();
-    } else {
-      viewer.decreaseScale();
-    }
-  }, []);
-
-  const rotate = useCallback((direction: 1 | -1 = 1) => {
-    const viewer = partsRef.current?.viewer;
-    if (viewer?.pdfDocument) {
-      viewer.pagesRotation = (viewer.pagesRotation + 90 * direction + 360) % 360;
-    }
-  }, []);
 
   const setScrollMode = useCallback((mode: ScrollModeName) => {
     const viewer = partsRef.current?.viewer;
@@ -390,9 +364,22 @@ export function usePdfViewer() {
     }
   }, []);
 
-  const editingAction = useCallback((name: "undo" | "redo") => {
-    partsRef.current?.eventBus.dispatch("editingaction", { source: null, name });
-  }, []);
+  const editingAction = useCallback(
+    async (name: EditingAction) => {
+      if (name === "highlightSelection" || name === "commentSelection") {
+        const textLayer = document.getSelection()?.anchorNode?.parentElement?.closest(".textLayer") ?? null;
+        if (!containerRef.current?.contains(textLayer)) {
+          return;
+        }
+        const mode = partsRef.current?.viewer.annotationEditorMode as unknown as number | undefined;
+        if (mode !== AnnotationEditorType.NONE && mode !== AnnotationEditorType.HIGHLIGHT) {
+          await setTool("highlight");
+        }
+      }
+      partsRef.current?.eventBus.dispatch("editingaction", { source: null, name });
+    },
+    [setTool],
+  );
 
   const setCaretBrowsing = useCallback((enabled: boolean) => {
     partsRef.current?.caret.setEnabled(enabled);
@@ -440,7 +427,7 @@ export function usePdfViewer() {
       return null;
     }
     commitEdits();
-    return doc.saveDocument();
+    return writeStickyNotes(await doc.saveDocument(), notesIn(doc.annotationStorage));
   }, [commitEdits]);
 
   const markSaved = useCallback(() => {
@@ -457,6 +444,7 @@ export function usePdfViewer() {
     scaleValue,
     pagesRotation,
     modified,
+    editorUi,
     findStatus,
     scrollMode: modes.scrollMode,
     spreadMode: modes.spreadMode,
@@ -465,17 +453,13 @@ export function usePdfViewer() {
     findMatches,
     setDocument,
     goToPage,
-    stepPage,
-    goToDestination,
     navigate,
     recordStop,
-    setZoom,
-    zoom,
-    rotate,
     setScrollMode,
     setSpreadMode,
     editingAction,
     ...tools,
+    ...controls,
     setCaretBrowsing,
     find,
     closeFind,

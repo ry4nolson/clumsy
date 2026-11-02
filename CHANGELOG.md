@@ -7,6 +7,23 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Comments**: add a comment to any highlight, note, drawing, image, or signature from its toolbar, or select text and click Comment (also Tools > Comment on Selected Text, ⌥⌘M). Comments show as a small bubble on the page; click it to read, edit, or remove the comment. Tools > Comments (C) lists every comment in the document, including ones already in the file, in a Comments tab in the sidebar; click one to jump to it. While Comments is on, click anywhere on a page to leave a sticky note there. Drag a sticky note to move it. Sticky notes already in a file can be moved, edited, and removed too
+- **Signatures you can type, draw, or upload**: Sign… now asks for your name in a handwriting font, a drawing, or a photo of your signature on paper, and places it as sharp vector ink instead of a picture. Save up to five signatures and place them again from the toolbar with one click. Each signature has a description that screen readers read out
+- **Alt text** for images and signatures: describe what they show, or mark them as decorative, from the Alt text button on the image
+- **Undo bar**: removing a highlight, note, drawing, image, signature, or comment shows a bar with Undo
+- **Show or hide highlights**: the eye button next to the highlight colors hides every highlight while you read and shows them again
+
+### Changed
+- A signature saved by an earlier version is converted the first time you sign, so it shows up with your saved signatures
+
+### Fixed
+- Sticky notes in PDFs show their note icon instead of a broken image
+- Dropping files on the window while a sheet is open (like Add Signature) no longer opens them behind it
+- Esc closes sheets like About, Keyboard Shortcuts, and Export Pages as Images
+- The color menu on a selected highlight closes when you click away from it
+- Pointing at a text box no longer pops up its own text as a comment
+
 ## [0.8.3] - 2026-10-30
 
 ### Fixed

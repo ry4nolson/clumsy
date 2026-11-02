@@ -1,0 +1,385 @@
+:root {
+  --comment-edit-button-icon: url("../../node_modules/pdfjs-dist/web/images/comment-editButton.svg");
+  --dir-factor: 1;
+  --editor-toolbar-min-width: 220px;
+  --icon-size: 16px;
+  --main-color: var(--text);
+  --toolbar-icon-bg-color: var(--text);
+}
+
+.comment.sidebar {
+  --comment-fg-color: var(--text);
+}
+
+.pdfViewer .hidden {
+  display: none !important;
+}
+
+.dark-pages:not(.keep-images) .pdfViewer .page .commentPopup,
+.dark-pages.keep-images .pdfViewer .page .annotationEditorLayer .commentPopup {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.pdfViewer .page .sticky-notes {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.sticky-note {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sticky-note.dragging {
+  z-index: 1;
+  cursor: grabbing;
+}
+
+.sticky-note svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.35));
+}
+
+.sticky-note .bubble {
+  fill: var(--note-color);
+  stroke: rgb(0 0 0 / 0.55);
+}
+
+.sticky-note .lines {
+  fill: none;
+  stroke: rgb(0 0 0 / 0.55);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.sticky-note:focus-visible,
+.sticky-note.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sticky-notes .commentPopup {
+  pointer-events: auto;
+}
+
+.dark-pages:not(.keep-images) .pdfViewer .page .sticky-notes {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.dark-pages:not(.keep-images) .pdfViewer .page .sticky-notes .commentPopup {
+  filter: none;
+}
+
+.pdfViewer .annotationEditorLayer.commentEditing {
+  cursor: copy;
+}
+
+.editor-undo-bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  animation: undo-bar-in 160ms ease-out;
+}
+
+@keyframes undo-bar-in {
+  from {
+    transform: translate(-50%, 12px);
+    opacity: 0;
+  }
+}
+
+.alt-text-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.text-input.alt-text-input,
+.text-input.comment-input {
+  height: 96px;
+  padding: 8px 10px;
+  resize: vertical;
+  font: inherit;
+}
+
+.text-input.alt-text-input {
+  margin-left: 24px;
+  width: calc(100% - 24px);
+}
+
+.text-input.alt-text-input:disabled {
+  opacity: 0.45;
+}
+
+.alt-text-note {
+  margin: -4px 0 0 24px;
+}
+
+.signature-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.signature-header h2 {
+  margin: 0;
+}
+
+.signature-area {
+  display: grid;
+  height: 180px;
+  border-radius: 10px;
+  background: #fff;
+  color: #111;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
+  overflow: hidden;
+}
+
+.signature-type {
+  width: 100%;
+  height: 100%;
+  padding: 0 24px;
+  border: none;
+  background: transparent;
+  color: #111;
+  font-family: "Snell Roundhand", "Apple Chancery", "Segoe Script", "Brush Script MT", cursive;
+  font-size: 44px;
+  text-align: center;
+  outline: none;
+}
+
+.signature-type::placeholder {
+  color: #9ca3af;
+}
+
+.signature-pad {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.signature-pad path {
+  fill: none;
+  stroke: #111;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.signature-placeholder {
+  fill: #9ca3af;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.signature-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+}
+
+.signature-drop .dialog-hint {
+  margin: 0;
+  color: #6b7280;
+}
+
+.signature-preview {
+  width: 100%;
+  height: 0;
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.signature-preview.framed {
+  display: block;
+  height: 120px;
+  margin: 8px 0 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.signature-preview path.contours,
+.signature-chip path.contours {
+  fill: currentColor;
+  stroke: none;
+}
+
+.signature-preview path.lines,
+.signature-chip path.lines {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.signature-preview.framed path {
+  color: #111;
+}
+
+.signature-controls {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  margin-top: 8px;
+}
+
+.signature-controls .tool-option {
+  margin-left: 0;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.signature-error {
+  margin: 4px 0 0;
+  color: var(--danger);
+}
+
+.signature-description {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--text-muted);
+}
+
+.signature-description .text-input {
+  color: var(--text);
+}
+
+.signature-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.signature-chip {
+  position: relative;
+  display: flex;
+}
+
+.signature-chip > button:first-child {
+  display: grid;
+  width: 64px;
+  height: 26px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+}
+
+.signature-chip > button:first-child:hover {
+  border-color: var(--accent);
+}
+
+.signature-chip svg {
+  width: 100%;
+  height: 100%;
+}
+
+.signature-chip .forget {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-muted);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.signature-chip:hover .forget,
+.signature-chip .forget:focus-visible {
+  display: grid;
+  place-items: center;
+}
+
+.comment-dialog {
+  position: fixed;
+  inset: auto;
+  width: 340px;
+  margin: 0;
+  padding: 12px 16px 16px;
+}
+
+.comment-dialog::backdrop {
+  background: transparent;
+}
+
+.comment-dialog-title {
+  cursor: move;
+  user-select: none;
+}
+
+.text-input.comment-input {
+  min-height: 96px;
+}
+
+.comment-row {
+  border: 1px solid transparent;
+}
+
+.comment-row[aria-current="true"] {
+  border-color: var(--accent);
+}
+
+.comment-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text);
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.commentPopupButtons button > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.commentPopupButtons > button::before {
+  background-color: var(--button-comment-color);
+}

@@ -1,6 +1,6 @@
 type ReloadableTab = { path: string | null; stamp: string | null; carriedChanges: boolean };
 
-type ViewerState = { loaded: boolean; modified: boolean; tool?: string };
+type ViewerState = { loaded: boolean; modified: boolean; tool?: string; sheetOpen?: boolean };
 
 const unfinishedEditTools = new Set(["draw", "text"]);
 const EOF_MARKER = "%%EOF";
@@ -10,7 +10,7 @@ export function canReload(tab: ReloadableTab, viewer: ViewerState | undefined, d
   if (!tab.path || !tab.stamp || !diskStamp || diskStamp === tab.stamp) {
     return false;
   }
-  if (!viewer?.loaded || viewer.modified || tab.carriedChanges) {
+  if (!viewer?.loaded || viewer.modified || viewer.sheetOpen || tab.carriedChanges) {
     return false;
   }
   return !unfinishedEditTools.has(viewer.tool ?? "");

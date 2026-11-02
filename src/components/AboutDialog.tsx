@@ -32,6 +32,7 @@ const features = [
   "Thumbnails & document outline",
   "Dark pages that spare your images",
   "Highlights, notes & drawing",
+  "Comments & signatures",
   "Fill forms & sign",
   "Saves straight back into the PDF",
   "Reorder, insert & combine pages",

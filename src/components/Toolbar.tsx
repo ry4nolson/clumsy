@@ -1,30 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
-import {
-  Code,
-  FolderOpen,
-  Hand,
-  Highlighter,
-  ImagePlus,
-  Minus,
-  Moon,
-  MousePointer2,
-  PanelLeft,
-  PenLine,
-  Plus,
-  RotateCw,
-  Save,
-  Search,
-  Signature,
-  Sun,
-  Type,
-} from "lucide-react";
-import { inkColors, toolOptions } from "../hooks/useEditorOptions";
-import type { EditorParams, EditorTool } from "../hooks/usePdfViewer";
+import { useEffect, useState } from "react";
+import { Code, FolderOpen, Minus, Moon, PanelLeft, Plus, RotateCw, Save, Search, Sun } from "lucide-react";
 import { shortcutFor, type CommandId } from "../lib/commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { isMac } from "../lib/platform";
 import type { MarkdownMode } from "../lib/tabs";
-import { highlightColors } from "../hooks/usePdfViewer";
+import { IconButton } from "./IconButton";
+import { ToolsGroup, type ToolsProps } from "./ToolsGroup";
 
 const zoomPresets = [
   { value: "auto", label: "Automatic" },
@@ -54,10 +35,7 @@ type ToolbarProps = {
   pageLabels: string[] | null;
   scale: number;
   scaleValue: string;
-  tool: EditorTool;
-  toolColor: string;
-  editorParams: EditorParams;
-  onEditorParam: (type: number, value: number) => void;
+  tools: ToolsProps;
   onToggleSidebar: () => void;
   onOpen: () => void;
   onSave: () => void;
@@ -65,10 +43,6 @@ type ToolbarProps = {
   onZoom: (direction: 1 | -1) => void;
   onZoomValue: (value: string) => void;
   onRotate: () => void;
-  onTool: (tool: EditorTool) => void;
-  onToolColor: (color: string) => void;
-  onImage: () => void;
-  onSign: () => void;
   onToggleFind: () => void;
   onToggleDarkPages: () => void;
   onToggleSource: () => void;
@@ -79,16 +53,8 @@ const withShortcut = (label: string, id: CommandId) => {
   return shortcut ? `${label} (${shortcut})` : label;
 };
 
-function IconButton({ title, active, disabled, onClick, children }: { title: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button type="button" className="icon-button" title={title} aria-label={title} aria-pressed={active} disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  );
-}
-
 export function Toolbar(props: ToolbarProps) {
-  const { hasDocument, markdownMode, pageNumber, pagesCount, pageLabels, scale, scaleValue, tool, toolColor } = props;
+  const { hasDocument, markdownMode, pageNumber, pagesCount, pageLabels, scale, scaleValue } = props;
   const hasFile = hasDocument || !!markdownMode;
   const pageText = pageLabelOf(pageLabels, pageNumber);
   const [pageInput, setPageInput] = useState(pageText);
@@ -97,7 +63,6 @@ export function Toolbar(props: ToolbarProps) {
   useEffect(() => setPageInput(pageText), [pageText]);
 
   const isPreset = zoomPresets.some((preset) => preset.value === scaleValue);
-  const swatches = tool === "highlight" ? Object.values(highlightColors) : tool === "text" || tool === "draw" ? inkColors : [];
 
   return (
     <header className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
@@ -160,64 +125,7 @@ export function Toolbar(props: ToolbarProps) {
             </IconButton>
           </div>
 
-          <div className="toolbar-group tools" data-tauri-drag-region>
-            <IconButton title="Select (V)" active={tool === "select"} onClick={() => props.onTool("select")}>
-              <MousePointer2 size={18} />
-            </IconButton>
-            <IconButton title="Hand (hold Space)" active={tool === "hand"} onClick={() => props.onTool("hand")}>
-              <Hand size={18} />
-            </IconButton>
-            <IconButton title="Highlight (H)" active={tool === "highlight"} onClick={() => props.onTool("highlight")}>
-              <Highlighter size={18} />
-            </IconButton>
-            <IconButton title="Text note (T)" active={tool === "text"} onClick={() => props.onTool("text")}>
-              <Type size={18} />
-            </IconButton>
-            <IconButton title="Draw (D)" active={tool === "draw"} onClick={() => props.onTool("draw")}>
-              <PenLine size={18} />
-            </IconButton>
-            <IconButton title="Add image" active={tool === "image"} onClick={props.onImage}>
-              <ImagePlus size={18} />
-            </IconButton>
-            <IconButton title="Sign" onClick={props.onSign}>
-              <Signature size={18} />
-            </IconButton>
-            {swatches.length > 0 && (
-              <div className="swatches" role="radiogroup" aria-label="Color" data-tauri-drag-region>
-                {swatches.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    role="radio"
-                    aria-checked={color.toLowerCase() === toolColor.toLowerCase()}
-                    aria-label={color}
-                    className="swatch"
-                    style={{ background: color }}
-                    onClick={() => props.onToolColor(color)}
-                  />
-                ))}
-              </div>
-            )}
-            {toolOptions[tool]?.map((option) => {
-              const value = Number(props.editorParams[option.type] ?? option.min);
-              return (
-                <label key={option.type} className="tool-option" title={`${option.label}: ${option.format(value)}`} data-tauri-drag-region>
-                  <input
-                    type="range"
-                    aria-label={option.label}
-                    min={option.min}
-                    max={option.max}
-                    step={option.step}
-                    value={value}
-                    onChange={(event) => props.onEditorParam(option.type, Number(event.target.value))}
-                  />
-                  <span className="tool-option-value" aria-hidden="true">
-                    {option.format(value)}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
+          <ToolsGroup {...props.tools} />
         </>
       )}
 

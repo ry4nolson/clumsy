@@ -1,10 +1,18 @@
 import "./polyfills";
-import { GlobalWorkerOptions, PasswordResponses, getDocument } from "pdfjs-dist";
+import { AnnotationLayer, GlobalWorkerOptions, PasswordResponses, getDocument } from "pdfjs-dist";
+import { withoutTextBoxComment } from "./comments";
+import { isStickyNote } from "./notes";
 import workerUrl from "./pdfWorker?worker&url";
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
-const assetsUrl = new URL(`${import.meta.env.BASE_URL}pdfjs/`, window.location.href).href;
+const renderAnnotationLayer = AnnotationLayer.prototype.render;
+AnnotationLayer.prototype.render = function (params) {
+  const annotations = params.annotations.filter((annotation) => !isStickyNote(annotation)).map(withoutTextBoxComment);
+  return renderAnnotationLayer.call(this, { ...params, annotations });
+};
+
+export const assetsUrl = new URL(`${import.meta.env.BASE_URL}pdfjs/`, window.location.href).href;
 
 export class PasswordCancelledError extends Error {}
 

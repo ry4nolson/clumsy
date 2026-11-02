@@ -6,14 +6,13 @@ import { PasswordDialog } from "./components/PasswordDialog";
 import { QuickPick } from "./components/QuickPick";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import type { SidebarTab } from "./components/Sidebar";
-import { SignatureDialog } from "./components/SignatureDialog";
 import { TabContents } from "./components/TabContents";
 import { UpdateDialog } from "./components/UpdateDialog";
 import type { TabItem } from "./components/TabStrip";
 import { Toolbar } from "./components/Toolbar";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useComparison } from "./hooks/useComparison";
-import { colorParams, useEditorOptions } from "./hooks/useEditorOptions";
+import { useEditorOptions } from "./hooks/useEditorOptions";
 import { useExternalChanges } from "./hooks/useExternalChanges";
 import { useImageExport } from "./hooks/useImageExport";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -26,9 +25,9 @@ import { useUpdateInstall } from "./hooks/useUpdateInstall";
 import { useUpdatePrompt } from "./hooks/useUpdatePrompt";
 import { useQuickPick } from "./hooks/useQuickPick";
 import { useRecentFiles } from "./hooks/useRecentFiles";
-import type { EditorTool } from "./hooks/usePdfViewer";
 import { useRestartSession } from "./hooks/useRestartSession";
 import { useTabTransfer } from "./hooks/useTabTransfer";
+import { useToolbarTools } from "./hooks/useToolbarTools";
 import { useViewControls } from "./hooks/useViewControls";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { hasCaret, moveCaretToEdge } from "./lib/caret";
@@ -111,7 +110,6 @@ export default function App() {
   const [documentMap, setDocumentMap] = usePersistentState("clumsy.documentMap", true);
   const [darkPagesPreference, setDarkPagesPreference] = usePersistentState<"auto" | "on" | "off">("clumsy.darkPages", "auto");
   const [darkPagesImages, setDarkPagesImages] = usePersistentState<"keep" | "invert">("clumsy.darkPagesImages", "keep");
-  const [signatureOpen, setSignatureOpen] = useState(false);
   const [infoSheet, setInfoSheet] = useState<({ kind: "about" } & AboutRequest) | { kind: "shortcuts" } | null>(null);
   const { recentFiles, openRecent } = useRecentFiles(openSource);
   const activeViewer = () => activeHandle()?.viewer;
@@ -132,9 +130,7 @@ export default function App() {
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
-  const changeTool = (tool: EditorTool) => activeHandle()?.viewer.setTool(tool);
-
-  const toolColorParam = colorParams[activeSnapshot?.tool ?? "select"];
+  const tools = useToolbarTools(activeViewer, activeSnapshot, editorOptions, (id) => runCommandRef.current(id));
 
   const toggleFind = () => {
     const handle = hasMarkdown ? activeMarkdown() : hasDocument ? activeHandle() : undefined;
@@ -307,7 +303,14 @@ export default function App() {
       addImage: () => {
         pickImage().then((file) => file && activeHandle()?.viewer.addImage(file));
       },
-      sign: () => setSignatureOpen(true),
+      toolComment: () => {
+        showSidebar("comments");
+        viewer?.setTool("comment");
+      },
+      sign: () => viewer?.sign(),
+      newSignature: () => viewer?.sign(true),
+      highlightSelection: () => viewer?.editingAction("highlightSelection"),
+      commentSelection: () => viewer?.editingAction("commentSelection"),
       nextTab: () => update((current) => ws.cycleTabs(current, 1)),
       previousTab: () => update((current) => ws.cycleTabs(current, -1)),
       splitRight: () => {
@@ -393,10 +396,7 @@ export default function App() {
         pageLabels={activeSnapshot?.pageLabels ?? null}
         scale={activeSnapshot?.scale ?? 1}
         scaleValue={activeSnapshot?.scaleValue ?? "page-width"}
-        tool={activeSnapshot?.tool ?? "select"}
-        toolColor={toolColorParam === undefined ? "" : String(editorOptions.shown[toolColorParam] ?? "")}
-        editorParams={editorOptions.shown}
-        onEditorParam={editorOptions.change}
+        tools={tools}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onOpen={() => openSource(pickDocument())}
         onSave={() => save(false)}
@@ -404,10 +404,6 @@ export default function App() {
         onZoom={(direction) => viewer?.zoom(direction)}
         onZoomValue={(value) => viewer?.setZoom(value)}
         onRotate={() => viewer?.rotate(1)}
-        onTool={changeTool}
-        onToolColor={(color) => toolColorParam !== undefined && editorOptions.change(toolColorParam, color)}
-        onImage={() => runCommand("addImage")}
-        onSign={() => setSignatureOpen(true)}
         onToggleFind={toggleFind}
         onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
         onToggleSource={() => activeMarkdown()?.toggleSource()}
@@ -456,6 +452,7 @@ export default function App() {
             onFailed: (id, error, source) => !pageEdits.documentFailed(id, source) && handleFailed(id, error),
             onOpenUrl: openExternal,
             onPageAction: (id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command)),
+            onUndoRemoval: pageEdits.undoIn,
           }}
           markdownProps={{ sidebarOpen, documentMap, onSnapshot: handleMarkdownSnapshot, onLoaded: handleLoaded, onOpenUrl: openExternal, onOpenFile: markdown.openLinked }}
           caretBrowsing={viewControls.caretBrowsing}
@@ -464,14 +461,6 @@ export default function App() {
           setMarkdownHandle={setMarkdownHandle}
         />
       </PaneGrid>
-      <SignatureDialog
-        open={signatureOpen}
-        onClose={() => setSignatureOpen(false)}
-        onPlace={(file) => {
-          setSignatureOpen(false);
-          activeHandle()?.viewer.addImage(file);
-        }}
-      />
       <PasswordDialog
         request={passwords.current}
         onSubmit={passwords.resolvePassword}

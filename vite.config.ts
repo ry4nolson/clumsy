@@ -21,6 +21,11 @@ export default defineConfig(() => ({
           dest: "pdfjs",
           rename: { stripBase: 2 },
         },
+        {
+          src: "node_modules/pdfjs-dist/web/images/annotation-*.svg",
+          dest: "pdfjs",
+          rename: { stripBase: 3 },
+        },
       ],
     }),
   ],

@@ -213,9 +213,9 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
   };
 
   const stepHistory = useCallback(
-    (direction: "undo" | "redo") => {
-      const tab = ws.focusedTab(workspaceRef.current);
-      if (tab.kind !== "document") {
+    (direction: "undo" | "redo", tabId?: string) => {
+      const tab = tabId ? workspaceRef.current.tabs[tabId] : ws.focusedTab(workspaceRef.current);
+      if (tab?.kind !== "document") {
         return false;
       }
       const edits = editsFor(tab.id);
@@ -242,6 +242,15 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
       return true;
     },
     [enqueue],
+  );
+
+  const undoIn = useCallback(
+    (tabId: string) => {
+      if (!stepHistory("undo", tabId)) {
+        handles.current.get(tabId)?.viewer.editingAction("undo");
+      }
+    },
+    [stepHistory],
   );
 
   const insertFiles = useCallback(
@@ -371,7 +380,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     [insertFiles, openSource],
   );
 
-  return { runPageCommand, pageAction, stepHistory, documentLoaded, documentFailed, dropFiles, settled };
+  return { runPageCommand, pageAction, stepHistory, undoIn, documentLoaded, documentFailed, dropFiles, settled };
 }
 
 export type PageEditsApi = ReturnType<typeof usePageEdits>;

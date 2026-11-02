@@ -2,6 +2,18 @@ import { useEffect, useRef } from "react";
 import { hasCaret } from "../lib/caret";
 import { isTypingTarget, resolveCommand, type CommandId } from "../lib/commands";
 
+function cancelOpenDialog(target: EventTarget | null) {
+  const open = document.querySelectorAll<HTMLDialogElement>("dialog[open]");
+  const dialog = (target instanceof Element && target.closest<HTMLDialogElement>("dialog[open]")) || open[open.length - 1];
+  if (!dialog) {
+    return false;
+  }
+  if (dialog.dispatchEvent(new Event("cancel", { cancelable: true }))) {
+    dialog.close();
+  }
+  return true;
+}
+
 export function useKeyboardShortcuts(isMac: boolean, onCommand: (id: CommandId) => void, onEscape: (typing: boolean) => void) {
   const handlers = useRef({ onCommand, onEscape });
   handlers.current = { onCommand, onEscape };
@@ -17,7 +29,9 @@ export function useKeyboardShortcuts(isMac: boolean, onCommand: (id: CommandId) 
         return;
       }
       if (id === "escape") {
-        if (!document.querySelector("dialog[open]")) {
+        if (cancelOpenDialog(event.target)) {
+          event.preventDefault();
+        } else {
           handlers.current.onEscape(typing);
         }
         return;

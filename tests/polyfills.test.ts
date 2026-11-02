@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { installIteratorJoin, installStreamIterator } from "../src/lib/polyfills";
+import { installAbortSignalAny, installIteratorJoin, installStreamIterator } from "../src/lib/polyfills";
 
 const iteratorPrototype = () => Object.create(Object.getPrototypeOf(Object.getPrototypeOf([].values())));
 
@@ -92,5 +92,64 @@ describe("installStreamIterator", () => {
     const prototype = { getReader() {}, [Symbol.asyncIterator]: native } as unknown as Parameters<typeof installStreamIterator>[0];
     installStreamIterator(prototype);
     expect(prototype![Symbol.asyncIterator]).toBe(native);
+  });
+});
+
+describe("installAbortSignalAny", () => {
+  const install = () => {
+    const target = {} as Parameters<typeof installAbortSignalAny>[0] & { any(signals: Iterable<AbortSignal>): AbortSignal };
+    installAbortSignalAny(target);
+    return target.any;
+  };
+
+  it("aborts when any source aborts, with that source's reason", () => {
+    const first = new AbortController();
+    const second = new AbortController();
+    const signal = install()([first.signal, second.signal]);
+    expect(signal.aborted).toBe(false);
+    second.abort("second");
+    expect(signal.aborted).toBe(true);
+    expect(signal.reason).toBe("second");
+    first.abort("first");
+    expect(signal.reason).toBe("second");
+  });
+
+  it("starts aborted when a source already is", () => {
+    const done = new AbortController();
+    done.abort("early");
+    const signal = install()([new AbortController().signal, done.signal]);
+    expect(signal.aborted).toBe(true);
+    expect(signal.reason).toBe("early");
+  });
+
+  it("removes listeners registered with it once a source aborts", () => {
+    const source = new AbortController();
+    const target = new EventTarget();
+    let hits = 0;
+    target.addEventListener("ping", () => hits++, { signal: install()([source.signal]) });
+    target.dispatchEvent(new Event("ping"));
+    source.abort();
+    target.dispatchEvent(new Event("ping"));
+    expect(hits).toBe(1);
+  });
+
+  it("stops listening to the other sources after aborting", () => {
+    const keep = new AbortController();
+    const end = new AbortController();
+    const added: string[] = [];
+    const removed: string[] = [];
+    const watch = (signal: AbortSignal, name: string) => {
+      const add = signal.addEventListener.bind(signal);
+      signal.addEventListener = ((type: string, listener: EventListener, options?: AddEventListenerOptions) => {
+        added.push(name);
+        options?.signal?.addEventListener("abort", () => removed.push(name));
+        add(type, listener, options);
+      }) as typeof signal.addEventListener;
+      return signal;
+    };
+    install()([watch(keep.signal, "keep"), watch(end.signal, "end")]);
+    end.abort();
+    expect(added).toEqual(["keep", "end"]);
+    expect(removed).toEqual(["keep", "end"]);
   });
 });

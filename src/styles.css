@@ -1532,30 +1532,6 @@ body {
   overflow-wrap: anywhere;
 }
 
-.signature-pad {
-  display: block;
-  width: 100%;
-  height: 180px;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
-  cursor: crosshair;
-  touch-action: none;
-}
-
-.signature-saved {
-  display: grid;
-  place-items: center;
-  height: 180px;
-  border-radius: 10px;
-  background: #fff;
-}
-
-.signature-saved img {
-  max-width: 90%;
-  max-height: 150px;
-}
-
 .export-options {
   display: grid;
   grid-template-columns: auto 1fr;

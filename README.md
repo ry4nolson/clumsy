@@ -18,7 +18,8 @@ Clumsy is a small, fast PDF viewer, built because opening a PDF shouldn’t requ
 - Dark pages that invert the text and leave photos alone, the Hand tool (hold Space), and Caret Browsing (F7).
 
 **Marking up**
-- Highlight, text notes, freehand drawing, images, and signatures, with colors, thickness, opacity, and font size.
+- Highlight, text notes, freehand drawing, images, and signatures (typed, drawn, or from a photo, up to five saved), with colors, thickness, opacity, and font size.
+- Comments on any markup or selected text, or as sticky notes anywhere on a page, with a Comments list in the sidebar that also shows the comments already in a file. Alt text for images and signatures.
 - Fill in forms.
 - Everything saves straight back into the PDF, and Clumsy asks first if another app changed the file since you opened it.
 

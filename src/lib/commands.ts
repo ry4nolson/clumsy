@@ -68,8 +68,12 @@ export type CommandId =
   | "toolHighlight"
   | "toolText"
   | "toolDraw"
+  | "toolComment"
+  | "highlightSelection"
+  | "commentSelection"
   | "addImage"
   | "sign"
+  | "newSignature"
   | "insertPages"
   | "rotatePagesLeft"
   | "rotatePagesRight"
@@ -189,8 +193,12 @@ export const commands: Command[] = [
   { id: "toolHighlight", label: "Highlight", menu: "Tools", combos: ["ctrl+mod+h", "h"], needsDocument: true },
   { id: "toolText", label: "Text Note", menu: "Tools", combos: ["ctrl+mod+t", "t"], needsDocument: true },
   { id: "toolDraw", label: "Draw", menu: "Tools", combos: ["ctrl+mod+p", "d"], needsDocument: true },
+  { id: "toolComment", label: "Comments", menu: "Tools", combos: ["ctrl+mod+m", "c"], needsDocument: true },
+  { id: "highlightSelection", label: "Highlight Selected Text", menu: "Tools", combos: [], needsDocument: true },
+  { id: "commentSelection", label: "Comment on Selected Text", menu: "Tools", combos: ["alt+mod+m"], needsDocument: true },
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
+  { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },
 
   { id: "insertPages", label: "Insert Pages from File…", menu: "Pages", combos: ["alt+mod+i"], needsDocument: true },
   { id: "rotatePagesLeft", label: "Rotate Pages Left", menu: "Pages", combos: [], needsDocument: true },

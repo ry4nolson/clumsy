@@ -35,6 +35,7 @@ describe("canReload", () => {
     expect(canReload(tab({ carriedChanges: true }), clean, "200-6")).toBe(false);
     expect(canReload(tab(), { ...clean, tool: "draw" }, "200-6")).toBe(false);
     expect(canReload(tab(), { ...clean, tool: "text" }, "200-6")).toBe(false);
+    expect(canReload(tab(), { ...clean, tool: "comment", sheetOpen: true }, "200-6")).toBe(false);
   });
 
   it("waits for the document to finish loading", () => {

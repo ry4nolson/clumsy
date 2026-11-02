@@ -1,0 +1,44 @@
+import { AnnotationEditorParamsType } from "pdfjs-dist";
+import type { TabSnapshot } from "../components/DocumentTab";
+import type { ToolsProps } from "../components/ToolsGroup";
+import type { CommandId } from "../lib/commands";
+import { colorParams, type useEditorOptions } from "./useEditorOptions";
+import type { EditorTool, PdfViewerApi } from "./usePdfViewer";
+
+const toolCommands: Record<EditorTool, CommandId> = {
+  select: "toolSelect",
+  hand: "toolHand",
+  highlight: "toolHighlight",
+  text: "toolText",
+  draw: "toolDraw",
+  comment: "toolComment",
+  image: "addImage",
+  signature: "sign",
+};
+
+export function useToolbarTools(
+  activeViewer: () => PdfViewerApi | undefined,
+  snapshot: TabSnapshot | undefined,
+  editorOptions: ReturnType<typeof useEditorOptions>,
+  runCommand: (id: CommandId) => void,
+): ToolsProps {
+  const tool = snapshot?.tool ?? "select";
+  const colorParam = colorParams[tool];
+  const highlightsShown = snapshot?.editorParams[AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL] !== false;
+  return {
+    tool,
+    toolColor: colorParam === undefined ? "" : String(editorOptions.shown[colorParam] ?? ""),
+    editorParams: editorOptions.shown,
+    highlightsShown,
+    signatures: snapshot?.signatures ?? [],
+    onTool: (next) => runCommand(toolCommands[next]),
+    onToolColor: (color) => colorParam !== undefined && editorOptions.change(colorParam, color),
+    onEditorParam: editorOptions.change,
+    onToggleHighlights: () => activeViewer()?.setEditorParam(AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL, !highlightsShown),
+    onImage: () => runCommand("addImage"),
+    onSign: () => runCommand("sign"),
+    onNewSignature: () => runCommand("newSignature"),
+    onPlaceSignature: (uuid) => activeViewer()?.editorUi?.placeSignature(uuid),
+    onForgetSignature: (uuid) => activeViewer()?.editorUi?.forgetSignature(uuid),
+  };
+}
