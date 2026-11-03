@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { CalendarDays, Check, Dot, Eye, EyeOff, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Type, X } from "lucide-react";
 import { inkColors, toolOptions } from "../hooks/useEditorOptions";
 import { highlightColors, type EditorParams, type EditorTool } from "../hooks/usePdfViewer";
@@ -15,6 +15,7 @@ export type ToolsProps = {
   highlightsShown: boolean;
   signatures: SignaturePreview[];
   onTool: (tool: EditorTool) => void;
+  onEndDrawing: () => void;
   onToolColor: (color: string) => void;
   onEditorParam: (type: number, value: number) => void;
   onToggleHighlights: () => void;
@@ -35,9 +36,12 @@ const marks: Array<{ kind: MarkKind; label: string; icon: ReactNode }> = [
 
 export function ToolsGroup(props: ToolsProps) {
   const { tool, toolColor } = props;
-  const swatches = tool === "highlight" ? Object.values(highlightColors) : tool === "text" || tool === "draw" ? inkColors : [];
+  const inkTool = tool === "text" || tool === "draw";
+  const swatches = tool === "highlight" ? Object.values(highlightColors) : inkTool ? inkColors : [];
+  const hexColor = /^#[0-9a-f]{6}$/i.test(toolColor) ? toolColor.toLowerCase() : "";
+  const otherColor = inkTool && hexColor !== "" && !swatches.some((color) => color.toLowerCase() === hexColor);
   return (
-    <div className="toolbar-group tools" data-tauri-drag-region>
+    <div className="toolbar-group tools" data-tauri-drag-region onPointerDownCapture={props.onEndDrawing}>
       <IconButton title="Select (V)" active={tool === "select"} onClick={() => props.onTool("select")}>
         <MousePointer2 size={18} />
       </IconButton>
@@ -79,6 +83,16 @@ export function ToolsGroup(props: ToolsProps) {
               onClick={() => props.onToolColor(color)}
             />
           ))}
+          {inkTool && (
+            <label
+              className="swatch other-color"
+              title="Other color…"
+              data-chosen={otherColor || undefined}
+              style={otherColor ? ({ "--chosen-color": hexColor } as CSSProperties) : undefined}
+            >
+              <input type="color" aria-label="Other color" value={hexColor || inkColors[0]} onChange={(event) => props.onToolColor(event.target.value)} />
+            </label>
+          )}
         </div>
       )}
       {toolOptions[tool]?.map((option) => {

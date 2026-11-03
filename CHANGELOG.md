@@ -11,6 +11,14 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - **Form tools**: Tab and ⇧Tab move through a form's fields in order, top to bottom, and carry on to the next page even when it hasn't been drawn yet (also Go > Next Form Field and Previous Form Field). Tools > Reset Form puts every field back to its default, and Undo brings your answers back. Tools > Flatten Form draws the answers into the page so they can't be changed, the way you'd send a finished form; Undo turns it back into a form. View > Highlight Form Fields turns the blue field shading and the red outline on required fields on or off
 - **Fill in paper forms**: the new Fill In button in the toolbar (also Tools > Checkmark, Cross, Dot, and Today's Date) drops a mark wherever you click, for scanned or printed forms that have no fields. Marks are sharp at any zoom and can be moved, resized, or removed like a signature; the date is an ordinary text box you can edit
 
+### Changed
+- The Text and Draw tools have an Other Color swatch next to the preset colors in the toolbar, which opens the system color picker for any color you like
+
+### Fixed
+- The Draw tool shows its pencil cursor again, and the line starts at the pencil's tip instead of above it. The Text tool's cursor shows again on high-resolution displays too
+- Changing the Draw tool's color, thickness, or opacity no longer restyles what you just drew. The strokes so far become one drawing and the next stroke starts a new one with the new settings
+- A Draw stroke is no longer sometimes lost: after a stroke that ended off the page, or after closing a tab you'd been drawing in, the next stroke drew nothing
+
 ## [0.9.0] - 2026-11-02
 
 ### Added

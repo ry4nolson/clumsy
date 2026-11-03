@@ -182,8 +182,31 @@ body {
   cursor: pointer;
 }
 
-.swatch[aria-checked="true"] {
+.swatch[aria-checked="true"],
+.other-color[data-chosen] {
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+.other-color {
+  position: relative;
+  background: conic-gradient(#e53935, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #e53935);
+}
+
+.other-color[data-chosen] {
+  background:
+    radial-gradient(var(--chosen-color) 0 45%, transparent 50%),
+    conic-gradient(#e53935, #fdd835, #43a047, #00acc1, #1e88e5, #8e24aa, #e53935);
+}
+
+.other-color input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .page-nav input.labeled {

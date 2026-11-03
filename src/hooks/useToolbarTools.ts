@@ -35,6 +35,7 @@ export function useToolbarTools(
     highlightsShown,
     signatures: snapshot?.signatures ?? [],
     onTool: (next) => runCommand(toolCommands[next]),
+    onEndDrawing: () => activeViewer()?.endDrawing(),
     onToolColor: (color) => colorParam !== undefined && editorOptions.change(colorParam, color),
     onEditorParam: editorOptions.change,
     onToggleHighlights: () => activeViewer()?.setEditorParam(AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL, !highlightsShown),

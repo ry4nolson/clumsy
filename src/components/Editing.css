@@ -7,6 +7,16 @@
   --toolbar-icon-bg-color: var(--text);
 }
 
+.pdfViewer {
+  --editorInk-editing-cursor: url("../../node_modules/pdfjs-dist/web/images/cursor-editorInk.svg") 0 15, pointer;
+}
+
+@media (min-resolution: 1.1dppx) {
+  .pdfViewer {
+    --editorFreeText-editing-cursor: url("../../node_modules/pdfjs-dist/web/images/cursor-editorFreeText.svg") 0 15, text;
+  }
+}
+
 .comment.sidebar {
   --comment-fg-color: var(--text);
 }
