@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-03
+
 ### Changed
 - The Text and Draw tools have an Other Color swatch next to the preset colors in the toolbar, which opens the system color picker for any color you like
 
