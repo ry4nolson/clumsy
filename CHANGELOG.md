@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-03
+
 ### Added
 - **Form tools**: Tab and ⇧Tab move through a form's fields in order, top to bottom, and carry on to the next page even when it hasn't been drawn yet (also Go > Next Form Field and Previous Form Field). Tools > Reset Form puts every field back to its default, and Undo brings your answers back. Tools > Flatten Form draws the answers into the page so they can't be changed, the way you'd send a finished form; Undo turns it back into a form. View > Highlight Form Fields turns the blue field shading and the red outline on required fields on or off
 - **Fill in paper forms**: the new Fill In button in the toolbar (also Tools > Checkmark, Cross, Dot, and Today's Date) drops a mark wherever you click, for scanned or printed forms that have no fields. Marks are sharp at any zoom and can be moved, resized, or removed like a signature; the date is an ordinary text box you can edit
