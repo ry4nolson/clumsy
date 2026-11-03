@@ -1,0 +1,15 @@
+.hide-field-highlights .pdfViewer .annotationLayer :is(.textWidgetAnnotation :is(input, textarea), .choiceWidgetAnnotation select, .buttonWidgetAnnotation:is(.checkBox, .radioButton) input):not(:focus, :hover) {
+  background-image: none;
+  outline: none;
+}
+
+.viewer-container.placing-mark .annotationEditorLayer {
+  cursor: crosshair;
+}
+
+.mark-choices {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+}

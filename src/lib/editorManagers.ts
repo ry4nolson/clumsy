@@ -312,6 +312,7 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
     finishSignature,
     finishDescription,
     finishComment: comments.finishComment,
+    addCommands: comments.addCommands,
     placeSignature,
     forgetSignature,
     showComment: comments.showComment,

@@ -19,6 +19,7 @@ import { EditorSheets, EditorUndoBar } from "./EditorSheets";
 import { FindBar } from "./FindBar";
 import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
+import "./Forms.css";
 
 export type TabSnapshot = {
   loaded: boolean;
@@ -36,6 +37,8 @@ export type TabSnapshot = {
   selectedEditor: boolean;
   signatures: SignaturePreview[];
   sheetOpen: boolean;
+  hasForm: boolean;
+  mark: PdfViewerApi["mark"];
 };
 
 export type PageAction =
@@ -204,6 +207,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       selectedEditor: viewer.selectedEditor,
       signatures: editorState.signatures,
       sheetOpen,
+      hasForm: viewer.hasForm,
+      mark: viewer.mark,
     });
   }, [
     id,
@@ -223,6 +228,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     viewer.selectedEditor,
     editorState.signatures,
     sheetOpen,
+    viewer.hasForm,
+    viewer.mark,
   ]);
 
   useEffect(() => {

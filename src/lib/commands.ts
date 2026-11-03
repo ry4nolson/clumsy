@@ -54,6 +54,7 @@ export type CommandId =
   | "spreadOdd"
   | "spreadEven"
   | "toggleCaretBrowsing"
+  | "toggleFieldHighlights"
   | "previousPage"
   | "nextPage"
   | "firstPage"
@@ -61,6 +62,8 @@ export type CommandId =
   | "goToPage"
   | "goBack"
   | "goForward"
+  | "nextField"
+  | "previousField"
   | "quickOpen"
   | "commandPalette"
   | "toolSelect"
@@ -74,6 +77,12 @@ export type CommandId =
   | "addImage"
   | "sign"
   | "newSignature"
+  | "markCheck"
+  | "markCross"
+  | "markDot"
+  | "markDate"
+  | "resetForm"
+  | "flattenForm"
   | "insertPages"
   | "rotatePagesLeft"
   | "rotatePagesRight"
@@ -108,6 +117,7 @@ export type Command = {
   needsMarkdown?: boolean;
   needsSplit?: boolean;
   needsComparison?: boolean;
+  needsForm?: boolean;
 };
 
 const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) => ({
@@ -176,6 +186,7 @@ export const commands: Command[] = [
   { id: "spreadOdd", label: "Odd Spreads", menu: "View", combos: [], needsDocument: true },
   { id: "spreadEven", label: "Even Spreads", menu: "View", combos: [], needsDocument: true },
   { id: "toggleCaretBrowsing", label: "Caret Browsing", menu: "View", combos: ["F7"] },
+  { id: "toggleFieldHighlights", label: "Highlight Form Fields", menu: "View", combos: [] },
 
   { id: "previousPage", label: "Previous Page", menu: "Go", combos: ["alt+mod+ArrowUp", "p", "k"], needsDocument: true },
   { id: "nextPage", label: "Next Page", menu: "Go", combos: ["alt+mod+ArrowDown", "n", "j"], needsDocument: true },
@@ -184,6 +195,8 @@ export const commands: Command[] = [
   { id: "goToPage", label: "Go to Page…", menu: "Go", combos: ["ctrl+g"], needsDocument: true },
   { id: "goBack", label: "Go Back", menu: "Go", combos: ["ctrl+-"], needsDocument: true },
   { id: "goForward", label: "Go Forward", menu: "Go", combos: ["ctrl+shift+-"], needsDocument: true },
+  { id: "nextField", label: "Next Form Field", menu: "Go", combos: [], needsDocument: true, needsForm: true },
+  { id: "previousField", label: "Previous Form Field", menu: "Go", combos: [], needsDocument: true, needsForm: true },
   { id: "nextChange", label: "Next Change", menu: "Go", combos: ["alt+F5"], needsComparison: true },
   { id: "previousChange", label: "Previous Change", menu: "Go", combos: ["shift+alt+F5"], needsComparison: true },
   { id: "quickOpen", label: "Go to File…", menu: "Go", combos: ["mod+p"] },
@@ -199,6 +212,12 @@ export const commands: Command[] = [
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
   { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },
+  { id: "markCheck", label: "Checkmark", menu: "Tools", combos: [], needsDocument: true },
+  { id: "markCross", label: "Cross", menu: "Tools", combos: [], needsDocument: true },
+  { id: "markDot", label: "Dot", menu: "Tools", combos: [], needsDocument: true },
+  { id: "markDate", label: "Today's Date", menu: "Tools", combos: [], needsDocument: true },
+  { id: "resetForm", label: "Reset Form", menu: "Tools", combos: [], needsDocument: true, needsForm: true },
+  { id: "flattenForm", label: "Flatten Form", menu: "Tools", combos: [], needsDocument: true, needsForm: true },
 
   { id: "insertPages", label: "Insert Pages from File…", menu: "Pages", combos: ["alt+mod+i"], needsDocument: true },
   { id: "rotatePagesLeft", label: "Rotate Pages Left", menu: "Pages", combos: [], needsDocument: true },
@@ -227,7 +246,7 @@ export const commands: Command[] = [
 
 export const commandById = new Map(commands.map((command) => [command.id, command]));
 
-export type CommandContext = { hasDocument: boolean; hasMarkdown?: boolean; split: boolean; comparing: boolean };
+export type CommandContext = { hasDocument: boolean; hasMarkdown?: boolean; hasForm?: boolean; split: boolean; comparing: boolean };
 
 export function documentAvailable(command: Command, { hasDocument, hasMarkdown = false }: Pick<CommandContext, "hasDocument" | "hasMarkdown">) {
   if (command.needsMarkdown) {
@@ -237,7 +256,12 @@ export function documentAvailable(command: Command, { hasDocument, hasMarkdown =
 }
 
 export function commandAvailable(command: Command, context: CommandContext) {
-  return documentAvailable(command, context) && (context.split || !command.needsSplit) && (context.comparing || !command.needsComparison);
+  return (
+    documentAvailable(command, context) &&
+    (context.split || !command.needsSplit) &&
+    (context.comparing || !command.needsComparison) &&
+    (!!context.hasForm || !command.needsForm)
+  );
 }
 
 const MODIFIERS = ["ctrl", "shift", "alt", "mod"] as const;

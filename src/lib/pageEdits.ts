@@ -1,6 +1,7 @@
 import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
 import { relabelRange, type LabelNumbering } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
+import { flattenForm } from "./pdfForm";
 import { collectGarbage, flattenPageTree, importPageRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 export type PageEdit =
@@ -8,7 +9,8 @@ export type PageEdit =
   | { kind: "delete"; pages: number[] }
   | { kind: "rotate"; pages: number[]; by: 90 | -90 }
   | { kind: "insert"; data: Uint8Array; at: number }
-  | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null };
+  | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null }
+  | { kind: "flatten" };
 
 export class PageEditError extends Error {}
 
@@ -48,6 +50,7 @@ export function pageAfterEdit(edit: PageEdit, page: number, count: number, inser
     }
     case "rotate":
     case "label":
+    case "flatten":
       return page;
     case "insert":
       return page >= edit.at ? page + insertedCount : page;
@@ -79,6 +82,7 @@ export function selectionAfterEdit(edit: PageEdit, count: number, insertedCount 
     }
     case "delete":
     case "label":
+    case "flatten":
       return [];
   }
 }
@@ -105,6 +109,7 @@ export function changesDocument(edit: PageEdit, count: number) {
       return reorderedPages(count, edit.pages, edit.to).some((page, index) => page !== index);
     case "insert":
     case "label":
+    case "flatten":
       return true;
     default:
       return edit.pages.some((page) => page >= 0 && page < count);
@@ -156,6 +161,11 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
     }
     case "label":
       writePageLabels(doc, edit.numbering && relabelRange(labels, refs.length, edit.from, edit.to, edit.numbering));
+      return save(doc);
+    case "flatten":
+      if (!(await flattenForm(doc))) {
+        throw new PageEditError("This PDF has no form fields to flatten.");
+      }
       return save(doc);
   }
   if (edit.kind !== "rotate") {

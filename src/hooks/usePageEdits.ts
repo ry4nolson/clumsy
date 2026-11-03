@@ -312,6 +312,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         rotatePagesLeft: () => editPages(tab.id, { kind: "rotate", pages, by: -90 }),
         rotatePagesRight: () => editPages(tab.id, { kind: "rotate", pages, by: 90 }),
         deletePages: () => editPages(tab.id, { kind: "delete", pages }),
+        flattenForm: () => editPages(tab.id, { kind: "flatten" }),
         pageLabels: () => handle.editPageLabels(),
         insertPages: () => insertFiles(tab.id, pickImages(true), Math.max(...pages) + 1),
         extractPages: () =>

@@ -20,7 +20,7 @@ Clumsy is a small, fast PDF viewer, built because opening a PDF shouldn’t requ
 **Marking up**
 - Highlight, text notes, freehand drawing, images, and signatures (typed, drawn, or from a photo, up to five saved), with colors, thickness, opacity, and font size.
 - Comments on any markup or selected text, or as sticky notes anywhere on a page, with a Comments list in the sidebar that also shows the comments already in a file. Alt text for images and signatures.
-- Fill in forms.
+- Fill in forms: Tab moves through every field in order, even across pages, Reset Form puts back the defaults, and Flatten Form bakes the answers into the page. On paper forms with no fields, click to drop a checkmark, cross, dot, or today's date.
 - Everything saves straight back into the PDF, and Clumsy asks first if another app changed the file since you opened it.
 
 **Changing pages**
