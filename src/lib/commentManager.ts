@@ -9,8 +9,10 @@ export type CommentUiManager = {
   addEditListeners(): void;
   waitForEditorsRendered(pageNumber: number): Promise<void>;
   selectComment(pageIndex: number, uid: string): void;
-  addCommands(command: { cmd: () => void; undo: () => void; mustExec: boolean }): void;
+  addCommands(command: UndoableCommand): void;
 };
+
+export type UndoableCommand = { cmd: () => void; undo: () => void; mustExec: boolean };
 
 type CommentEditor = CommentTarget & {
   uid: string;
@@ -183,6 +185,15 @@ export function createCommentManager(eventBus: EventBus, linkService: PDFLinkSer
     uiManager?.selectComment(entry.pageIndex, entry.id);
   };
 
+  const addCommands = (command: UndoableCommand) => {
+    undoBar.hide();
+    if (uiManager) {
+      uiManager.addCommands(command);
+    } else {
+      command.cmd();
+    }
+  };
+
   const attachViewer = (viewer: PDFViewer) => {
     notes = attachStickyNotes(viewer, eventBus, linkService, {
       toggle: (target, isSelected, visibility, isEditable) => commentManager.toggleCommentPopup(target, isSelected, visibility, isEditable),
@@ -193,14 +204,7 @@ export function createCommentManager(eventBus: EventBus, linkService: PDFLinkSer
         }
       },
       editComment: (target, x, y, options) => commentManager.showDialog(uiManager, target, x, y, options),
-      addCommands: (command) => {
-        undoBar.hide();
-        if (uiManager) {
-          uiManager.addCommands(command);
-        } else {
-          command.cmd();
-        }
-      },
+      addCommands,
       makeColor: makeCommentColor,
       removed: () => undoBar.show(() => {}, "comment"),
       changed: refreshNotes,
@@ -210,6 +214,7 @@ export function createCommentManager(eventBus: EventBus, linkService: PDFLinkSer
   return {
     commentManager,
     attachViewer,
+    addCommands,
     setCommentDialog(element: HTMLElement | null) {
       commentDialog = element;
     },

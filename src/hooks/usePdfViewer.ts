@@ -17,6 +17,7 @@ import { PatternFindController } from "../lib/patternFindController";
 import { defaultViewModes, type ScrollModeName, type SpreadModeName, type ViewModes } from "../lib/viewModes";
 import { useViewerControls } from "./useViewerControls";
 import { useViewerFind } from "./useViewerFind";
+import { useViewerForm } from "./useViewerForm";
 import { useViewerScroll, type DiffState } from "./useViewerScroll";
 import { useViewerTools } from "./useViewerTools";
 
@@ -272,6 +273,7 @@ export function usePdfViewer() {
   const { resetTools, setTool } = tools;
   const scroll = useViewerScroll(partsRef, containerRef, diffRef, paintDiffRef);
   const controls = useViewerControls(partsRef);
+  const { hasForm, loadFields, stepField, resetForm } = useViewerForm(partsRef);
 
   const setModified = useCallback((value: boolean) => {
     modifiedRef.current = value;
@@ -305,6 +307,7 @@ export function usePdfViewer() {
       setPagesRotation(0);
       resetFind();
       applyLabels(null);
+      loadFields(doc);
       if (doc) {
         Object.assign(doc.annotationStorage, {
           onSetModified: () => setModified(true),
@@ -324,7 +327,7 @@ export function usePdfViewer() {
       parts.findController.setDocument(doc!);
       setPdfDocument(doc);
     },
-    [setModified, stops, resetFind, resetTools, applyLabels],
+    [setModified, stops, resetFind, resetTools, applyLabels, loadFields],
   );
 
   const recordStop = useCallback(() => {
@@ -450,6 +453,7 @@ export function usePdfViewer() {
     spreadMode: modes.spreadMode,
     pageLabels,
     caretBrowsing,
+    hasForm,
     findMatches,
     setDocument,
     goToPage,
@@ -458,6 +462,8 @@ export function usePdfViewer() {
     setScrollMode,
     setSpreadMode,
     editingAction,
+    stepField,
+    resetForm,
     ...tools,
     ...controls,
     setCaretBrowsing,

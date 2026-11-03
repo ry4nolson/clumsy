@@ -1,12 +1,15 @@
-import { Eye, EyeOff, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, Type, X } from "lucide-react";
+import type { ReactNode } from "react";
+import { CalendarDays, Check, Dot, Eye, EyeOff, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Type, X } from "lucide-react";
 import { inkColors, toolOptions } from "../hooks/useEditorOptions";
 import { highlightColors, type EditorParams, type EditorTool } from "../hooks/usePdfViewer";
 import type { SignaturePreview } from "../lib/editorManagers";
+import type { MarkKind } from "../lib/marks";
 import { IconButton } from "./IconButton";
 import { SignaturePath } from "./SignatureDialog";
 
 export type ToolsProps = {
   tool: EditorTool;
+  mark: MarkKind | null;
   toolColor: string;
   editorParams: EditorParams;
   highlightsShown: boolean;
@@ -17,10 +20,18 @@ export type ToolsProps = {
   onToggleHighlights: () => void;
   onImage: () => void;
   onSign: () => void;
+  onMark: (kind: MarkKind) => void;
   onNewSignature: () => void;
   onPlaceSignature: (uuid: string) => void;
   onForgetSignature: (uuid: string) => void;
 };
+
+const marks: Array<{ kind: MarkKind; label: string; icon: ReactNode }> = [
+  { kind: "check", label: "Checkmark", icon: <Check size={16} /> },
+  { kind: "cross", label: "Cross", icon: <X size={16} /> },
+  { kind: "dot", label: "Dot", icon: <Dot size={16} strokeWidth={6} /> },
+  { kind: "date", label: "Today's date", icon: <CalendarDays size={16} /> },
+];
 
 export function ToolsGroup(props: ToolsProps) {
   const { tool, toolColor } = props;
@@ -50,6 +61,9 @@ export function ToolsGroup(props: ToolsProps) {
       </IconButton>
       <IconButton title="Sign" active={tool === "signature"} onClick={props.onSign}>
         <Signature size={18} />
+      </IconButton>
+      <IconButton title="Fill in: click to place a checkmark, cross, dot, or date" active={tool === "mark"} onClick={() => props.onMark(props.mark ?? "check")}>
+        <SquareCheck size={18} />
       </IconButton>
       {swatches.length > 0 && (
         <div className="swatches" role="radiogroup" aria-label="Color" data-tauri-drag-region>
@@ -90,6 +104,15 @@ export function ToolsGroup(props: ToolsProps) {
         <IconButton title={props.highlightsShown ? "Hide highlights" : "Show highlights"} active={!props.highlightsShown} onClick={props.onToggleHighlights}>
           {props.highlightsShown ? <Eye size={16} /> : <EyeOff size={16} />}
         </IconButton>
+      )}
+      {tool === "mark" && (
+        <div className="mark-choices" data-tauri-drag-region>
+          {marks.map(({ kind, label, icon }) => (
+            <IconButton key={kind} title={label} active={props.mark === kind} onClick={() => props.onMark(kind)}>
+              {icon}
+            </IconButton>
+          ))}
+        </div>
       )}
       {tool === "signature" && (
         <div className="signature-chips" data-tauri-drag-region>

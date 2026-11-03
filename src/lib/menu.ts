@@ -108,13 +108,42 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "toggleCaretBrowsing",
       "toggleDarkPages",
       "toggleInvertImages",
+      "toggleFieldHighlights",
       "-",
       { predefined: "Fullscreen" },
     ],
   ],
-  ["Go", ["previousPage", "nextPage", "firstPage", "lastPage", "-", "goBack", "goForward", "-", "quickOpen", "goToPage", "-", "nextChange", "previousChange"]],
+  [
+    "Go",
+    ["previousPage", "nextPage", "firstPage", "lastPage", "-", "goBack", "goForward", "-", "quickOpen", "goToPage", "-", "nextField", "previousField", "-", "nextChange", "previousChange"],
+  ],
   ["Pages", ["insertPages", "-", "rotatePagesLeft", "rotatePagesRight", "-", "deletePages", "extractPages", "exportSelectedPagesAsImages", "-", "pageLabels"]],
-  ["Tools", ["toolSelect", "toolHand", "toolHighlight", "toolText", "toolDraw", "toolComment", "-", "highlightSelection", "commentSelection", "-", "addImage", "sign", "newSignature"]],
+  [
+    "Tools",
+    [
+      "toolSelect",
+      "toolHand",
+      "toolHighlight",
+      "toolText",
+      "toolDraw",
+      "toolComment",
+      "-",
+      "highlightSelection",
+      "commentSelection",
+      "-",
+      "addImage",
+      "sign",
+      "newSignature",
+      "-",
+      "markCheck",
+      "markCross",
+      "markDot",
+      "markDate",
+      "-",
+      "resetForm",
+      "flattenForm",
+    ],
+  ],
   [
     "Window",
     [
@@ -153,6 +182,7 @@ const checkCommands = new Set<CommandId>([
   "toggleDarkPages",
   "toggleInvertImages",
   "toggleCaretBrowsing",
+  "toggleFieldHighlights",
   ...Object.values(scrollModeCommands),
   ...Object.values(spreadModeCommands),
 ]);
@@ -168,6 +198,8 @@ export type MenuState = {
   darkPages: boolean;
   invertImages: boolean;
   caretBrowsing: boolean;
+  hasForm: boolean;
+  fieldHighlights: boolean;
 } & ViewModes;
 
 export function checkedCommands(state: MenuState): Set<CommandId> {
@@ -177,6 +209,7 @@ export function checkedCommands(state: MenuState): Set<CommandId> {
     ["toggleDarkPages", state.darkPages],
     ["toggleInvertImages", state.invertImages],
     ["toggleCaretBrowsing", state.caretBrowsing],
+    ["toggleFieldHighlights", state.fieldHighlights],
     [scrollModeCommands[state.scrollMode], state.hasDocument],
     [spreadModeCommands[state.spreadMode], state.hasDocument],
   ];
@@ -200,6 +233,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const checkItems = new Map<CommandId, CheckMenuItem>();
   const splitItems: MenuItem[] = [];
   const comparisonItems: MenuItem[] = [];
+  const formItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
   const recentMenu = await Submenu.new({ text: "Open Recent", items: [] });
 
   const commandItem = async (id: CommandId) => {
@@ -219,7 +253,9 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     if (item instanceof CheckMenuItem) {
       checkItems.set(id, item);
     }
-    if (command.needsDocument || command.needsMarkdown) {
+    if (command.needsForm) {
+      formItems.push([command, item]);
+    } else if (command.needsDocument || command.needsMarkdown) {
       documentItems.push([command, item]);
     }
     if (command.needsSplit && item instanceof MenuItem) {
@@ -265,6 +301,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
         ...documentItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state))),
         ...splitItems.map((item) => item.setEnabled(state.split)),
         ...comparisonItems.map((item) => item.setEnabled(state.comparing)),
+        ...formItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state) && state.hasForm)),
         checkItems.get("toggleDocumentMap")?.setEnabled(state.documentMapAvailable),
         ...[...checkItems].map(([id, item]) => item.setChecked(checked.has(id))),
       ]);

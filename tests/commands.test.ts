@@ -82,6 +82,16 @@ describe("commandAvailable", () => {
     expect(available("open", { ...pdfTab, hasDocument: false })).toBe(true);
   });
 
+  it("offers form commands only for PDFs with fields", () => {
+    for (const id of ["nextField", "previousField", "resetForm", "flattenForm"] as const) {
+      expect(available(id, pdfTab), id).toBe(false);
+      expect(available(id, { ...pdfTab, hasForm: true }), id).toBe(true);
+      expect(available(id, { ...markdownTab, hasForm: true }), id).toBe(false);
+    }
+    expect(available("markCheck", pdfTab)).toBe(true);
+    expect(available("markDate", markdownTab)).toBe(false);
+  });
+
   it("binds the source toggle to VS Code's preview shortcut", () => {
     expect(resolveCommand({ key: "V", code: "KeyV", metaKey: true, ctrlKey: false, shiftKey: true, altKey: false }, true, false)).toBe("toggleMarkdownSource");
   });

@@ -35,6 +35,8 @@ describe("checkedCommands", () => {
     darkPages: false,
     invertImages: false,
     caretBrowsing: false,
+    hasForm: false,
+    fieldHighlights: false,
     scrollMode: "wrapped",
     spreadMode: "odd",
   };

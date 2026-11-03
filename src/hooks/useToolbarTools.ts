@@ -3,6 +3,7 @@ import type { TabSnapshot } from "../components/DocumentTab";
 import type { ToolsProps } from "../components/ToolsGroup";
 import type { CommandId } from "../lib/commands";
 import { colorParams, type useEditorOptions } from "./useEditorOptions";
+import { markCommands } from "./useFormControls";
 import type { EditorTool, PdfViewerApi } from "./usePdfViewer";
 
 const toolCommands: Record<EditorTool, CommandId> = {
@@ -14,6 +15,7 @@ const toolCommands: Record<EditorTool, CommandId> = {
   comment: "toolComment",
   image: "addImage",
   signature: "sign",
+  mark: "markCheck",
 };
 
 export function useToolbarTools(
@@ -27,6 +29,7 @@ export function useToolbarTools(
   const highlightsShown = snapshot?.editorParams[AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL] !== false;
   return {
     tool,
+    mark: snapshot?.mark ?? null,
     toolColor: colorParam === undefined ? "" : String(editorOptions.shown[colorParam] ?? ""),
     editorParams: editorOptions.shown,
     highlightsShown,
@@ -37,6 +40,7 @@ export function useToolbarTools(
     onToggleHighlights: () => activeViewer()?.setEditorParam(AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL, !highlightsShown),
     onImage: () => runCommand("addImage"),
     onSign: () => runCommand("sign"),
+    onMark: (kind) => runCommand(markCommands[kind]),
     onNewSignature: () => runCommand("newSignature"),
     onPlaceSignature: (uuid) => activeViewer()?.editorUi?.placeSignature(uuid),
     onForgetSignature: (uuid) => activeViewer()?.editorUi?.forgetSignature(uuid),

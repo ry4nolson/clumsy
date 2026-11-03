@@ -81,12 +81,12 @@ function removeEntries(array: PDFArray, shouldRemove: (entry: PDFObject) => bool
   }
 }
 
-function acroForm(doc: PDFDocument) {
+export function acroForm(doc: PDFDocument) {
   const form = doc.catalog.lookup(key("AcroForm"));
   return form instanceof PDFDict ? form : null;
 }
 
-function pruneFields(doc: PDFDocument, doomed: Set<PDFRef>) {
+export function pruneFields(doc: PDFDocument, doomed: Set<PDFRef>) {
   const removed = new Set<PDFRef>();
   const prune = (array: PDFArray) =>
     removeEntries(array, (entry) => {
@@ -113,12 +113,12 @@ function pruneFields(doc: PDFDocument, doomed: Set<PDFRef>) {
   return removed;
 }
 
-function dropXfa(doc: PDFDocument) {
+export function dropXfa(doc: PDFDocument) {
   acroForm(doc)?.delete(key("XFA"));
   doc.catalog.delete(key("NeedsRendering"));
 }
 
-function detach(doc: PDFDocument, doomed: Set<PDFRef>) {
+export function detach(doc: PDFDocument, doomed: Set<PDFRef>) {
   const seen = new Set<PDFObject>();
   const stack: PDFObject[] = [doc.context.trailerInfo.Root, doc.context.trailerInfo.Info].filter((object): object is PDFObject => !!object);
   while (stack.length) {

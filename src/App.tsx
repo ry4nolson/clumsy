@@ -14,6 +14,7 @@ import { useAppMenu } from "./hooks/useAppMenu";
 import { useComparison } from "./hooks/useComparison";
 import { useEditorOptions } from "./hooks/useEditorOptions";
 import { useExternalChanges } from "./hooks/useExternalChanges";
+import { useFormControls } from "./hooks/useFormControls";
 import { useImageExport } from "./hooks/useImageExport";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMarkdownCommands } from "./hooks/useMarkdownCommands";
@@ -114,12 +115,14 @@ export default function App() {
   const { recentFiles, openRecent } = useRecentFiles(openSource);
   const activeViewer = () => activeHandle()?.viewer;
   const viewControls = useViewControls(activeViewer);
+  const forms = useFormControls(activeViewer);
   const systemDark = useSystemDarkMode();
   const darkPages = darkPagesPreference === "on" || (darkPagesPreference === "auto" && systemDark);
 
   const activeTab = ws.focusedTab(workspace);
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
+  const hasForm = hasDocument && !!activeSnapshot?.hasForm;
   const markdownSnapshot = activeTab.kind === "markdown" ? markdownSnapshots[activeTab.id] : undefined;
   const hasMarkdown = !!markdownSnapshot;
   const allSnapshots = { ...snapshots, ...markdownSnapshots };
@@ -188,6 +191,7 @@ export default function App() {
   const quickPick = useQuickPick({
     hasDocument,
     hasMarkdown,
+    hasForm,
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
     documentMapAvailable: viewMenuState.documentMapAvailable,
@@ -230,7 +234,7 @@ export default function App() {
     if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
-    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || imageExport.runExportCommand(id)) {
+    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || imageExport.runExportCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -347,6 +351,8 @@ export default function App() {
       documentMap,
       darkPages,
       invertImages: darkPagesImages === "invert",
+      hasForm,
+      fieldHighlights: forms.fieldHighlights,
       ...viewMenuState,
     },
     recentFiles,
@@ -381,7 +387,7 @@ export default function App() {
   const viewer = activeHandle()?.viewer;
 
   return (
-    <div className={`app${dropHover ? " dragging" : ""}`}>
+    <div className={`app${dropHover ? " dragging" : ""}${forms.fieldHighlights ? "" : " hide-field-highlights"}`}>
       <Toolbar
         titlebarInset={hasOverlayTitlebar && !fullscreen}
         hasDocument={hasDocument}
