@@ -20,7 +20,24 @@ const toolModes: Record<Exclude<EditorTool, "hand">, number> = {
 
 type EditorLayerPage = { annotationEditorLayer?: { annotationEditorLayer?: unknown } | null };
 
+type DrawingLayerPage = { annotationEditorLayer?: { annotationEditorLayer?: { commitOrRemove?(): boolean } | null } | null };
+
+type DrawingHost = { _layerProperties?: { annotationEditorUIManager?: { unselectAll?(): void } | null } };
+
 type ToolParts = { eventBus: EventBus; viewer: PDFViewer; hand: HandTool; editorUi: EditorManagers };
+
+const sessionParams = new Set<number>([AnnotationEditorParamsType.CREATE, AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL]);
+
+function finishDrawing(viewer: PDFViewer) {
+  let finished = false;
+  for (let index = 0; index < viewer.pagesCount; index++) {
+    const layer = (viewer.getPageView(index) as DrawingLayerPage | undefined)?.annotationEditorLayer?.annotationEditorLayer;
+    finished = !!layer?.commitOrRemove?.() || finished;
+  }
+  if (finished) {
+    (viewer as unknown as DrawingHost)._layerProperties?.annotationEditorUIManager?.unselectAll?.();
+  }
+}
 
 export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   const editorDefaultsRef = useRef<EditorParams>({});
@@ -38,6 +55,13 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       return;
     }
     const { eventBus, hand, viewer } = parts;
+    const onPointerDown = ({ target, isPrimary }: PointerEvent) => {
+      const ink = (viewer.annotationEditorMode as unknown as number) === AnnotationEditorType.INK;
+      if (ink && isPrimary && target instanceof HTMLElement && target.classList.contains("annotationEditorLayer")) {
+        target.dispatchEvent(new PointerEvent("pointerup", { button: 0 }));
+      }
+    };
+    viewer.container.addEventListener("pointerdown", onPointerDown, true);
     const onStates = ({ details }: { details: { hasSelectedEditor?: boolean } }) => {
       if (details.hasSelectedEditor !== undefined) {
         selectedRef.current = details.hasSelectedEditor;
@@ -84,6 +108,8 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       eventBus.off("annotationeditormodechanged", onMode);
       eventBus.off("showannotationeditorui", onShowEditorUi);
       eventBus.off("annotationeditorlayerrendered", onEditorLayer);
+      viewer.container.removeEventListener("pointerdown", onPointerDown, true);
+      finishDrawing(viewer);
     };
   }, [partsRef]);
 
@@ -154,9 +180,23 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     [partsRef],
   );
 
+  const endDrawing = useCallback(() => {
+    const viewer = partsRef.current?.viewer;
+    if (viewer) {
+      finishDrawing(viewer);
+    }
+  }, [partsRef]);
+
   const setEditorParam = useCallback(
     (type: number, value: unknown) => {
-      partsRef.current?.eventBus.dispatch("switchannotationeditorparams", { source: null, type, value });
+      const parts = partsRef.current;
+      if (!parts) {
+        return;
+      }
+      if (!sessionParams.has(type)) {
+        finishDrawing(parts.viewer);
+      }
+      parts.eventBus.dispatch("switchannotationeditorparams", { source: null, type, value });
       if (type === AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL) {
         setEditorParams((current) => ({ ...current, [type]: value }));
       }
@@ -198,6 +238,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     resetTools,
     setTool,
     holdHand,
+    endDrawing,
     setEditorParam,
     setEditorDefaults,
     addImage,

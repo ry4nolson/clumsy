@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- The Text and Draw tools have an Other Color swatch next to the preset colors in the toolbar, which opens the system color picker for any color you like
+
+### Fixed
+- The Draw tool shows its pencil cursor again, and the line starts at the pencil's tip instead of above it. The Text tool's cursor shows again on high-resolution displays too
+- Changing the Draw tool's color, thickness, or opacity no longer restyles what you just drew. The strokes so far become one drawing and the next stroke starts a new one with the new settings
+- A Draw stroke is no longer sometimes lost: after a stroke that ended off the page, or after closing a tab you'd been drawing in, the next stroke drew nothing
+
 ## [0.9.0] - 2026-11-02
 
 ### Added
