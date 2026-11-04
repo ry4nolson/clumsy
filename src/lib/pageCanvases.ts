@@ -1,30 +1,53 @@
 import type { PDFPageProxy } from "pdfjs-dist";
 
-type Rendered = { canvas: HTMLCanvasElement; rotation: number };
-type Registry = Map<number, Rendered>;
+type Rendered = { canvas: HTMLCanvasElement; rotation: number; annotated: boolean };
+type Registry = { canvases: Map<number, Rendered[]>; pending: Map<number, Promise<void>> };
 
 const registries = new WeakMap<object, Registry>();
 
-export function publishPageCanvas(document: object, index: number, canvas: HTMLCanvasElement, rotation: number) {
+function registryFor(document: object) {
   let registry = registries.get(document);
   if (!registry) {
-    registry = new Map();
+    registry = { canvases: new Map(), pending: new Map() };
     registries.set(document, registry);
   }
-  for (const [page, rendered] of registry) {
-    if (!rendered.canvas.width) {
-      registry.delete(page);
+  return registry;
+}
+
+export function publishPageCanvas(document: object, index: number, canvas: HTMLCanvasElement, rotation: number, annotated = false) {
+  const { canvases } = registryFor(document);
+  for (const [page, rendered] of canvases) {
+    const kept = rendered.filter((entry) => entry.canvas.width && entry.canvas !== canvas);
+    if (kept.length) {
+      canvases.set(page, kept);
+    } else {
+      canvases.delete(page);
     }
   }
-  registry.set(index, { canvas, rotation });
+  canvases.set(index, [...(canvases.get(index) ?? []), { canvas, rotation, annotated }]);
+}
+
+export function trackPageRender(document: object, index: number, render: Promise<unknown>) {
+  const { pending } = registryFor(document);
+  const settled: Promise<void> = render
+    .then(() => {})
+    .catch(() => {})
+    .finally(() => {
+      if (pending.get(index) === settled) {
+        pending.delete(index);
+      }
+    });
+  pending.set(index, settled);
 }
 
 export async function copyRenderedPage(document: object, page: PDFPageProxy, rotation: number, target: HTMLCanvasElement, width: number, cancelled: () => boolean) {
   const index = page.pageNumber - 1;
-  if (!renderedCanvas(document, index, rotation, width) || (await page.getAnnotations()).length > 0 || cancelled()) {
+  await registries.get(document)?.pending.get(index);
+  if (cancelled() || !renderedCanvas(document, index, rotation, width, false)) {
     return false;
   }
-  const source = renderedCanvas(document, index, rotation, width);
+  const annotatedOnly = !renderedCanvas(document, index, rotation, width, true) && (await page.getAnnotations()).length > 0;
+  const source = !cancelled() && renderedCanvas(document, index, rotation, width, annotatedOnly);
   const context = source && target.getContext("2d");
   if (!source || !context) {
     return false;
@@ -36,7 +59,12 @@ export async function copyRenderedPage(document: object, page: PDFPageProxy, rot
   return true;
 }
 
-function renderedCanvas(document: object, index: number, rotation: number, width: number) {
-  const rendered = registries.get(document)?.get(index);
-  return rendered && rendered.rotation === rotation && rendered.canvas.width >= width && rendered.canvas.height > 0 ? rendered.canvas : null;
+function renderedCanvas(document: object, index: number, rotation: number, width: number, annotatedOnly: boolean) {
+  let best: HTMLCanvasElement | null = null;
+  for (const { canvas, rotation: shown, annotated } of registries.get(document)?.canvases.get(index) ?? []) {
+    if (shown === rotation && canvas.width >= width && canvas.height > 0 && (annotated || !annotatedOnly) && (!best || canvas.width < best.width)) {
+      best = canvas;
+    }
+  }
+  return best;
 }

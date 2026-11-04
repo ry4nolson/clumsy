@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { slotAt } from "../lib/dropTarget";
-import { copyRenderedPage } from "../lib/pageCanvases";
+import { copyRenderedPage, publishPageCanvas, trackPageRender } from "../lib/pageCanvases";
 import type { SelectModifiers } from "../lib/pageSelection";
 
 const THUMB_WIDTH = 120;
@@ -71,6 +71,7 @@ const Thumbnail = memo(function Thumbnail({
       }
       const base = page.getViewport({ scale: 1 });
       const width = THUMB_WIDTH * window.devicePixelRatio;
+      let annotated = false;
       if (!(await copyRenderedPage(pdfDocument, page, 0, canvas, width, () => cancelled))) {
         if (cancelled) {
           return;
@@ -79,10 +80,19 @@ const Thumbnail = memo(function Thumbnail({
         canvas.width = Math.floor(viewport.width);
         canvas.height = Math.floor(viewport.height);
         renderTask = page.render({ canvas, viewport });
-        await renderTask.promise;
+        trackPageRender(pdfDocument, pageNumber - 1, renderTask.promise);
+        try {
+          await renderTask.promise;
+        } finally {
+          page.cleanup();
+        }
+        annotated = true;
       }
       canvas.parentElement!.style.aspectRatio = `${base.width} / ${base.height}`;
       drawn.current = !cancelled;
+      if (!cancelled) {
+        publishPageCanvas(pdfDocument, pageNumber - 1, canvas, 0, annotated);
+      }
     }).catch(() => {});
     return () => {
       cancelled = true;

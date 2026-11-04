@@ -13,6 +13,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - Scrolling through scanned documents is about twice as smooth. Thumbnails and the Document Map wait until you stop scrolling to draw, and reuse the page the viewer just drew instead of decoding each scan again
 - With Dark Pages off, pages with pictures no longer keep a second full-size copy of themselves in memory
 - Tabs you're not looking at stop drawing thumbnails and the Document Map, and after 30 seconds out of view they let go of their rendered pages until you switch back
+- After you jump to a page, the Document Map draws the pages around it first instead of working down from the top, and reuses page thumbnails that are already drawn
+- Pages no longer get stuck loading. Scrolling quickly through a long document could leave every page, thumbnail, and the Document Map spinning until you closed the tab
+- Opening a large scanned PDF uses about a fifth of the memory it did. Thumbnails and the Document Map now let go of each page's full-size scan once they've drawn their small copy; a 300-page scan went from about 2.3 GB to 400 MB
 
 ## [0.10.0] - 2026-11-03
 

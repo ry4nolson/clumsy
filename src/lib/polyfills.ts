@@ -4,6 +4,18 @@ type StreamPrototype = { getReader(): ReadableStreamDefaultReader<unknown>; [Sym
 
 type AbortSignalStatics = { any(signals: Iterable<AbortSignal>): AbortSignal };
 
+type StreamGlobals = { DecompressionStream?: unknown; navigator?: { userAgent: string } };
+
+export function isWebKit(userAgent: string) {
+  return userAgent.includes("AppleWebKit") && !/Chrome|Chromium|Edg\//.test(userAgent);
+}
+
+export function removeDecompressionStream(target: StreamGlobals = globalThis as StreamGlobals) {
+  if (target.navigator && isWebKit(target.navigator.userAgent)) {
+    delete target.DecompressionStream;
+  }
+}
+
 export function installIteratorJoin(prototype: JoinableIterator | undefined = Object.getPrototypeOf(Object.getPrototypeOf([].values()))) {
   if (!prototype || typeof prototype.join === "function") {
     return;

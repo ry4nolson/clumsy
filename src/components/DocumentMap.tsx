@@ -4,18 +4,10 @@ import type { MapMark, MapMarks } from "../hooks/useMapMarks";
 import { rotateRect } from "../lib/diffRects";
 import { copyRenderedPage } from "../lib/pageCanvases";
 import { MAP_MAX_WIDTH, MAP_PADDING, layoutMap, scrollForSlider, sliderFor, visibleRange, type MapArea, type MapRect, type PageBox, type ViewerScroll } from "../lib/documentMap";
+import { createRenderQueue, type RenderQueue } from "../lib/renderQueue";
 
 const MIN_SLIDER_HEIGHT = 4;
 const KEEP_RENDERED = 10;
-
-type RenderQueue = (task: () => Promise<void>) => void;
-
-function createQueue(): RenderQueue {
-  let tail = Promise.resolve();
-  return (task) => {
-    tail = tail.then(task).catch(() => {});
-  };
-}
 
 type Geometry = { boxes: PageBox[]; height: number };
 
@@ -74,7 +66,7 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
     }
     let cancelled = false;
     let renderTask: ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]> | null = null;
-    queue(async () => {
+    const remove = queue(index, async () => {
       if (cancelled) {
         return;
       }
@@ -90,11 +82,16 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
       renderTask = page.render({ canvas, viewport });
-      await renderTask.promise;
-      drawn.current = !cancelled;
+      try {
+        await renderTask.promise;
+        drawn.current = !cancelled;
+      } finally {
+        page.cleanup();
+      }
     });
     return () => {
       cancelled = true;
+      remove();
       renderTask?.cancel();
     };
   }, [visible, paused, pdfDocument, index, rotation, renderWidth, queue]);
@@ -132,13 +129,14 @@ type DocumentMapProps = {
   pdfDocument: PDFDocumentProxy;
   containerRef: RefObject<HTMLDivElement | null>;
   paused: boolean;
+  currentPage: number;
   rotation: number;
   selection: number[];
   marks: MapMarks;
   fixedWidth: boolean;
 };
 
-export function DocumentMap({ pdfDocument, containerRef, paused, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
+export function DocumentMap({ pdfDocument, containerRef, paused, currentPage, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -147,7 +145,9 @@ export function DocumentMap({ pdfDocument, containerRef, paused, rotation, selec
   const [geometry, setGeometry] = useState<Geometry>({ boxes: [], height: 0 });
   const [range, setRange] = useState({ first: 0, last: -1 });
   const [dragging, setDragging] = useState(false);
-  const queue = useMemo(() => pdfDocument && createQueue(), [pdfDocument]);
+  const focus = useRef(currentPage - 1);
+  focus.current = currentPage - 1;
+  const queue = useMemo(() => pdfDocument && createRenderQueue(() => focus.current), [pdfDocument]);
   const layout = useMemo(() => layoutMap(geometry.boxes, geometry.height, area), [geometry, area]);
   const current = useRef({ layout, area });
   current.current = { layout, area };

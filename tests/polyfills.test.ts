@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { installAbortSignalAny, installIteratorJoin, installStreamIterator } from "../src/lib/polyfills";
+import { installAbortSignalAny, installIteratorJoin, installStreamIterator, isWebKit, removeDecompressionStream } from "../src/lib/polyfills";
+
+const safari = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)";
+const chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+const edge = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0";
+const firefox = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:140.0) Gecko/20100101 Firefox/140.0";
+
+describe("removeDecompressionStream", () => {
+  it("recognizes WebKit but not Chromium, Edge, or Firefox", () => {
+    expect(isWebKit(safari)).toBe(true);
+    expect(isWebKit(chrome)).toBe(false);
+    expect(isWebKit(edge)).toBe(false);
+    expect(isWebKit(firefox)).toBe(false);
+  });
+
+  it("removes DecompressionStream only in WebKit", () => {
+    const webkit = { DecompressionStream: class {}, navigator: { userAgent: safari } };
+    const chromium = { DecompressionStream: class {}, navigator: { userAgent: chrome } };
+    removeDecompressionStream(webkit);
+    removeDecompressionStream(chromium);
+    expect("DecompressionStream" in webkit).toBe(false);
+    expect(chromium.DecompressionStream).toBeTypeOf("function");
+  });
+});
 
 const iteratorPrototype = () => Object.create(Object.getPrototypeOf(Object.getPrototypeOf([].values())));
 

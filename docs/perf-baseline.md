@@ -124,8 +124,19 @@ What changed:
 - Hidden tabs destroy their finished page views after 30 s (`HIDDEN_RELEASE_MS`) and redraw on return.
 - `vite.config.ts` forces `NODE_ENV=production` for `vite build`.
 
+## Round 2 results
+
+| Metric | v0.10.0 | Round 1 | Round 2 |
+|---|---|---|---|
+| WebKit, scanned-300 alone, 40 s after opening | 2,035 MB | 2,331 MB | 452 MB |
+| WebKit, 10 tabs, 150 s after opening | 3,263 MB | 1,565 MB | 1,308–1,679 MB (noisy across runs) |
+| WebKit, 10 tabs, idle CPU from 150 s on | 6.8% | 0.2% | 0.2% |
+
+- **Scans on open** (finding 5) wasn't the bytes. pdf.js transfers `data` to its worker (`getDocument` sends `data.buffer` as a transferable), so the file exists once; that's also why `DocumentTab` re-reads from the path when `source.data` is empty. The memory was decoded images: each 2550×3300 page decodes to about 34 MB, and a `PDFPageProxy` keeps its decoded images in `objs` until `page.cleanup()`. The viewer's page views call it when pdf.js evicts them from its 10-page buffer, but thumbnails and Document Map pages that rendered a page themselves never did, so every one near view held its full-size scan. Both now call `page.cleanup()` after their own render (pdf.js defers it until any render of that page finishes). The viewer refetches the page's operator list on its next redraw, the same tradeoff as image export.
+- **Rust process footprint** isn't a leak or specific to local builds: the released v0.10.0 also shows 204 MB with the scan open. It's the 168 MB read buffer, which is freed on its own; the process is back to 40 MB 90 s after opening.
+- **Pages stuck loading after a fast scroll** (found while testing round 2): a WebKit deadlock between the pdf.js worker and the garbage collector, inside `ReadableStreamDefaultReader.releaseLock()` at the end of the `for await` that reads pdf.js's `DecompressionStream`. Every later render waits on the worker, so the viewer, thumbnails, and map all spin forever with the process idle. Dragging the scrollbar end to end and back reproduced it on the round 1 build in about two passes, so it predates round 2 (v0.10.0 ships the same pdf.js and stream polyfill); round 2's cleanup made it likelier because the viewer refetches operator lists after it. With `DecompressionStream` removed in the WebKit worker, 16 passes stayed responsive and a sample showed no stream frames on the worker. Scan memory after the fix: 400 MB.
+- One 10-tab run measured 42% web-process CPU for the 10 s right at 150 s; the next two runs were 0.2% and 3.6% averaged over 40 s. A burst (GC or the hidden-tab release), not a loop.
+
 Still open:
-- **Scans on open** (finding 5): the 164 MB scan still reaches about 2.3 GB in WebKit without scrolling. A WebKit sample shows one `WebCore: Worker` thread per open PDF. Each document gets its own pdf.js worker with its own heap and its own copy of the bytes. Sharing one `PDFWorker` and not keeping the source bytes in several places are the next things to try.
-- **Rust process footprint**: the local build's `clumsy` process measured about 205 MB, against 36 MB for the released v0.10.0, with no Rust changes. Probably allocator retention after the 164 MB IPC read in this build. Compare with a local build of `main` before drawing conclusions.
 - Findings 7 (Markdown minimap), 8 (bundle), 9 (truncated PDF error), and the page-edit history budget.
 - Closing a tab mid-drawing logs one unhandled rejection from pdf.js: committing the drawing selects it, and its toolbar finishes building after the viewer is gone. Harmless; the next tab draws normally.

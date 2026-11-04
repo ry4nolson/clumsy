@@ -387,6 +387,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           pdfDocument={viewer.pdfDocument}
           containerRef={viewer.containerRef}
           paused={!active || scrolling}
+          currentPage={viewer.pageNumber}
           rotation={viewer.pagesRotation}
           selection={shownSelection.pages}
           marks={mapMarks}
