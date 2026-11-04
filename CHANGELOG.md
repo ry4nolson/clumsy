@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-04
+
 ### Fixed
 - Closing a tab now frees everything it used. Before, each closed PDF kept its pages, thumbnails, and editing tools in memory until you quit, so long sessions slowly used more and more
 - Long documents no longer pile up memory as you scroll. Page thumbnails and the Document Map let go of pages that are far from view and draw them again when you come back; one pass through a 1,200-page file used to keep about 500 MB of them
