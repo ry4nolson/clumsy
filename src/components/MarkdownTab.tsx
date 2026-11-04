@@ -463,6 +463,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
         {find.findOpen && (
           <FindBar status={find.status} focusToken={find.focusToken} seed={find.seed} onFind={find.find} onClose={find.closeFind} />
         )}
+        <div ref={editorHostRef} className={`markdown-source${mode === "source" ? "" : " hidden-mode"}`} inert={mode !== "source"} />
         <div
           ref={containerRef}
           className={`viewer-container markdown-rendered${mode === "rendered" ? "" : " hidden-mode"}`}
@@ -471,7 +472,6 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
         >
           <article ref={contentRef} className="markdown-body" onClick={onContentClick} />
         </div>
-        <div ref={editorHostRef} className={`markdown-source${mode === "source" ? "" : " hidden-mode"}`} inert={mode !== "source"} />
       </main>
       {documentMap && (
         <MarkdownMap
