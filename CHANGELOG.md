@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-11-04
+
 ### Fixed
 - With Dark Pages on and Keep images chosen, page thumbnails and the Document Map show photos in their real colors, like the page itself, instead of as negatives
 
