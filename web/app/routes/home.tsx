@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { Route } from "./+types/home";
+import { ThemeSlider } from "~/components/ThemeSlider";
 import { FEATURES, SCREENS, SHORTCUTS, type ScreenId } from "~/lib/content";
 import { DOWNLOAD, GITHUB, VERSION } from "~/lib/links";
 import { pageMeta } from "~/lib/meta";
@@ -47,13 +48,11 @@ function Showcase() {
           aria-labelledby={`tab-${current.id}`}
         >
           <div className="window">
-            <img
-              className="window__shot"
-              src={current.src}
+            <ThemeSlider
+              image={current.image}
               alt={`Clumsy ${current.label} view`}
               width={current.width}
               height={current.height}
-              decoding="async"
             />
           </div>
           <figcaption className="showcase__caption">{current.caption}</figcaption>
@@ -97,13 +96,12 @@ export default function Home() {
         </div>
 
         <div className="hero__window window">
-          <img
-            className="window__shot"
-            src="/screenshots/reading.webp"
+          <ThemeSlider
+            image="reading"
             alt="Clumsy showing a PDF with page thumbnails and the Document Map"
             width={1220}
             height={960}
-            fetchPriority="high"
+            priority
           />
         </div>
       </header>

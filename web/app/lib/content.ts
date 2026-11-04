@@ -2,7 +2,7 @@ export const SCREENS = [
   {
     id: "compare",
     label: "Compare",
-    src: "/screenshots/compare.webp",
+    image: "compare",
     width: 1300,
     height: 960,
     caption:
@@ -11,7 +11,7 @@ export const SCREENS = [
   {
     id: "sign",
     label: "Sign",
-    src: "/screenshots/sign.webp",
+    image: "sign",
     width: 1220,
     height: 960,
     caption:
@@ -20,7 +20,7 @@ export const SCREENS = [
   {
     id: "markdown",
     label: "Markdown",
-    src: "/screenshots/markdown.webp",
+    image: "markdown",
     width: 1220,
     height: 960,
     caption:
@@ -29,7 +29,7 @@ export const SCREENS = [
   {
     id: "photos",
     label: "Photos to PDF",
-    src: "/screenshots/photos.webp",
+    image: "photos",
     width: 1220,
     height: 960,
     caption:
