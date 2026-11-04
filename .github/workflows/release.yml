@@ -8,6 +8,7 @@ on:
       - 'AGENTS.md'
       - 'CLAUDE.md'
       - 'docs/**'
+      - 'web/**'
   workflow_dispatch:
 
 permissions:

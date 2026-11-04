@@ -1,0 +1,25 @@
+[build]
+command = "pnpm run build"
+publish = "build/client"
+ignore = "test \"$CACHED_COMMIT_REF\" != \"$COMMIT_REF\" && git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ../CHANGELOG.md ../src-tauri/tauri.conf.json ../src/lib/changelog.ts"
+
+[build.environment]
+NODE_VERSION = "22"
+
+[dev]
+command = "react-router dev"
+
+[[redirects]]
+from = "/download"
+to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy.dmg"
+status = 302
+
+[[headers]]
+for = "/screenshots/*"
+[headers.values]
+Cache-Control = "public, max-age=604800"
+
+[[headers]]
+for = "/media/*"
+[headers.values]
+Cache-Control = "public, max-age=604800"

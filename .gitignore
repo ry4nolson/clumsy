@@ -31,3 +31,6 @@ public/third-party-licenses.txt
 
 # Local test documents; anything in public/ ships inside the app
 public/*.pdf
+
+# Local Netlify folder
+.netlify

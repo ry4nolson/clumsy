@@ -90,6 +90,7 @@ scripts/
   update-manifest.mjs        writes the updater's latest.json for a release
   third-party-licenses.mjs   generates public/third-party-licenses.txt (gitignored) for the About > Licenses tab
 tests/                       vitest unit tests for src/lib and scripts
+web/                         the marketing website (its own package; see Website)
 ```
 
 `src/lib/platform.ts` and `src/lib/imageFiles.ts` (image picking, reading, and export writes) are the only places that talk to Tauri. Everything there has a browser fallback, so `pnpm dev` works for UI work.
@@ -142,7 +143,7 @@ Every push to `main` builds, signs, notarizes, and publishes a GitHub release (`
 - **Changelog**: add user-facing changes under `## [Unreleased]` in `CHANGELOG.md` (Keep a Changelog sections: Added / Changed / Fixed / Removed; `**bold**` renders in the app). On release, the workflow moves those entries under `## [x.y.z] - date`, builds with the stamped file so What's New is correct, uses that section as the release notes, then commits the changelog and version files back to `main` as `Release vx.y.z`. If `[Unreleased]` is empty, the notes list commit subjects instead, but the version files are still committed.
 - **If you've edited `CHANGELOG.md` locally while a release ran**, the pull can silently merge your new entries into the just-stamped version section. Check that they're still under `[Unreleased]` after pulling.
 - **After every release `origin/main` is one commit ahead** (the version + changelog commit). Run `git pull --rebase` before pushing again, or set `git config pull.rebase true`. Pushes made with the workflow's `GITHUB_TOKEN` don't trigger new workflow runs, so there's no release loop.
-- Releases run one at a time (`concurrency: release`). Pushes touching only `README.md`, `AGENTS.md`, `CLAUDE.md`, or `docs/` don't release. The workflow can also be run manually from the Actions tab.
+- Releases run one at a time (`concurrency: release`). Pushes touching only `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/`, or `web/` don't release. The workflow can also be run manually from the Actions tab.
 - Assets are `Clumsy.dmg` and `Clumsy.zip`: universal (Apple Silicon + Intel), Developer ID signed, notarized, and stapled. Each release also carries `Clumsy.app.tar.gz` and `latest.json` for in-app updates (see Signing).
 
 ### Signing
@@ -153,6 +154,23 @@ Updates are signed separately with a Tauri (minisign) key: `TAURI_SIGNING_PRIVAT
 
 - The exported certificate lives at `~/Developer/Certificates-duti.p12` (also `Certificates.p12`). Check a password with `/usr/bin/openssl pkcs12 -in <file> -nokeys -clcerts | /usr/bin/openssl x509 -noout -subject`. Use macOS's LibreSSL; Homebrew's OpenSSL 3 rejects Keychain's legacy encryption and looks like a wrong password.
 - Notarization failing with HTTP 403 "A required agreement is missing or has expired" means the account holder must accept an updated agreement at developer.apple.com/account; nothing in the repo is wrong. Rerun with `gh run rerun <id> --failed`.
+
+## Website
+
+`web/` is the marketing site: React Router 8 with SSR on Netlify (`@netlify/vite-plugin-react-router`), the same stack as the DutiHEHE and TheAnnex sites. It's its own pnpm package with its own lockfile, not a workspace, and needs Node 22.22+ (`web/.node-version`), while the app itself builds on Node 20. Plain CSS in `app/app.css` with tokens on `:root`; the colors are the icon's orange-to-pink gradient on the dark background of the tour videos.
+
+```bash
+cd web
+pnpm install
+pnpm dev                       # http://localhost:5173
+pnpm typecheck
+pnpm build                     # prerenders / and /changelog into build/client
+```
+
+- **Content comes from the repo.** The version is `src-tauri/tauri.conf.json`'s, and `/changelog` parses `CHANGELOG.md` with the app's own `src/lib/changelog.ts` (Unreleased is left out), so every release commit updates the site. Netlify's `ignore` command skips builds unless `web/`, `CHANGELOG.md`, `tauri.conf.json`, or the parser changed.
+- **Downloads.** `/download` is a Netlify redirect to `releases/latest/download/Clumsy.dmg`, so buttons never name a version.
+- **Media.** Screenshots in `web/public/screenshots/` are app windows cropped from the tour videos in `docs/media/`, and `web/public/media/` holds a copy of the newest tour (git stores the identical file once). Replace them when a new tour ships.
+- **Netlify.** The site is `clumsyapp` (https://clumsyapp.netlify.app) on Ryan's personal Netlify team, built from Git with base directory `web`; `netlify.toml` has the build command, publish directory, Node version, redirect, and cache headers. Absolute `og:image` URLs use Netlify's `URL` build variable (`__SITE_URL__`). Both pages are prerendered and `routeDiscovery` is `initial`, so navigating doesn't need the server function (it only renders 404s). Don't deploy with `netlify deploy` from `web/`: the CLI treats the repo root as the project root and ships the site without its server function (or without its routes), and leaves an empty `.netlify/` at the root. The dev server turns off Netlify's edge-function emulation, which fails with recent Deno and isn't used.
 
 ## App icon
 
