@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Large Markdown files use about a third less memory. The minimap beside a Markdown file is now drawn instead of keeping a second copy of the whole document
+- Finding text in long Markdown files is about ten times faster, and typing a search no longer freezes the window on the first letter. A 2 MB file went from 11 seconds per search to about one
+
 ## [0.10.2] - 2026-11-04
 
 ### Fixed

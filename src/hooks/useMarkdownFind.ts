@@ -8,6 +8,7 @@ import { findInText, matchNear, stepMatch, type TextMatch } from "../lib/textFin
 import type { MarkdownMode } from "../lib/tabs";
 
 const idle: FindStatus = { state: "idle", current: 0, total: 0 };
+const TYPING_DELAY = 250;
 
 type FindParts = {
   container: RefObject<HTMLDivElement | null>;
@@ -29,8 +30,9 @@ export function useMarkdownFind({ container, content, editor, mode, text, onReve
   const marks = useRef<HTMLElement[][]>([]);
   const matches = useRef<TextMatch[]>([]);
   const current = useRef(-1);
+  const typing = useRef(0);
 
-  const count = () => (mode.current === "rendered" ? marks.current.length : matches.current.length);
+  const count =() => (mode.current === "rendered" ? marks.current.length : matches.current.length);
 
   const show = useCallback(
     (reveal: boolean) => {
@@ -56,6 +58,8 @@ export function useMarkdownFind({ container, content, editor, mode, text, onReve
   );
 
   const clear = useCallback(() => {
+    window.clearTimeout(typing.current);
+    typing.current = 0;
     if (content.current) {
       clearHighlights(content.current);
     }
@@ -91,7 +95,17 @@ export function useMarkdownFind({ container, content, editor, mode, text, onReve
   const find = useCallback(
     (next: FindQuery, type: FindType, previous = false) => {
       query.current = next;
-      if (type !== "again") {
+      const waiting = typing.current !== 0;
+      window.clearTimeout(typing.current);
+      typing.current = 0;
+      if (type === "") {
+        typing.current = window.setTimeout(() => {
+          typing.current = 0;
+          search(true);
+        }, TYPING_DELAY);
+        return;
+      }
+      if (type !== "again" || waiting) {
         search(true);
         return;
       }

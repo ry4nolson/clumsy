@@ -137,6 +137,18 @@ What changed:
 - **Pages stuck loading after a fast scroll** (found while testing round 2): a WebKit deadlock between the pdf.js worker and the garbage collector, inside `ReadableStreamDefaultReader.releaseLock()` at the end of the `for await` that reads pdf.js's `DecompressionStream`. Every later render waits on the worker, so the viewer, thumbnails, and map all spin forever with the process idle. Dragging the scrollbar end to end and back reproduced it on the round 1 build in about two passes, so it predates round 2 (v0.10.0 ships the same pdf.js and stream polyfill); round 2's cleanup made it likelier because the viewer refetches operator lists after it. With `DecompressionStream` removed in the WebKit worker, 16 passes stayed responsive and a sample showed no stream frames on the worker. Scan memory after the fix: 400 MB.
 - One 10-tab run measured 42% web-process CPU for the 10 s right at 150 s; the next two runs were 0.2% and 3.6% averaged over 40 s. A burst (GC or the hidden-tab release), not a loop.
 
+## Round 3 results
+
+| Metric (markdown-2mb.md) | v0.10.1 | Round 3 |
+|---|---|---|
+| DOM nodes | 172,101 | 86,317 |
+| WebKit footprint, 30 s after opening | 676 MB | 443 MB |
+| Find "stream" (4,957 matches), long tasks, Chromium | 11.3 s | 1.1 s |
+| Typing a query in WebKit | 40 s+ at 100% CPU after the first letter | about 1 s after typing stops |
+
+- **Minimap** (finding 7): `MarkdownMap` cloned the whole article (85,784 nodes; tables are most of it) and re-cloned it 120 ms after any mutation, including every find query and image load. One clone took 54 ms plus 0.8 to 1.9 s of style and layout. It's now a canvas painted from shapes measured on the article: 97k text line boxes (181 ms) and 23.5k background and border boxes (79 ms) in Chromium, sorted by top so only the visible slice is painted. Find-mark-only changes re-measure just the marks. Splitting text into `<mark>`s can re-wrap a line (the article grew 24 px), and the resize observer then re-measures everything, about 300 ms; that keeps the map exact.
+- **Find** (found while measuring): `highlightMatches` scanned every text node for every match (4,957 × 74k), which was the 11 s in both builds, and created a `Range` per match. WebKit updates every live `Range` on each DOM change, so wrapping stayed quadratic there even after the scan was fixed; a sample of a stuck search showed `Range::nodeChildrenWillBeRemoved` and `boundaryTextNodesSplit`. It now binary-searches the text nodes and reuses one `Range`. Typing also searched on every keystroke, so the first letter alone ("s") wrapped well over a hundred thousand matches; Markdown find now waits 250 ms after typing, like pdf.js.
+
 Still open:
-- Findings 7 (Markdown minimap), 8 (bundle), 9 (truncated PDF error), and the page-edit history budget.
+- Findings 8 (bundle), 9 (truncated PDF error), and the page-edit history budget.
 - Closing a tab mid-drawing logs one unhandled rejection from pdf.js: committing the drawing selects it, and its toolbar finishes building after the viewer is gone. Harmless; the next tab draws normally.

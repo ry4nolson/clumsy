@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject, type WheelEvent } from "react";
 import { MAP_MAX_WIDTH, scrollForSlider, sliderFor, type ViewerScroll } from "../lib/documentMap";
 import { documentLayout } from "../lib/markdownMap";
+import { collectMarks, collectShapes, onlyFindMarks, paintShapes, type MapShapes } from "../lib/markdownMapShapes";
 import type { MarkdownMode } from "../lib/tabs";
 
 const MIN_SLIDER_HEIGHT = 4;
-const CLONE_DELAY = 120;
+const COLLECT_DELAY = 120;
 
 type MarkdownMapProps = {
   content: RefObject<HTMLElement | null>;
@@ -18,7 +19,8 @@ type MarkdownMapProps = {
 
 export function MarkdownMap({ content, container, editorHost, mode, view, scrollTo, scrollBy }: MarkdownMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const copyRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const shapesRef = useRef<MapShapes | null>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
   const grabRef = useRef<number | null>(null);
   const [areaHeight, setAreaHeight] = useState(0);
@@ -30,16 +32,31 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
   current.current = { layout, areaHeight, view };
 
   const paint = useCallback(() => {
-    const copy = copyRef.current;
+    const canvas = canvasRef.current;
     const slider = sliderRef.current;
     const scroll = current.current.view();
-    if (!copy || !slider || !scroll) {
+    if (!canvas || !slider || !scroll) {
       return;
     }
-    const { offset, top, height } = sliderFor(current.current.layout, current.current.areaHeight, scroll);
-    copy.style.transform = `translateY(${-offset}px)`;
+    const { layout, areaHeight } = current.current;
+    const { offset, top, height } = sliderFor(layout, areaHeight, scroll);
     slider.style.transform = `translateY(${top}px)`;
     slider.style.height = `${Math.max(height, MIN_SLIDER_HEIGHT)}px`;
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.round(MAP_MAX_WIDTH * ratio);
+    const pixels = Math.round(areaHeight * ratio);
+    if (canvas.width !== width || canvas.height !== pixels) {
+      canvas.width = width;
+      canvas.height = pixels;
+    }
+    const context = canvas.getContext("2d");
+    const shapes = shapesRef.current;
+    if (!context || !shapes) {
+      return;
+    }
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    const background = mapRef.current ? getComputedStyle(mapRef.current).backgroundColor : "transparent";
+    paintShapes(context, shapes, { scale: MAP_MAX_WIDTH / Math.max(shapes.width, 1), offset, width: MAP_MAX_WIDTH, height: areaHeight, background });
   }, []);
 
   useLayoutEffect(() => {
@@ -54,35 +71,46 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
 
   useEffect(() => {
     const article = content.current;
-    const host = copyRef.current;
-    if (!article || !host) {
+    if (!article) {
       return;
     }
     let timer = 0;
-    const copyNow = () => {
+    let full = false;
+    const collectNow = () => {
       timer = 0;
-      const copy = article.cloneNode(true) as HTMLElement;
-      copy.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
-      copy.removeAttribute("id");
-      copy.style.width = `${article.offsetWidth}px`;
-      copy.style.transform = `scale(${MAP_MAX_WIDTH / Math.max(article.offsetWidth, 1)})`;
-      host.replaceChildren(copy);
-      setSize((previous) =>
-        previous.width === article.offsetWidth && previous.height === article.offsetHeight ? previous : { width: article.offsetWidth, height: article.offsetHeight },
-      );
+      if (!article.offsetWidth) {
+        return;
+      }
+      if (full || !shapesRef.current) {
+        shapesRef.current = collectShapes(article);
+        setSize((previous) =>
+          previous.width === article.offsetWidth && previous.height === article.offsetHeight ? previous : { width: article.offsetWidth, height: article.offsetHeight },
+        );
+      } else {
+        shapesRef.current = { ...shapesRef.current, marks: collectMarks(article) };
+      }
+      full = false;
       paint();
     };
-    const schedule = () => {
-      timer ||= window.setTimeout(copyNow, CLONE_DELAY);
+    const schedule = (everything: boolean) => {
+      full ||= everything;
+      timer ||= window.setTimeout(collectNow, COLLECT_DELAY);
     };
-    const mutations = new MutationObserver(schedule);
+    const mutations = new MutationObserver((records) => schedule(!onlyFindMarks(records)));
     mutations.observe(article, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["src", "class"] });
-    const resize = new ResizeObserver(schedule);
+    const resize = new ResizeObserver(() => schedule(true));
     resize.observe(article);
-    copyNow();
+    const scheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const recolor = () => schedule(true);
+    scheme.addEventListener("change", recolor);
+    article.addEventListener("load", paint, true);
+    full = true;
+    collectNow();
     return () => {
       mutations.disconnect();
       resize.disconnect();
+      scheme.removeEventListener("change", recolor);
+      article.removeEventListener("load", paint, true);
       window.clearTimeout(timer);
     };
   }, [content, paint]);
@@ -148,7 +176,7 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
       onLostPointerCapture={endDrag}
       onWheel={onWheel}
     >
-      <div ref={copyRef} className="markdown-map-copy" inert />
+      <canvas ref={canvasRef} className="markdown-map-canvas" style={{ height: areaHeight }} />
       <div ref={sliderRef} className="document-map-slider" />
     </div>
   );

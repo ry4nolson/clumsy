@@ -32,19 +32,12 @@
   background: var(--md-page);
 }
 
-.markdown-map-copy {
+.markdown-map-canvas {
   position: absolute;
   top: 0;
   left: 0;
-  will-change: transform;
+  width: 100%;
   pointer-events: none;
-}
-
-.markdown-map-copy > .markdown-body {
-  margin: 0;
-  max-width: none;
-  transform-origin: 0 0;
-  user-select: none;
 }
 
 .markdown-rendered,

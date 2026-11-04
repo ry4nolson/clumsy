@@ -32,21 +32,38 @@ export function clearHighlights(root: HTMLElement) {
   parents.forEach((parent) => parent.normalize());
 }
 
+export function lastPieceBefore(pieces: { start: number }[], position: number) {
+  let low = 0;
+  let high = pieces.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (pieces[middle].start < position) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low - 1;
+}
+
 export function highlightMatches(root: HTMLElement, query: TextQuery): HTMLElement[][] {
   clearHighlights(root);
   const { pieces, text } = collectText(root);
   const matches = findInText(text, query);
   const groups: HTMLElement[][] = matches.map(() => []);
+  const range = document.createRange();
   for (let index = matches.length - 1; index >= 0; index--) {
     const { start, end } = matches[index];
-    for (let piece = pieces.length - 1; piece >= 0; piece--) {
+    for (let piece = lastPieceBefore(pieces, end); piece >= 0; piece--) {
       const { node, start: pieceStart } = pieces[piece];
+      if (pieceStart + node.data.length <= start) {
+        break;
+      }
       const from = Math.max(start, pieceStart) - pieceStart;
       const to = Math.min(end, pieceStart + node.data.length) - pieceStart;
       if (to <= from || from >= node.data.length) {
         continue;
       }
-      const range = document.createRange();
       range.setStart(node, from);
       range.setEnd(node, to);
       const mark = document.createElement("mark");
@@ -55,6 +72,7 @@ export function highlightMatches(root: HTMLElement, query: TextQuery): HTMLEleme
       groups[index].unshift(mark);
     }
   }
+  range.detach();
   return groups;
 }
 
