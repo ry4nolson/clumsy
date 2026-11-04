@@ -587,6 +587,7 @@ body {
 
 .thumbnail-page {
   display: block;
+  position: relative;
   width: 120px;
   background: #fff;
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.12);
@@ -768,7 +769,7 @@ body {
   background: #141414;
 }
 
-.app:has(.dark-pages) .document-map-page canvas {
+.app:has(.dark-pages) .document-map-page canvas:not(.image-restore) {
   filter: invert(0.92) hue-rotate(180deg);
 }
 
@@ -848,8 +849,24 @@ body {
 .dark-pages:not(.keep-images) .pdfViewer .page,
 .dark-pages.keep-images .pdfViewer .page .canvasWrapper,
 .dark-pages.keep-images .pdfViewer .page .annotationEditorLayer,
-.app:has(.dark-pages) .thumbnail-page {
+.app:has(.dark-pages) .thumbnail-page canvas:not(.image-restore) {
   filter: invert(0.92) hue-rotate(180deg);
+}
+
+:where(.app:has(.dark-pages)) .thumbnail-page {
+  background: #141414;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12), 0 1px 3px rgb(0 0 0 / 0.12);
+}
+
+:is(.thumbnail-page, .document-map-page) .image-restore {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app:has(.dark-pages.keep-images) :is(.thumbnail-page, .document-map-page) .image-restore {
+  display: block;
 }
 
 .dark-pages.keep-images .pdfViewer .page {

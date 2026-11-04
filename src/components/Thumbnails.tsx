@@ -1,6 +1,8 @@
 import { memo, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { usePreviewImages } from "../hooks/usePreviewImages";
 import { slotAt } from "../lib/dropTarget";
+import { previewRender } from "../lib/imageRestore";
 import { copyRenderedPage, publishPageCanvas, trackPageRender } from "../lib/pageCanvases";
 import type { SelectModifiers } from "../lib/pageSelection";
 
@@ -11,6 +13,7 @@ const AUTOSCROLL_EDGE = 40;
 type ThumbnailProps = {
   pdfDocument: PDFDocumentProxy;
   paused: boolean;
+  restoreImages: boolean;
   scrollRoot: HTMLElement | null;
   pageNumber: number;
   label: string | null;
@@ -27,6 +30,7 @@ type ThumbnailProps = {
 const Thumbnail = memo(function Thumbnail({
   pdfDocument,
   paused,
+  restoreImages,
   scrollRoot,
   pageNumber,
   label,
@@ -43,6 +47,7 @@ const Thumbnail = memo(function Thumbnail({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawn = useRef(false);
   const [visible, setVisible] = useState(false);
+  const { overlayRef, show } = usePreviewImages(restoreImages);
 
   useEffect(() => {
     const element = buttonRef.current;
@@ -69,6 +74,7 @@ const Thumbnail = memo(function Thumbnail({
       if (cancelled) {
         return;
       }
+      show(null);
       const base = page.getViewport({ scale: 1 });
       const width = THUMB_WIDTH * window.devicePixelRatio;
       let annotated = false;
@@ -76,10 +82,7 @@ const Thumbnail = memo(function Thumbnail({
         if (cancelled) {
           return;
         }
-        const viewport = page.getViewport({ scale: width / base.width });
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        renderTask = page.render({ canvas, viewport });
+        renderTask = previewRender(page, canvas, page.getViewport({ scale: width / base.width }));
         trackPageRender(pdfDocument, pageNumber - 1, renderTask.promise);
         try {
           await renderTask.promise;
@@ -92,13 +95,14 @@ const Thumbnail = memo(function Thumbnail({
       drawn.current = !cancelled;
       if (!cancelled) {
         publishPageCanvas(pdfDocument, pageNumber - 1, canvas, 0, annotated);
+        show({ page, canvas, rotation: base.rotation });
       }
     }).catch(() => {});
     return () => {
       cancelled = true;
       renderTask?.cancel();
     };
-  }, [visible, paused, pdfDocument, pageNumber]);
+  }, [visible, paused, pdfDocument, pageNumber, show]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -106,8 +110,9 @@ const Thumbnail = memo(function Thumbnail({
       canvas.width = 0;
       canvas.height = 0;
       drawn.current = false;
+      show(null);
     }
-  }, [visible]);
+  }, [visible, show]);
 
   useEffect(() => {
     if (active) {
@@ -132,6 +137,7 @@ const Thumbnail = memo(function Thumbnail({
     >
       <span className="thumbnail-page" style={{ aspectRatio }}>
         <canvas ref={canvasRef} />
+        <canvas ref={overlayRef} className="image-restore" aria-hidden="true" />
       </span>
       <span className="thumbnail-label">{label ?? pageNumber}</span>
     </button>
@@ -143,6 +149,7 @@ type Drag = { page: number; startY: number; active: boolean; slot: number | null
 type ThumbnailsProps = {
   pdfDocument: PDFDocumentProxy;
   paused: boolean;
+  restoreImages: boolean;
   currentPage: number;
   pageLabels: string[] | null;
   selection: number[];
@@ -152,7 +159,7 @@ type ThumbnailsProps = {
   onDelete: () => void;
 };
 
-export function Thumbnails({ pdfDocument, paused, currentPage, pageLabels, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
+export function Thumbnails({ pdfDocument, paused, restoreImages, currentPage, pageLabels, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState(0.77);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -267,6 +274,7 @@ export function Thumbnails({ pdfDocument, paused, currentPage, pageLabels, selec
           key={index}
           pdfDocument={pdfDocument}
           paused={paused}
+          restoreImages={restoreImages}
           scrollRoot={scrollRoot}
           pageNumber={index + 1}
           label={pageLabels?.[index] || null}

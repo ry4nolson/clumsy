@@ -1,4 +1,5 @@
-import { imageRects, recordImageCoordinates, recordedImages } from "./imageRegions";
+import type { PageViewport, PDFPageProxy } from "pdfjs-dist";
+import { fillTransform, imageRects, pixelRects, recordImageCoordinates, recordedImages, type Rect } from "./imageRegions";
 
 export type RenderedPageView = {
   id: number;
@@ -8,6 +9,17 @@ export type RenderedPageView = {
   imageCoordinates: ArrayLike<number> | null;
   viewport: { rotation: number };
 };
+
+export type ShownPreview = { page: object; canvas: HTMLCanvasElement; rotation: number };
+
+function drawImages(source: HTMLCanvasElement, overlay: HTMLCanvasElement, rects: Rect[]) {
+  overlay.width = source.width;
+  overlay.height = source.height;
+  const context = overlay.getContext("2d")!;
+  for (const { x, y, width, height } of pixelRects(rects, source.width, source.height)) {
+    context.drawImage(source, x, y, width, height, x, y, width, height);
+  }
+}
 
 export function restoreImages(pageView: RenderedPageView, enabled: boolean) {
   const { canvas, div, pdfPage, viewport } = pageView;
@@ -30,14 +42,27 @@ export function restoreImages(pageView: RenderedPageView, enabled: boolean) {
   if (!overlay.isConnected) {
     div.querySelector(".canvasWrapper")?.after(overlay);
   }
-  overlay.width = canvas.width;
-  overlay.height = canvas.height;
-  const context = overlay.getContext("2d")!;
-  for (const rect of imageRects(images.coords, viewport.rotation - images.rotation)) {
-    const x = Math.floor(rect.x * canvas.width);
-    const y = Math.floor(rect.y * canvas.height);
-    const width = Math.ceil(rect.width * canvas.width);
-    const height = Math.ceil(rect.height * canvas.height);
-    context.drawImage(canvas, x, y, width, height, x, y, width, height);
+  drawImages(canvas, overlay, imageRects(images.coords, viewport.rotation - images.rotation));
+}
+
+export function restorePreviewImages(overlay: HTMLCanvasElement, shown: ShownPreview | null, enabled: boolean) {
+  const images = shown && enabled && shown.canvas.width ? recordedImages(shown.page) : null;
+  if (!shown || !images?.coords.length) {
+    overlay.width = 0;
+    overlay.height = 0;
+    return;
   }
+  drawImages(shown.canvas, overlay, imageRects(images.coords, shown.rotation - images.rotation));
+}
+
+export function previewRender(page: PDFPageProxy, canvas: HTMLCanvasElement, viewport: PageViewport) {
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+  const recording = !page.imageCoordinates;
+  const task = page.render({ canvas, viewport, transform: fillTransform(canvas, viewport), recordImages: recording });
+  task.promise.then(
+    () => recording && recordImageCoordinates(page, page.imageCoordinates, viewport.rotation),
+    () => {},
+  );
+  return task;
 }

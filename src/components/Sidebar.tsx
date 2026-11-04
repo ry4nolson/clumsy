@@ -11,6 +11,7 @@ type SidebarProps = {
   onTab: (tab: SidebarTab) => void;
   pdfDocument: PDFDocumentProxy;
   paused: boolean;
+  restoreImages: boolean;
   currentPage: number;
   pageLabels: string[] | null;
   selection: number[];
@@ -56,6 +57,7 @@ export function Sidebar(props: SidebarProps) {
           <Thumbnails
             pdfDocument={pdfDocument}
             paused={props.paused}
+            restoreImages={props.restoreImages}
             currentPage={currentPage}
             pageLabels={props.pageLabels}
             selection={props.selection}

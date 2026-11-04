@@ -52,3 +52,16 @@ export function imageRects(coords: ArrayLike<number>, rotation: number): Rect[] 
   }
   return rects;
 }
+
+export function pixelRects(rects: Rect[], width: number, height: number): Rect[] {
+  return rects.map((rect) => ({
+    x: Math.floor(rect.x * width),
+    y: Math.floor(rect.y * height),
+    width: Math.ceil(rect.width * width),
+    height: Math.ceil(rect.height * height),
+  }));
+}
+
+export function fillTransform(canvas: { width: number; height: number }, viewport: { width: number; height: number }) {
+  return [canvas.width / viewport.width, 0, 0, canvas.height / viewport.height, 0, 0];
+}

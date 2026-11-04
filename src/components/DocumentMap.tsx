@@ -1,7 +1,9 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject, type WheelEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { MapMark, MapMarks } from "../hooks/useMapMarks";
+import { usePreviewImages } from "../hooks/usePreviewImages";
 import { rotateRect } from "../lib/diffRects";
+import { previewRender } from "../lib/imageRestore";
 import { copyRenderedPage } from "../lib/pageCanvases";
 import { MAP_MAX_WIDTH, MAP_PADDING, layoutMap, scrollForSlider, sliderFor, visibleRange, type MapArea, type MapRect, type PageBox, type ViewerScroll } from "../lib/documentMap";
 import { createRenderQueue, type RenderQueue } from "../lib/renderQueue";
@@ -46,14 +48,16 @@ type MapPageProps = {
   renderWidth: number;
   visible: boolean;
   paused: boolean;
+  restoreImages: boolean;
   selected: boolean;
   marks: MapMark[] | undefined;
   queue: RenderQueue;
 };
 
-const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, renderWidth, visible, paused, selected, marks, queue }: MapPageProps) {
+const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, renderWidth, visible, paused, restoreImages, selected, marks, queue }: MapPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawn = useRef(false);
+  const { overlayRef, show } = usePreviewImages(restoreImages);
 
   useEffect(() => {
     drawn.current = false;
@@ -71,20 +75,30 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
         return;
       }
       const page = await pdfDocument.getPage(index + 1);
-      const width = renderWidth * window.devicePixelRatio;
-      if (cancelled || (await copyRenderedPage(pdfDocument, page, rotation, canvas, width, () => cancelled))) {
-        drawn.current = !cancelled;
+      if (cancelled) {
         return;
       }
+      show(null);
+      const width = renderWidth * window.devicePixelRatio;
       const turn = (page.rotate + rotation) % 360;
+      if (await copyRenderedPage(pdfDocument, page, rotation, canvas, width, () => cancelled)) {
+        drawn.current = !cancelled;
+        if (!cancelled) {
+          show({ page, canvas, rotation: turn });
+        }
+        return;
+      }
+      if (cancelled) {
+        return;
+      }
       const base = page.getViewport({ scale: 1, rotation: turn });
-      const viewport = page.getViewport({ scale: width / base.width, rotation: turn });
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      renderTask = page.render({ canvas, viewport });
+      renderTask = previewRender(page, canvas, page.getViewport({ scale: width / base.width, rotation: turn }));
       try {
         await renderTask.promise;
         drawn.current = !cancelled;
+        if (!cancelled) {
+          show({ page, canvas, rotation: turn });
+        }
       } finally {
         page.cleanup();
       }
@@ -94,7 +108,7 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
       remove();
       renderTask?.cancel();
     };
-  }, [visible, paused, pdfDocument, index, rotation, renderWidth, queue]);
+  }, [visible, paused, pdfDocument, index, rotation, renderWidth, queue, show]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -102,8 +116,9 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
       canvas.width = 0;
       canvas.height = 0;
       drawn.current = false;
+      show(null);
     }
-  }, [visible]);
+  }, [visible, show]);
 
   return (
     <div
@@ -111,6 +126,7 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
       style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
     >
       <canvas ref={canvasRef} />
+      <canvas ref={overlayRef} className="image-restore" aria-hidden="true" />
       {marks?.map((mark, markIndex) => {
         const shownRect = rotateRect(mark, rotation);
         return (
@@ -129,6 +145,7 @@ type DocumentMapProps = {
   pdfDocument: PDFDocumentProxy;
   containerRef: RefObject<HTMLDivElement | null>;
   paused: boolean;
+  restoreImages: boolean;
   currentPage: number;
   rotation: number;
   selection: number[];
@@ -136,7 +153,7 @@ type DocumentMapProps = {
   fixedWidth: boolean;
 };
 
-export function DocumentMap({ pdfDocument, containerRef, paused, currentPage, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
+export function DocumentMap({ pdfDocument, containerRef, paused, restoreImages, currentPage, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -281,6 +298,7 @@ export function DocumentMap({ pdfDocument, containerRef, paused, currentPage, ro
             renderWidth={pageWidth > 0 ? Math.ceil((fullWidth * rect.width) / pageWidth) : 0}
             visible={index >= range.first - KEEP_RENDERED && index <= range.last + KEEP_RENDERED}
             paused={paused}
+            restoreImages={restoreImages}
             selected={selected.has(index)}
             marks={marks.get(index)}
             queue={queue}
