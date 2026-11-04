@@ -7,7 +7,7 @@ import { DOWNLOAD, GITHUB, VERSION } from "~/lib/links";
 import { pageMeta } from "~/lib/meta";
 
 export function meta(_args: Route.MetaArgs) {
-  return pageMeta("Clumsy · A small, fast PDF viewer for Mac");
+  return pageMeta("Clumsy · A small, fast PDF (and Markdown) viewer for Mac");
 }
 
 function Showcase() {
@@ -78,9 +78,8 @@ export default function Home() {
           <p className="hero__brand">Clumsy</p>
           <h1 className="hero__title">No tricks, no acrobatics.</h1>
           <p className="hero__lede">
-            A small, fast PDF viewer, built because opening a PDF shouldn&apos;t
-            require an update first. Search, highlight, comment, fill forms, and
-            sign, saved straight back into the file.
+            A small, fast PDF (and Markdown) viewer. Search, highlight, comment,
+            fill forms, and sign, saved straight back into the file.
           </p>
           <div className="hero__actions">
             <a className="btn btn--primary" href={DOWNLOAD}>
