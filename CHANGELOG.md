@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-11-04
+
 ### Fixed
 - Large Markdown files use about a third less memory. The minimap beside a Markdown file is now drawn instead of keeping a second copy of the whole document
 - Switching a large Markdown file to its source no longer freezes the window
