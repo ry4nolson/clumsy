@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { slotAt } from "../lib/dropTarget";
+import { copyRenderedPage } from "../lib/pageCanvases";
 import type { SelectModifiers } from "../lib/pageSelection";
 
 const THUMB_WIDTH = 120;
@@ -9,6 +10,8 @@ const AUTOSCROLL_EDGE = 40;
 
 type ThumbnailProps = {
   pdfDocument: PDFDocumentProxy;
+  paused: boolean;
+  scrollRoot: HTMLElement | null;
   pageNumber: number;
   label: string | null;
   aspectRatio: number;
@@ -23,6 +26,8 @@ type ThumbnailProps = {
 
 const Thumbnail = memo(function Thumbnail({
   pdfDocument,
+  paused,
+  scrollRoot,
   pageNumber,
   label,
   aspectRatio,
@@ -36,47 +41,63 @@ const Thumbnail = memo(function Thumbnail({
 }: ThumbnailProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawn = useRef(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const element = buttonRef.current;
-    if (!element) {
+    if (!element || !scrollRoot) {
       return;
     }
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    }, { rootMargin: "400px 0px" });
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { root: scrollRoot, rootMargin: "800px 0px" });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [scrollRoot]);
+
+  useEffect(() => {
+    drawn.current = false;
+  }, [pdfDocument, pageNumber]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!visible || !canvas) {
+    if (!visible || paused || !canvas || drawn.current) {
       return;
     }
     let cancelled = false;
     let renderTask: ReturnType<Awaited<ReturnType<PDFDocumentProxy["getPage"]>>["render"]> | null = null;
-    pdfDocument.getPage(pageNumber).then((page) => {
+    pdfDocument.getPage(pageNumber).then(async (page) => {
       if (cancelled) {
         return;
       }
       const base = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: (THUMB_WIDTH * window.devicePixelRatio) / base.width });
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
+      const width = THUMB_WIDTH * window.devicePixelRatio;
+      if (!(await copyRenderedPage(pdfDocument, page, 0, canvas, width, () => cancelled))) {
+        if (cancelled) {
+          return;
+        }
+        const viewport = page.getViewport({ scale: width / base.width });
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        renderTask = page.render({ canvas, viewport });
+        await renderTask.promise;
+      }
       canvas.parentElement!.style.aspectRatio = `${base.width} / ${base.height}`;
-      renderTask = page.render({ canvas, viewport });
-      renderTask.promise.catch(() => {});
-    });
+      drawn.current = !cancelled;
+    }).catch(() => {});
     return () => {
       cancelled = true;
       renderTask?.cancel();
     };
-  }, [visible, pdfDocument, pageNumber]);
+  }, [visible, paused, pdfDocument, pageNumber]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!visible && canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+      drawn.current = false;
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (active) {
@@ -111,6 +132,7 @@ type Drag = { page: number; startY: number; active: boolean; slot: number | null
 
 type ThumbnailsProps = {
   pdfDocument: PDFDocumentProxy;
+  paused: boolean;
   currentPage: number;
   pageLabels: string[] | null;
   selection: number[];
@@ -120,14 +142,17 @@ type ThumbnailsProps = {
   onDelete: () => void;
 };
 
-export function Thumbnails({ pdfDocument, currentPage, pageLabels, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
+export function Thumbnails({ pdfDocument, paused, currentPage, pageLabels, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState(0.77);
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef(drag);
   dragRef.current = drag;
   const suppressClick = useRef(false);
+  const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null);
   const selected = new Set(selection);
+
+  useEffect(() => setScrollRoot(containerRef.current?.parentElement ?? null), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,6 +256,8 @@ export function Thumbnails({ pdfDocument, currentPage, pageLabels, selection, on
         <Thumbnail
           key={index}
           pdfDocument={pdfDocument}
+          paused={paused}
+          scrollRoot={scrollRoot}
           pageNumber={index + 1}
           label={pageLabels?.[index] || null}
           aspectRatio={aspectRatio}

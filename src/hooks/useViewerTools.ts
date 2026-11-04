@@ -32,7 +32,7 @@ type ToolParts = { eventBus: EventBus; viewer: PDFViewer; hand: HandTool; editor
 
 const sessionParams = new Set<number>([AnnotationEditorParamsType.CREATE, AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL]);
 
-function finishDrawing(viewer: PDFViewer) {
+export function finishDrawing(viewer: PDFViewer) {
   let finished = false;
   for (let index = 0; index < viewer.pagesCount; index++) {
     const layer = (viewer.getPageView(index) as DrawingLayerPage | undefined)?.annotationEditorLayer?.annotationEditorLayer;

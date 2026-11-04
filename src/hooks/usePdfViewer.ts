@@ -9,6 +9,7 @@ import type { ViewState } from "../lib/documentWindows";
 import { attachHandTool, type HandTool } from "../lib/handTool";
 import { restoreImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
+import { publishPageCanvas } from "../lib/pageCanvases";
 import { notesIn } from "../lib/notes";
 import { writeStickyNotes } from "../lib/notesPdf";
 import { hasCustomLabels } from "../lib/pageLabels";
@@ -19,7 +20,7 @@ import { useViewerControls } from "./useViewerControls";
 import { useViewerFind } from "./useViewerFind";
 import { useViewerForm } from "./useViewerForm";
 import { useViewerScroll, type DiffState } from "./useViewerScroll";
-import { useViewerTools } from "./useViewerTools";
+import { finishDrawing, useViewerTools } from "./useViewerTools";
 
 export type { FindMatches, FindQuery, FindStatus, FindType } from "./useViewerFind";
 export type { EditorParams, EditorTool } from "./useViewerTools";
@@ -75,6 +76,7 @@ export function usePdfViewer() {
   const editHistoryRef = useRef({ canUndo: false, canRedo: false, changed: false });
   const diffRef = useRef<DiffState>({ overlays: null, current: -1 });
   const labelsRef = useRef<string[] | null>(null);
+  const restoreRef = useRef(false);
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pagesCount, setPagesCount] = useState(0);
@@ -119,8 +121,10 @@ export function usePdfViewer() {
     const linkService = new PDFLinkService({ eventBus, externalLinkTarget: LinkTarget.BLANK });
     const findController = new PatternFindController({ eventBus, linkService });
     const editorUi = createEditorManagers(eventBus, linkService);
+    const teardown = new AbortController();
     const viewer = new PDFViewer({
       container,
+      abortSignal: teardown.signal,
       viewer: viewerElement,
       eventBus,
       linkService,
@@ -188,8 +192,11 @@ export function usePdfViewer() {
     });
     eventBus.on("pagerendered", ({ source, isDetailView, error }: { source: RenderedPageView; isDetailView: boolean; error: unknown }) => {
       if (!isDetailView && !error) {
-        restoreImages(source);
+        restoreImages(source, restoreRef.current);
         paintDiff(source.id - 1);
+        if (source.canvas && viewer.pdfDocument) {
+          publishPageCanvas(viewer.pdfDocument, source.id - 1, source.canvas, viewer.pagesRotation);
+        }
       }
     });
     eventBus.on("rotationchanging", ({ pagesRotation }: { pagesRotation: number }) => {
@@ -257,6 +264,10 @@ export function usePdfViewer() {
     resizeObserver.observe(container, { box: "border-box" });
 
     return () => {
+      finishDrawing(viewer);
+      viewer.setDocument(null!);
+      linkService.setDocument(null, null);
+      teardown.abort();
       resizeObserver.disconnect();
       container.removeEventListener("wheel", onWheel);
       container.removeEventListener("input", onFormInput, true);
@@ -272,7 +283,7 @@ export function usePdfViewer() {
   const tools = useViewerTools(partsRef);
   const { resetTools, setTool } = tools;
   const scroll = useViewerScroll(partsRef, containerRef, diffRef, paintDiffRef);
-  const controls = useViewerControls(partsRef);
+  const controls = useViewerControls(partsRef, restoreRef);
   const { hasForm, loadFields, stepField, resetForm } = useViewerForm(partsRef);
 
   const setModified = useCallback((value: boolean) => {

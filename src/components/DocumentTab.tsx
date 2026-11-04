@@ -4,6 +4,7 @@ import type { CompareView } from "../hooks/useComparison";
 import { useEditorUi } from "../hooks/useEditorUi";
 import { useMapMarks } from "../hooks/useMapMarks";
 import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi, type ViewStart } from "../hooks/usePdfViewer";
+import { useScrolling } from "../hooks/useScrolling";
 import type { ViewState } from "../lib/documentWindows";
 import type { SignaturePreview } from "../lib/editorManagers";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
@@ -20,6 +21,8 @@ import { FindBar } from "./FindBar";
 import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 import "./Forms.css";
+
+const HIDDEN_RELEASE_MS = 30_000;
 
 export type TabSnapshot = {
   loaded: boolean;
@@ -137,6 +140,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   ref,
 ) {
   const viewer = usePdfViewer();
+  const scrolling = useScrolling(viewer.containerRef);
   const editorState = useEditorUi(viewer.editorUi);
   const sheetOpen = !!(editorState.altText || editorState.signature || editorState.description || editorState.comment);
   const [findOpen, setFindOpen] = useState(false);
@@ -238,8 +242,21 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     }
   }, [active, viewer]);
 
-  const { setCaretBrowsing, setEditorDefaults } = viewer;
+  const { setCaretBrowsing, setEditorDefaults, setImageRestore } = viewer;
   useEffect(() => setCaretBrowsing(caretBrowsing && active && loaded), [setCaretBrowsing, caretBrowsing, active, loaded]);
+  useEffect(() => setImageRestore(darkPages && keepImages), [setImageRestore, darkPages, keepImages]);
+
+  const { releasePages, renderPages } = viewer;
+  useEffect(() => {
+    if (active || !loaded) {
+      return;
+    }
+    const timer = window.setTimeout(releasePages, HIDDEN_RELEASE_MS);
+    return () => {
+      window.clearTimeout(timer);
+      renderPages();
+    };
+  }, [active, loaded, releasePages, renderPages]);
   useEffect(() => setEditorDefaults(editorDefaults), [setEditorDefaults, editorDefaults]);
 
   const currentPage = viewer.pageNumber - 1;
@@ -325,6 +342,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           tab={sidebarTab}
           onTab={onSidebarTab}
           pdfDocument={viewer.pdfDocument}
+          paused={!active || scrolling}
           currentPage={viewer.pageNumber}
           pageLabels={viewer.pageLabels}
           selection={shownSelection.pages}
@@ -368,6 +386,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         <DocumentMap
           pdfDocument={viewer.pdfDocument}
           containerRef={viewer.containerRef}
+          paused={!active || scrolling}
           rotation={viewer.pagesRotation}
           selection={shownSelection.pages}
           marks={mapMarks}

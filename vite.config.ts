@@ -8,51 +8,56 @@ import { readFileSync } from "node:fs";
 const host = process.env.TAURI_DEV_HOST;
 const tauriConfig = JSON.parse(readFileSync(new URL("./src-tauri/tauri.conf.json", import.meta.url), "utf8"));
 
-export default defineConfig(() => ({
-  define: {
-    __APP_VERSION__: JSON.stringify(tauriConfig.version),
-  },
-  plugins: [
-    react(),
-    viteStaticCopy({
-      targets: [
-        {
-          src: "node_modules/pdfjs-dist/{cmaps,standard_fonts,wasm,iccs}/*",
-          dest: "pdfjs",
-          rename: { stripBase: 2 },
-        },
-        {
-          src: "node_modules/pdfjs-dist/web/images/annotation-*.svg",
-          dest: "pdfjs",
-          rename: { stripBase: 3 },
-        },
-      ],
-    }),
-  ],
-  clearScreen: false,
-  server: {
-    port: 1420,
-    strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
-    watch: {
-      ignored: ["**/src-tauri/**"],
+export default defineConfig(({ command }) => {
+  if (command === "build") {
+    process.env.NODE_ENV = "production";
+  }
+  return {
+    define: {
+      __APP_VERSION__: JSON.stringify(tauriConfig.version),
     },
-  },
-  worker: {
-    format: "es",
-  },
-  build: {
-    target: "safari16",
-    chunkSizeWarningLimit: 2000,
-  },
-  test: {
-    environment: "node",
-  },
-}));
+    plugins: [
+      react(),
+      viteStaticCopy({
+        targets: [
+          {
+            src: "node_modules/pdfjs-dist/{cmaps,standard_fonts,wasm,iccs}/*",
+            dest: "pdfjs",
+            rename: { stripBase: 2 },
+          },
+          {
+            src: "node_modules/pdfjs-dist/web/images/annotation-*.svg",
+            dest: "pdfjs",
+            rename: { stripBase: 3 },
+          },
+        ],
+      }),
+    ],
+    clearScreen: false,
+    server: {
+      port: 1420,
+      strictPort: true,
+      host: host || false,
+      hmr: host
+        ? {
+            protocol: "ws",
+            host,
+            port: 1421,
+          }
+        : undefined,
+      watch: {
+        ignored: ["**/src-tauri/**"],
+      },
+    },
+    worker: {
+      format: "es",
+    },
+    build: {
+      target: "safari16",
+      chunkSizeWarningLimit: 2000,
+    },
+    test: {
+      environment: "node",
+    },
+  };
+});

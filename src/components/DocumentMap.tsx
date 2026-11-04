@@ -2,9 +2,11 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { MapMark, MapMarks } from "../hooks/useMapMarks";
 import { rotateRect } from "../lib/diffRects";
+import { copyRenderedPage } from "../lib/pageCanvases";
 import { MAP_MAX_WIDTH, MAP_PADDING, layoutMap, scrollForSlider, sliderFor, visibleRange, type MapArea, type MapRect, type PageBox, type ViewerScroll } from "../lib/documentMap";
 
 const MIN_SLIDER_HEIGHT = 4;
+const KEEP_RENDERED = 10;
 
 type RenderQueue = (task: () => Promise<void>) => void;
 
@@ -51,21 +53,23 @@ type MapPageProps = {
   rect: MapRect;
   renderWidth: number;
   visible: boolean;
+  paused: boolean;
   selected: boolean;
   marks: MapMark[] | undefined;
   queue: RenderQueue;
 };
 
-const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, renderWidth, visible, selected, marks, queue }: MapPageProps) {
+const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, renderWidth, visible, paused, selected, marks, queue }: MapPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [shown, setShown] = useState(visible);
-  if (visible && !shown) {
-    setShown(true);
-  }
+  const drawn = useRef(false);
+
+  useEffect(() => {
+    drawn.current = false;
+  }, [pdfDocument, index, rotation, renderWidth]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!shown || !canvas || !renderWidth) {
+    if (!visible || paused || !canvas || !renderWidth || drawn.current) {
       return;
     }
     let cancelled = false;
@@ -75,22 +79,34 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
         return;
       }
       const page = await pdfDocument.getPage(index + 1);
-      if (cancelled) {
+      const width = renderWidth * window.devicePixelRatio;
+      if (cancelled || (await copyRenderedPage(pdfDocument, page, rotation, canvas, width, () => cancelled))) {
+        drawn.current = !cancelled;
         return;
       }
       const turn = (page.rotate + rotation) % 360;
       const base = page.getViewport({ scale: 1, rotation: turn });
-      const viewport = page.getViewport({ scale: (renderWidth * window.devicePixelRatio) / base.width, rotation: turn });
+      const viewport = page.getViewport({ scale: width / base.width, rotation: turn });
       canvas.width = Math.floor(viewport.width);
       canvas.height = Math.floor(viewport.height);
       renderTask = page.render({ canvas, viewport });
       await renderTask.promise;
+      drawn.current = !cancelled;
     });
     return () => {
       cancelled = true;
       renderTask?.cancel();
     };
-  }, [shown, pdfDocument, index, rotation, renderWidth, queue]);
+  }, [visible, paused, pdfDocument, index, rotation, renderWidth, queue]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!visible && canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+      drawn.current = false;
+    }
+  }, [visible]);
 
   return (
     <div
@@ -115,13 +131,14 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
 type DocumentMapProps = {
   pdfDocument: PDFDocumentProxy;
   containerRef: RefObject<HTMLDivElement | null>;
+  paused: boolean;
   rotation: number;
   selection: number[];
   marks: MapMarks;
   fixedWidth: boolean;
 };
 
-export function DocumentMap({ pdfDocument, containerRef, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
+export function DocumentMap({ pdfDocument, containerRef, paused, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -262,7 +279,8 @@ export function DocumentMap({ pdfDocument, containerRef, rotation, selection, ma
             rotation={rotation}
             rect={rect}
             renderWidth={pageWidth > 0 ? Math.ceil((fullWidth * rect.width) / pageWidth) : 0}
-            visible={index >= range.first && index <= range.last}
+            visible={index >= range.first - KEEP_RENDERED && index <= range.last + KEEP_RENDERED}
+            paused={paused}
             selected={selected.has(index)}
             marks={marks.get(index)}
             queue={queue}
