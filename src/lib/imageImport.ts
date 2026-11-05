@@ -1,6 +1,7 @@
 import { hasTransparency, reencodeFormat } from "./imageFormats";
 import type { DecodedImage, ImageFile } from "./imagePdf";
 import type { OpenedFile } from "./imageFiles";
+import { combinePdfsOffThread } from "./pageEditWorker";
 import type { PdfSource } from "./platform";
 
 function canvasBlob(canvas: HTMLCanvasElement, type: string, quality?: number) {
@@ -56,6 +57,5 @@ export async function pagesFrom(files: OpenedFile[]) {
   if (sources.length === 1) {
     return sources[0].data;
   }
-  const { combinePdfs } = await import("./pageEdits");
-  return combinePdfs(sources.map((source) => source.data));
+  return combinePdfsOffThread(sources.map((source) => source.data));
 }
