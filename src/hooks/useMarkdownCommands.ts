@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { hasCaret } from "../lib/caret";
 import type { CommandId } from "../lib/commands";
+import { openErrorDetail } from "../lib/openErrors";
 import { openLinkedFile, readDocumentFromPath, showError } from "../lib/platform";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
@@ -49,7 +50,7 @@ export function useMarkdownCommands({ workspaceRef, activeMarkdown, openSource }
       try {
         await openSource(readDocumentFromPath(await openLinkedFile(document, href)));
       } catch (error) {
-        await showError(`Could not open ${href}.\n\n${error instanceof Error ? error.message : String(error)}`);
+        await showError(`Could not open ${href}.\n\n${openErrorDetail(error)}`);
       }
     },
     [openSource],

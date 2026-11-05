@@ -6,7 +6,7 @@ import { changesDocument, countAfterEdit, pageAfterEdit, pageRanges, selectionAf
 import { openedFiles, pickImages, type OpenedFile } from "../lib/imageFiles";
 import { imagesIn, imagesToSource, markdownIn, pagesFrom, pdfsIn } from "../lib/imageImport";
 import { remapStops } from "../lib/navHistory";
-import { trimHistory, type Version } from "../lib/pageHistory";
+import { shareBudget, trimHistory, type Version } from "../lib/pageHistory";
 import { pickPdfs, showContextMenu, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
@@ -60,6 +60,14 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
       edits.redo = [];
     }
     return edits;
+  };
+
+  const trimWindow = () => {
+    const all = [...tabs.current.keys()].filter((id) => workspaceRef.current.tabs[id]).map(editsFor);
+    shareBudget(all).forEach((history, index) => {
+      all[index].undo = history.undo;
+      all[index].redo = history.redo;
+    });
   };
 
   const enqueue = useCallback((tabId: string, task: () => Promise<void>) => {
@@ -149,6 +157,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     );
     edits.undo = trimHistory([...edits.undo, before]);
     edits.redo = [];
+    trimWindow();
   };
 
   const editPages = useCallback(
@@ -230,6 +239,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         }
         show(tab.id, target, [], baseline);
         edits[direction === "undo" ? "redo" : "undo"].push(current);
+        trimWindow();
       });
       return true;
     },

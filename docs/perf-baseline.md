@@ -169,3 +169,12 @@ Still open:
 Still open:
 - Finding 9 (truncated PDF error) and the page-edit history budget.
 - Closing a tab mid-drawing logs one unhandled rejection from pdf.js: committing the drawing selects it, and its toolbar finishes building after the viewer is gone. Harmless; the next tab draws normally.
+
+## Round 5 results
+
+- **Finding 9 wasn't a bug.** pdf.js rejects `hostile/truncated.pdf` with `InvalidPDFException` ("Invalid PDF structure.") in 35 ms, and Clumsy already showed "Could not open" with that text. The earlier browser lab missed it because the automation dismissed `window.alert`. The detail now reads "The file is damaged or incomplete, so it can't be read as a PDF." (`openErrorDetail` in `src/lib/openErrors.ts`, used by every "Could not open" message).
+- **Page-edit history budget.** It was 256 MB per tab, so ten edited tabs could hold 2.5 GB of earlier versions. Now every tab's undo and redo share one 256 MB budget per window (`shareBudget` in `src/lib/pageHistory.ts`). The tab holding the most gives up its oldest version first, and each tab keeps its newest undo, which `documentFailed` needs to roll back a version pdf.js can't open. Checked in the browser build: two tabs of text-1200, delete in each, undo and redo across them, page counts right, no alerts.
+
+Still open:
+- Closing a tab mid-drawing logs one unhandled rejection from pdf.js (see round 3).
+- Quick page edits on a 1,200-page file log "Unable to get page N to initialize viewer: Transport destroyed" for each page pdf.js hadn't set up before the version was replaced. pdf.js's own logging; the new version loads normally.

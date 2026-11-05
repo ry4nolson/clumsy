@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Undo history for page edits now shares one 256 MB budget across all of a window's tabs, instead of 256 MB per tab, so editing many large files no longer piles up gigabytes of earlier versions. Each tab always keeps its most recent step
+- Opening a damaged or incomplete PDF now says so, instead of showing pdf.js's "Invalid PDF structure"
+
 ## [0.10.4] - 2026-11-05
 
 ### Changed

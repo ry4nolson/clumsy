@@ -4,6 +4,7 @@ import { buildComparison, changeRect, otherSide, overlaysFor, type Comparison, t
 import { tokenPage } from "../lib/diffTokens";
 import { diffInWorker } from "../lib/diffWorker";
 import { documentText } from "../lib/pdfText";
+import { openErrorDetail } from "../lib/openErrors";
 import { downloadPdf, isDesktop, pickPdf, pickSavePath, showError, writePdf, type PdfSource } from "../lib/platform";
 import { changeAtLocation, syncLocation } from "../lib/scrollSync";
 import { createPaneId, type DocTab } from "../lib/tabs";
@@ -263,7 +264,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     try {
       source = await pickPdf();
     } catch (error) {
-      await showError(`Could not open this PDF.\n\n${error instanceof Error ? error.message : String(error)}`);
+      await showError(`Could not open this PDF.\n\n${openErrorDetail(error)}`);
       return;
     }
     const rightId = source && (await openBeside(left, source));

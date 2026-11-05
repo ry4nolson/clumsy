@@ -11,6 +11,7 @@ import {
   type DocumentSource,
 } from "../lib/platform";
 import { rememberClosed, takeClosed, type ClosedTab } from "../lib/closedTabs";
+import { openErrorDetail } from "../lib/openErrors";
 import { createFileTab, createPaneId, createStartTab, isFileTab, type FileTab, type OpenOptions, type Tab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 
@@ -116,7 +117,7 @@ export function useWorkspace() {
       try {
         resolved = await source;
       } catch (error) {
-        await showError(`Could not open this file.\n\n${error instanceof Error ? error.message : String(error)}`);
+        await showError(`Could not open this file.\n\n${openErrorDetail(error)}`);
         return null;
       }
       if (!resolved) {
@@ -184,7 +185,7 @@ export function useWorkspace() {
       const tab = workspaceRef.current.tabs[id];
       dropTab(id, isFileTab(tab) ? tab.returnTo : null);
       if (error) {
-        showError(`Could not open ${isFileTab(tab) ? `“${tab.name}”` : "this file"}.\n\n${error instanceof Error ? error.message : String(error)}`);
+        showError(`Could not open ${isFileTab(tab) ? `“${tab.name}”` : "this file"}.\n\n${openErrorDetail(error)}`);
       }
     },
     [dropTab],
