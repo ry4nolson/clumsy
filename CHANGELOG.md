@@ -10,6 +10,11 @@ and this project uses [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Comparing long documents (hundreds of pages) where pages were added or removed no longer marks nearly everything after the first such page as changed. Comparing two revisions of a 1,200-page file now takes about 3 seconds instead of 27 and finds the real changes
 - Comparing two very different long documents no longer builds a sidebar and Document Map with over a million elements. The Changes list shows 400 changes at a time around the one in view, with buttons to show more
+- Markdown files can no longer load images or open files outside their own folder, or outside their repository when they're in one, through absolute paths, `..`, or symlinks
+- Images picked for New PDF from Images, Insert Pages, or a signature, and images dropped on the window, are now only ever read, never written
+- The Replace prompt when exporting pages into a folder now comes from Clumsy itself, and only the files you agreed to replace can be overwritten
+- Windows can no longer be navigated to other local web servers
+- The recent files list no longer freezes the window while a network volume in it is slow to respond
 
 ## [0.10.6] - 2026-11-05
 

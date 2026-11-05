@@ -6,6 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::lock;
+
 const STORE_LIMIT: usize = 20;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -63,15 +65,13 @@ impl RecentFiles {
             .ok()
             .and_then(|json| serde_json::from_str::<Vec<RecentFile>>(&json).ok())
             .unwrap_or_default();
-        *self.list.lock().unwrap() = list;
-        *self.store.lock().unwrap() = Some(store);
+        *lock(&self.list) = list;
+        *lock(&self.store) = Some(store);
     }
 
     pub fn entries(&self, app: &AppHandle) -> Vec<RecentEntry> {
         let home = app.path().home_dir().ok();
-        self.list
-            .lock()
-            .unwrap()
+        lock(&self.list)
             .iter()
             .map(|entry| {
                 let path = Path::new(&entry.path);
@@ -87,21 +87,21 @@ impl RecentFiles {
     }
 
     pub fn paths(&self) -> Vec<PathBuf> {
-        self.list.lock().unwrap().iter().map(|entry| PathBuf::from(&entry.path)).collect()
+        lock(&self.list).iter().map(|entry| PathBuf::from(&entry.path)).collect()
     }
 
     pub fn add(&self, app: &AppHandle, path: &str) {
-        record(&mut self.list.lock().unwrap(), path, now_millis());
+        record(&mut lock(&self.list), path, now_millis());
         self.changed(app);
     }
 
     pub fn remove(&self, app: &AppHandle, path: &str) {
-        self.list.lock().unwrap().retain(|entry| entry.path != path);
+        lock(&self.list).retain(|entry| entry.path != path);
         self.changed(app);
     }
 
     pub fn clear(&self, app: &AppHandle) {
-        self.list.lock().unwrap().clear();
+        lock(&self.list).clear();
         self.changed(app);
     }
 
@@ -111,10 +111,10 @@ impl RecentFiles {
     }
 
     fn save(&self) {
-        let Some(store) = self.store.lock().unwrap().clone() else {
+        let Some(store) = lock(&self.store).clone() else {
             return;
         };
-        let Ok(json) = serde_json::to_string_pretty(&*self.list.lock().unwrap()) else {
+        let Ok(json) = serde_json::to_string_pretty(&*lock(&self.list)) else {
             return;
         };
         if let Some(dir) = store.parent() {

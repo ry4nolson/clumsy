@@ -13,7 +13,7 @@
     "core:window:allow-is-fullscreen",
     "core:window:allow-close",
     "core:window:allow-destroy",
-    "dialog:default",
+    "dialog:allow-message",
     "opener:default",
     "core:webview:allow-create-webview-window",
     "core:window:allow-set-focus",

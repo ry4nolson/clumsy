@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::default_app::is_installed_bundle;
+use crate::lock;
 
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 
@@ -67,7 +68,7 @@ pub async fn install_update(app: AppHandle, progress: Channel<UpdateProgress>) -
     let Some(update) = updater.check().await.map_err(|err| err.to_string())? else {
         return Ok(None);
     };
-    if updates.installed.lock().unwrap().as_deref() == Some(update.version.as_str()) {
+    if lock(&updates.installed).as_deref() == Some(update.version.as_str()) {
         return Ok(Some(update.version));
     }
     let mut received = 0;
@@ -83,7 +84,7 @@ pub async fn install_update(app: AppHandle, progress: Channel<UpdateProgress>) -
         )
         .await
         .map_err(|err| err.to_string())?;
-    *updates.installed.lock().unwrap() = Some(update.version.clone());
+    *lock(&updates.installed) = Some(update.version.clone());
     Ok(Some(update.version))
 }
 
