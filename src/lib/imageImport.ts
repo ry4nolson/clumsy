@@ -1,6 +1,5 @@
 import { hasTransparency, reencodeFormat } from "./imageFormats";
-import { groupRuns, imagesPdfName, pdfFromImages, type DecodedImage, type ImageFile } from "./imagePdf";
-import { combinePdfs } from "./pageEdits";
+import type { DecodedImage, ImageFile } from "./imagePdf";
 import type { OpenedFile } from "./imageFiles";
 import type { PdfSource } from "./platform";
 
@@ -35,6 +34,7 @@ export async function decodeImage(file: ImageFile): Promise<DecodedImage> {
 
 export async function imagesToSource(images: Array<Promise<ImageFile>>): Promise<PdfSource> {
   const files = await Promise.all(images);
+  const { imagesPdfName, pdfFromImages } = await import("./imagePdf");
   return { name: imagesPdfName(files.map((file) => file.name)), path: null, data: await pdfFromImages(files, decodeImage) };
 }
 
@@ -45,6 +45,7 @@ export const imagesIn = (files: OpenedFile[]) => files.flatMap((file) => (file.k
 export const markdownIn = (files: OpenedFile[]) => files.flatMap((file) => (file.kind === "markdown" ? [file.source] : []));
 
 export async function pagesFrom(files: OpenedFile[]) {
+  const { groupRuns } = await import("./imagePdf");
   const runs = groupRuns(files, (file) => file.kind);
   const sources = await Promise.all(
     runs.flatMap(({ key, items }) => (key === "pdf" ? pdfsIn(items) : key === "image" ? [imagesToSource(imagesIn(items))] : [])),
@@ -52,5 +53,9 @@ export async function pagesFrom(files: OpenedFile[]) {
   if (!sources.length) {
     return null;
   }
-  return sources.length === 1 ? sources[0].data : combinePdfs(sources.map((source) => source.data));
+  if (sources.length === 1) {
+    return sources[0].data;
+  }
+  const { combinePdfs } = await import("./pageEdits");
+  return combinePdfs(sources.map((source) => source.data));
 }

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
 import { buildComparison, changeRect, otherSide, overlaysFor, type Comparison, type Side } from "../lib/comparison";
-import { buildComparisonReport } from "../lib/comparisonReport";
 import { tokenPage } from "../lib/diffTokens";
 import { diffInWorker } from "../lib/diffWorker";
 import { documentText } from "../lib/pdfText";
@@ -315,6 +314,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     const stem = (name: string) => name.replace(/\.pdf$/i, "");
     const fileName = `${stem(names.left)} vs ${stem(names.right)} comparison.pdf`;
     try {
+      const { buildComparisonReport } = await import("../lib/comparisonReport");
       const bytes = await buildComparisonReport({ comparison: latest.result, names, date: new Date() });
       if (!isDesktop) {
         downloadPdf(fileName, bytes);

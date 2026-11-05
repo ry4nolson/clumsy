@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFString } from "@cantoo/pdf-lib";
-import { PageEditError, applyPageEdit, changesDocument, combinePdfs, countAfterEdit, extractPages, pageAfterEdit, pageRanges, reorderedPages, selectionAfterEdit } from "../src/lib/pageEdits";
+import { applyPageEdit, combinePdfs, extractPages } from "../src/lib/pageEdits";
+import { PageEditError, changesDocument, countAfterEdit, pageAfterEdit, pageRanges, reorderedPages, selectionAfterEdit } from "../src/lib/pageEditPlan";
 
 async function makePdf(widths: number[], extra?: (doc: PDFDocument) => void) {
   const doc = await PDFDocument.create();

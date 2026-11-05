@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFString, decodePDFRawStream } from "@cantoo/pdf-lib";
-import { PageEditError, applyPageEdit, changesDocument, countAfterEdit, pageAfterEdit, selectionAfterEdit } from "../src/lib/pageEdits";
+import { applyPageEdit } from "../src/lib/pageEdits";
+import { PageEditError, changesDocument, countAfterEdit, pageAfterEdit, selectionAfterEdit } from "../src/lib/pageEditPlan";
 import { appearanceTransform } from "../src/lib/pdfForm";
 
 const key = PDFName.of;

@@ -1,9 +1,12 @@
+import { lazy, Suspense } from "react";
 import type { CompareView } from "../hooks/useComparison";
 import type { Tab } from "../lib/tabs";
 import type * as ws from "../lib/workspace";
 import { DocumentTab, type DocumentHandle, type DocumentTabProps } from "./DocumentTab";
-import { MarkdownTab, type MarkdownHandle, type MarkdownSnapshot } from "./MarkdownTab";
+import type { MarkdownHandle, MarkdownSnapshot } from "./MarkdownTab";
 import { Welcome, type WelcomeProps } from "./Welcome";
+
+const MarkdownTab = lazy(() => import("./MarkdownTab").then((module) => ({ default: module.MarkdownTab })));
 
 type SharedDocumentProps = Omit<DocumentTabProps, "id" | "paneId" | "column" | "source" | "initialView" | "initialSelection" | "active" | "caretBrowsing" | "compare">;
 
@@ -43,19 +46,21 @@ export function TabContents({ workspace, welcome, documentProps, markdownProps, 
         );
       }
       if (tab.kind === "markdown") {
+        const placeholder = <div className={`document-tab markdown-tab${active ? "" : " inactive"}`} inert={!active} data-pane-id={pane.id} style={{ gridColumn: column }} />;
         return (
-          <MarkdownTab
-            key={tab.id}
-            ref={(handle) => setMarkdownHandle(tab.id, handle)}
-            id={tab.id}
-            paneId={pane.id}
-            column={column}
-            source={tab.source}
-            path={tab.path}
-            initialView={tab.view}
-            active={active}
-            {...markdownProps}
-          />
+          <Suspense key={tab.id} fallback={placeholder}>
+            <MarkdownTab
+              ref={(handle) => setMarkdownHandle(tab.id, handle)}
+              id={tab.id}
+              paneId={pane.id}
+              column={column}
+              source={tab.source}
+              path={tab.path}
+              initialView={tab.view}
+              active={active}
+              {...markdownProps}
+            />
+          </Suspense>
         );
       }
       return (

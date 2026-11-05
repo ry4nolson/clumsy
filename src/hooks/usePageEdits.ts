@@ -2,18 +2,7 @@ import { useCallback, useRef } from "react";
 import type { PageAction } from "../components/DocumentTab";
 import type { CommandId } from "../lib/commands";
 import { dropTargetAt } from "../lib/dropTarget";
-import {
-  applyPageEdit,
-  changesDocument,
-  combinePdfs,
-  countAfterEdit,
-  extractPages,
-  pageAfterEdit,
-  pageCount,
-  pageRanges,
-  selectionAfterEdit,
-  type PageEdit,
-} from "../lib/pageEdits";
+import { changesDocument, countAfterEdit, pageAfterEdit, pageRanges, selectionAfterEdit, type PageEdit } from "../lib/pageEditPlan";
 import { openedFiles, pickImages, type OpenedFile } from "../lib/imageFiles";
 import { imagesIn, imagesToSource, markdownIn, pagesFrom, pdfsIn } from "../lib/imageImport";
 import { remapStops } from "../lib/navHistory";
@@ -21,6 +10,8 @@ import { trimHistory, type Version } from "../lib/pageHistory";
 import { pickPdfs, showContextMenu, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
+
+const pdfEdits = () => import("../lib/pageEdits");
 
 type TabEdits = {
   source: PdfSource | null;
@@ -145,6 +136,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     if (!before || !changesDocument(edit, before.count)) {
       return;
     }
+    const { applyPageEdit, pageCount } = await pdfEdits();
     const inserted = edit.kind === "insert" ? await pageCount(edit.data) : 0;
     const bytes = await applyPageEdit(before.bytes, edit);
     const page = pageAfterEdit(edit, before.page, before.count, inserted);
@@ -285,7 +277,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         if (files.length === 1) {
           await openSource(files[0]);
         } else if (files.length > 1) {
-          const data = await combinePdfs(files.map((file) => file.data));
+          const data = await (await pdfEdits()).combinePdfs(files.map((file) => file.data));
           await openSource({ name: `${baseName(files[0].name)} and ${files.length - 1} more.pdf`, path: null, data }, { carriedChanges: true });
         }
       })
@@ -322,7 +314,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
             }
             const current = await currentVersion(tab.id);
             if (current) {
-              const data = await extractPages(current.bytes, pages);
+              const data = await (await pdfEdits()).extractPages(current.bytes, pages);
               const name = `${baseName(tab.name)} (${pages.length === 1 ? "page" : "pages"} ${pageRanges(pages)}).pdf`;
               await openSource({ name, path: null, data }, { carriedChanges: true });
             }

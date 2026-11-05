@@ -154,3 +154,18 @@ What changed:
 Still open:
 - Findings 8 (bundle), 9 (truncated PDF error), and the page-edit history budget.
 - Closing a tab mid-drawing logs one unhandled rejection from pdf.js: committing the drawing selects it, and its toolbar finishes building after the viewer is gone. Harmless; the next tab draws normally.
+
+## Round 4 results
+
+| Metric | v0.10.3 | Round 4 |
+|---|---|---|
+| Main bundle (`index-*.js`) | 2,034 KB (722 KB gzip) | 1,136 KB (351 KB gzip) |
+| WebKit page process, tagged-20.pdf, 10 s after launch (3 runs each) | 191 / 186 / 185 MB | 167 / 170 / 169 MB |
+| WebKit page process, markdown-2mb.md, 12 s after launch | 485 MB | 432 MB |
+
+- **Bundle** (finding 8): pdf-lib and the four libraries it pulls in (html-entities, culori, node-html-better-parser, fflate) were 430 KB of the main bundle, and the Markdown stack (highlight.js, markdown-it and its plugins, DOMPurify, entities) another 285 KB. Every window parsed and kept all of it, even with only PDFs open. pdf-lib now loads through `import()` the first time a page edit, an image drop, a save with sticky-note changes, or a comparison report needs it (544 KB chunk), and `MarkdownTab` is a `React.lazy` component (312 KB plus its CSS). The pure page-edit helpers moved to `pageEditPlan.ts` so `usePageEdits` can import them without the library. What's left at startup is pdf.js (559 KB), React DOM (202 KB), the app (232 KB), and Tauri's API.
+- Checked in the browser build that startup fetches only the main bundle, opening a PDF fetches nothing more, and each feature fetches its chunk the first time: Markdown (with styles and syntax colors), Rotate Pages, a sticky note baked in by a later page edit, and two dropped images becoming a PDF. No console errors. In the built app, the Markdown file rendered under the real CSP (page process 57 MB with only Start, 432 MB with the file).
+
+Still open:
+- Finding 9 (truncated PDF error) and the page-edit history budget.
+- Closing a tab mid-drawing logs one unhandled rejection from pdf.js: committing the drawing selects it, and its toolbar finishes building after the viewer is gone. Harmless; the next tab draws normally.

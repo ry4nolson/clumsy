@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Each window starts with about 18 MB less memory. The code for editing pages, saving notes, comparison reports, and Markdown files now loads the first time you use it instead of at launch
+
 ## [0.10.3] - 2026-11-04
 
 ### Fixed
