@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { CompareView } from "../hooks/useComparison";
-import { describeWords, filteredChanges, summarizeChanges, type ChangeFilter } from "../lib/changeSummary";
+import { CHANGE_WINDOW, changeWindow, describeWords, filteredChanges, summarizeChanges, type ChangeFilter, type WindowExtra } from "../lib/changeSummary";
 import { changeKindLabels } from "../lib/comparison";
 
 type ChangesListProps = { view: CompareView };
@@ -18,6 +18,13 @@ export const ChangesList = memo(function ChangesList({ view }: ChangesListProps)
   const summary = useMemo(() => changes && summarizeChanges(changes), [changes]);
   const shown = useMemo(() => changes && filteredChanges(changes, filter), [changes, filter]);
   const followed = shown && (shown.find((index) => index >= inView) ?? shown.at(-1));
+  const [extra, setExtra] = useState<WindowExtra>({ before: 0, after: 0 });
+  const focus = shown && followed !== undefined ? Math.max(0, shown.indexOf(followed)) : 0;
+  const [start, end] = changeWindow(shown?.length ?? 0, focus, extra);
+
+  useEffect(() => {
+    setExtra({ before: 0, after: 0 });
+  }, [shown]);
 
   useEffect(() => {
     const row = listRef.current?.querySelector<HTMLElement>(`[data-index="${followed}"]`);
@@ -64,8 +71,13 @@ export const ChangesList = memo(function ChangesList({ view }: ChangesListProps)
           words
         </p>
       </div>
+      {start > 0 && (
+        <button type="button" className="changes-more" onClick={() => setExtra((last) => ({ ...last, before: last.before + CHANGE_WINDOW }))}>
+          Show {Math.min(start, CHANGE_WINDOW)} earlier of {start}
+        </button>
+      )}
       <ol className="changes" ref={listRef}>
-        {shown.map((index) => {
+        {shown.slice(start, end).map((index) => {
           const change = changes[index];
           return (
             <li key={index}>
@@ -88,6 +100,11 @@ export const ChangesList = memo(function ChangesList({ view }: ChangesListProps)
           );
         })}
       </ol>
+      {end < shown.length && (
+        <button type="button" className="changes-more" onClick={() => setExtra((last) => ({ ...last, after: last.after + CHANGE_WINDOW }))}>
+          Show {Math.min(shown.length - end, CHANGE_WINDOW)} later of {shown.length - end}
+        </button>
+      )}
     </div>
   );
 }, sameList);

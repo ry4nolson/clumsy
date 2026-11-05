@@ -1102,6 +1102,16 @@ body {
   list-style: none;
 }
 
+.changes-more {
+  margin: 4px 14px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: var(--hover);
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .change-row {
   display: flex;
   flex-direction: column;

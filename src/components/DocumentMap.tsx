@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { MapMark, MapMarks } from "../hooks/useMapMarks";
 import { usePreviewImages } from "../hooks/usePreviewImages";
-import { rotateRect } from "../lib/diffRects";
+import { mergeMarks, rotateRect } from "../lib/diffRects";
 import { previewRender } from "../lib/imageRestore";
 import { copyRenderedPage } from "../lib/pageCanvases";
 import { MAP_MAX_WIDTH, MAP_PADDING, layoutMap, scrollForSlider, sliderFor, visibleRange, type MapArea, type MapRect, type PageBox, type ViewerScroll } from "../lib/documentMap";
@@ -58,6 +58,10 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawn = useRef(false);
   const { overlayRef, show } = usePreviewImages(restoreImages);
+  const shownMarks = useMemo(
+    () => (visible && marks ? mergeMarks(marks.map((mark) => rotateRect(mark, rotation)), rect.width, rect.height) : []),
+    [visible, marks, rotation, rect.width, rect.height],
+  );
 
   useEffect(() => {
     drawn.current = false;
@@ -127,16 +131,13 @@ const MapPage = memo(function MapPage({ pdfDocument, index, rotation, rect, rend
     >
       <canvas ref={canvasRef} />
       <canvas ref={overlayRef} className="image-restore" aria-hidden="true" />
-      {marks?.map((mark, markIndex) => {
-        const shownRect = rotateRect(mark, rotation);
-        return (
-          <span
-            key={markIndex}
-            className={`document-map-mark ${mark.kind}${mark.current ? " current" : ""}`}
-            style={{ left: `${shownRect.x * 100}%`, top: `${shownRect.y * 100}%`, width: `${shownRect.width * 100}%`, height: `${shownRect.height * 100}%` }}
-          />
-        );
-      })}
+      {shownMarks.map((mark, markIndex) => (
+        <span
+          key={markIndex}
+          className={`document-map-mark ${mark.kind}${mark.current ? " current" : ""}`}
+          style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, width: `${mark.width * 100}%`, height: `${mark.height * 100}%` }}
+        />
+      ))}
     </div>
   );
 });

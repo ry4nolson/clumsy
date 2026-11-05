@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeWords, filteredChanges, summarizeChanges } from "../src/lib/changeSummary";
+import { changeWindow, describeWords, filteredChanges, summarizeChanges } from "../src/lib/changeSummary";
 import type { Change, ChangeKind } from "../src/lib/comparison";
 
 const change = (kind: ChangeKind, left: number, right: number): Change => ({
@@ -38,5 +38,22 @@ describe("describeWords", () => {
   it("pluralizes word counts", () => {
     expect(describeWords(summarizeChanges(changes))).toBe("9 words added, 6 words removed");
     expect(describeWords(summarizeChanges([change("modified", 1, 1)]))).toBe("1 word added, 1 word removed");
+  });
+});
+
+describe("changeWindow", () => {
+  it("shows everything when the list is short", () => {
+    expect(changeWindow(30, 12)).toEqual([0, 30]);
+  });
+
+  it("centers on the change in view and stays inside the list", () => {
+    expect(changeWindow(10000, 5000, undefined, 400)).toEqual([4800, 5200]);
+    expect(changeWindow(10000, 10, undefined, 400)).toEqual([0, 400]);
+    expect(changeWindow(10000, 9990, undefined, 400)).toEqual([9600, 10000]);
+  });
+
+  it("grows by what Show earlier and Show later asked for", () => {
+    expect(changeWindow(10000, 5000, { before: 400, after: 800 }, 400)).toEqual([4400, 6000]);
+    expect(changeWindow(10000, 100, { before: 400, after: 0 }, 400)).toEqual([0, 400]);
   });
 });

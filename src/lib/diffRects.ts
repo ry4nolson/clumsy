@@ -54,3 +54,34 @@ export function rotateRect<T extends Rect>(rect: T, rotation: number): T {
       return rect;
   }
 }
+
+export function mergeMarks<T extends Rect & { kind: string; current: boolean }>(marks: T[], width: number, height: number, cell = 2): T[] {
+  const rows = new Map<string, T[]>();
+  for (const mark of marks) {
+    const key = `${mark.kind} ${mark.current} ${Math.floor((mark.y * height) / cell)}`;
+    const row = rows.get(key);
+    if (row) {
+      row.push(mark);
+    } else {
+      rows.set(key, [mark]);
+    }
+  }
+  const merged: T[] = [];
+  for (const row of rows.values()) {
+    row.sort((a, b) => a.x - b.x);
+    let open = { ...row[0] };
+    for (const mark of row.slice(1)) {
+      if ((mark.x - open.x - open.width) * width <= cell) {
+        const right = Math.max(open.x + open.width, mark.x + mark.width);
+        const top = Math.min(open.y, mark.y);
+        const bottom = Math.max(open.y + open.height, mark.y + mark.height);
+        open = { ...open, y: top, width: right - open.x, height: bottom - top };
+      } else {
+        merged.push(open);
+        open = { ...mark };
+      }
+    }
+    merged.push(open);
+  }
+  return merged;
+}

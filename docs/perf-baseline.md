@@ -184,6 +184,25 @@ Clumsy's own write paths against every hostile fixture: rotate, delete, move, in
 - **Sticky notes with no usable xref.** `no-xref` (no `startxref` offset) saved a note that pdf.js never showed: pdf-lib appended an update with no `/Prev`, pdf.js fell back to reconstructing the file, and took the old page dictionary. `writeStickyNotes` now checks that the previous `startxref` points at an `xref` table or stream (`hasXrefAt`) and otherwise rewrites the whole file. pdf.js returns the original bytes from `saveDocument()` when nothing else changed, so a note-only save hits this directly.
 - `truncated.pdf` still gives a broken page from pdf-lib's writes, but pdf.js refuses to open it, so Clumsy never reaches them.
 
+## Round 7 results
+
+Huge files, in Chromium (isolated headless context, 1440×900) and in Node for the pure parts. New fixtures from a scratch script, not `fixtures.mjs`: `compare/text-1200-revised.pdf` (text-1200 with 33 pages deleted, 3 lines changed on 52 pages, a line inserted on 30) and `compare/text-1200-other.pdf` (same generator, different seed).
+
+| | Before | After |
+|---|---|---|
+| Compare text-1200 with its revision | 26.9 s, 46,163 changes (everything after the first deleted page), 940 MB heap | 3.4 s, 635 changes on 111 pages, 559 MB |
+| Diff alone, ~1.06M words a side (Node) | 12.0 s, 2.0M words marked changed | 1.0 s, 34,272 words |
+| Diff of identical files | 7 ms | 3 ms |
+| Compare text-1200 with an unrelated 1,200 pages | 29.8 s, 1.24M DOM nodes (Changes list in both sidebars, 258k map marks), 1.16 GB heap, 1.8 s longest task | 16.0 s, 22k nodes, 673 MB, 345 ms longest after the result |
+
+- **WebKit (built app, `footprint` of the WebContent process):** comparing text-1200 with its revision, v0.10.3 marks 31,057 changes and settles at 3.5 GB (3.9 GB peak); this build finds the 635 changes in 6–9 s and settles at 1.74 GB (2.33 GB peak), from 519 MB with the two tabs open. Most of the remaining cost is reading 2,367 pages of text (2.0 GB peak while reading). Against the unrelated file it finds 43,245 changes within the same 12 s worker budget (WebKit's per-page diffs are slower than Chromium's) and settles at 1.55 GB.
+- **Long comparisons.** jsdiff's Myers diff is O(N·D); with a million words and a few deleted pages it hit the 4 s timeout, and the page-by-page fallback paired page N with page N, so every page after a deleted one read as rewritten. Over 40,000 words the diff is now anchored on runs of 8 words unique to each side (patience diff), and only the gaps go through Myers. Unrelated documents still use the whole fallback budget (12 s in the worker) and end with one change covering the pages the budget didn't reach.
+- **Changes list and map marks.** One row per change in each pane's sidebar and one map element per changed rectangle. The list now renders 400 rows around the change in view with Show earlier/later buttons; the map draws marks only for pages it keeps rendered and merges them per 2 px row.
+- **Page edits** are fast in the library (Node): the slowest is inserting the 164 MB scan into itself, 542 ms; everything on text-1200 is under 500 ms, and flattening form-550's 575 fields 115 ms. In the app an edit on scanned-300 showed one ~0.6 s long task in Chromium, but measured in WKWebView pdf-lib yields between chunks, so that is how long the edit takes rather than one freeze; after it, thumbnails and the map redraw the visible scans (pdf.js `drawImage`, ~67 ms per page, yielding between pages) for about 4.5 s. The `page-edit-worker` branch moves pdf-lib into a worker (main-thread time per edit on annotations-5000 drops from ~95–125 ms to ~15–18 ms).
+- **Form navigation** on form-550: 620 Tab presses across 600 widgets on 25 pages, median 17 ms (one frame), worst 56 ms, no long tasks, wrapping back to page 1.
+- Opening text-1200 is 397 ms to the first page, in line with the baseline. The built-in browser pane measured 2.1 s because it was hidden, which throttles it like a background tab.
+
 Still open:
+- Comparing two 1,200-page files still holds about 1.2 GB in WebKit, mostly the text of every page.
 - Closing a tab mid-drawing logs one unhandled rejection from pdf.js (see round 3).
 - Quick page edits on a 1,200-page file log "Unable to get page N to initialize viewer: Transport destroyed" for each page pdf.js hadn't set up before the version was replaced. pdf.js's own logging; the new version loads normally.

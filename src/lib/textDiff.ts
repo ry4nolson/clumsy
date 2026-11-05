@@ -1,4 +1,5 @@
 import { diffArrays } from "diff";
+import { uniqueRuns } from "./anchors";
 
 export type Range = [start: number, end: number];
 export type Segment = { equal: boolean; left: Range; right: Range };
@@ -8,6 +9,8 @@ export type DiffRequest = { left: string[]; right: string[]; leftPages: number[]
 export const WHOLE_TIMEOUT = 4000;
 export const PAGE_TIMEOUT = 300;
 export const FALLBACK_BUDGET = 8000;
+export const EXACT_LIMIT = 40000;
+export const ANCHOR_LENGTH = 8;
 
 function push(segments: Segment[], equal: boolean, left: Range, right: Range) {
   if (left[0] === left[1] && right[0] === right[1]) {
@@ -97,21 +100,20 @@ function pageRanges(pages: number[], count: number) {
   return ranges;
 }
 
-export function diffByPage(
-  { left, right, leftPages, rightPages }: DiffRequest,
-  wholeTimeout = WHOLE_TIMEOUT,
-  pageTimeout = PAGE_TIMEOUT,
-  budget = FALLBACK_BUDGET,
-): Segment[] {
-  const whole = diffWords(left, right, wholeTimeout);
-  if (whole) {
-    return whole;
+function pushShifted(segments: Segment[], local: Segment[], leftStart: number, rightStart: number) {
+  for (const segment of local) {
+    push(segments, segment.equal, [segment.left[0] + leftStart, segment.left[1] + leftStart], [segment.right[0] + rightStart, segment.right[1] + rightStart]);
   }
-  const count = Math.max((leftPages.at(-1) ?? -1) + 1, (rightPages.at(-1) ?? -1) + 1);
-  const leftRanges = pageRanges(leftPages, count);
-  const rightRanges = pageRanges(rightPages, count);
+}
+
+function diffPages(left: string[], right: string[], leftPages: number[], rightPages: number[], deadline: number, pageTimeout: number) {
+  const rebase = (pages: number[]) => pages.map((page) => page - pages[0]);
+  const leftLocal = rebase(leftPages);
+  const rightLocal = rebase(rightPages);
+  const count = Math.max((leftLocal.at(-1) ?? -1) + 1, (rightLocal.at(-1) ?? -1) + 1);
+  const leftRanges = pageRanges(leftLocal, count);
+  const rightRanges = pageRanges(rightLocal, count);
   const segments: Segment[] = [];
-  const deadline = Date.now() + budget;
   for (let page = 0; page < count; page++) {
     const [leftStart, leftEnd] = leftRanges[page];
     const [rightStart, rightEnd] = rightRanges[page];
@@ -119,14 +121,61 @@ export function diffByPage(
     const pageSegments = (remaining > 0 && diffWords(left.slice(leftStart, leftEnd), right.slice(rightStart, rightEnd), Math.min(pageTimeout, remaining))) || [
       { equal: false, left: [0, leftEnd - leftStart], right: [0, rightEnd - rightStart] } satisfies Segment,
     ];
-    for (const segment of pageSegments) {
-      push(
-        segments,
-        segment.equal,
-        [segment.left[0] + leftStart, segment.left[1] + leftStart],
-        [segment.right[0] + rightStart, segment.right[1] + rightStart],
-      );
-    }
+    pushShifted(segments, pageSegments, leftStart, rightStart);
   }
   return segments;
+}
+
+function diffAnchored({ left, right, leftPages, rightPages }: DiffRequest, deadline: number, gapTimeout: number, pageTimeout: number) {
+  const segments: Segment[] = [];
+  let prefix = 0;
+  while (prefix < left.length && prefix < right.length && left[prefix] === right[prefix]) {
+    prefix++;
+  }
+  let suffix = 0;
+  while (suffix < left.length - prefix && suffix < right.length - prefix && left[left.length - 1 - suffix] === right[right.length - 1 - suffix]) {
+    suffix++;
+  }
+  push(segments, true, [0, prefix], [0, prefix]);
+  let leftAt = prefix;
+  let rightAt = prefix;
+  const gap = (leftEnd: number, rightEnd: number) => {
+    const leftWords = left.slice(leftAt, leftEnd);
+    const rightWords = right.slice(rightAt, rightEnd);
+    const remaining = deadline - Date.now();
+    const exact = leftWords.length + rightWords.length <= EXACT_LIMIT && remaining > 0 && diffWords(leftWords, rightWords, Math.min(gapTimeout, remaining));
+    pushShifted(segments, exact || diffPages(leftWords, rightWords, leftPages.slice(leftAt, leftEnd), rightPages.slice(rightAt, rightEnd), deadline, pageTimeout), leftAt, rightAt);
+  };
+  const leftMiddle = left.slice(prefix, left.length - suffix);
+  const rightMiddle = right.slice(prefix, right.length - suffix);
+  for (const [leftRun, rightRun] of uniqueRuns(leftMiddle, rightMiddle, ANCHOR_LENGTH)) {
+    const leftStart = leftRun + prefix;
+    const rightStart = rightRun + prefix;
+    if (leftStart < leftAt || rightStart < rightAt) {
+      continue;
+    }
+    gap(leftStart, rightStart);
+    let length = 0;
+    while (leftStart + length < left.length - suffix && rightStart + length < right.length - suffix && left[leftStart + length] === right[rightStart + length]) {
+      length++;
+    }
+    push(segments, true, [leftStart, leftStart + length], [rightStart, rightStart + length]);
+    leftAt = leftStart + length;
+    rightAt = rightStart + length;
+  }
+  gap(left.length - suffix, right.length - suffix);
+  push(segments, true, [left.length - suffix, left.length], [right.length - suffix, right.length]);
+  return segments;
+}
+
+export function diffByPage(request: DiffRequest, wholeTimeout = WHOLE_TIMEOUT, pageTimeout = PAGE_TIMEOUT, budget = FALLBACK_BUDGET): Segment[] {
+  const { left, right, leftPages, rightPages } = request;
+  if (left.length + right.length > EXACT_LIMIT) {
+    return diffAnchored(request, Date.now() + wholeTimeout + budget, wholeTimeout, pageTimeout);
+  }
+  const whole = diffWords(left, right, wholeTimeout);
+  if (whole) {
+    return whole;
+  }
+  return diffPages(left, right, leftPages, rightPages, Date.now() + budget, pageTimeout);
 }
