@@ -34,17 +34,54 @@ function rootRef(doc: PDFDocument) {
   return doc.catalog.get(key("Pages")) as PDFRef;
 }
 
-export function flattenPageTree(doc: PDFDocument) {
-  const pages = doc.getPages();
-  for (const page of pages) {
-    for (const name of PDFPageLeaf.InheritableEntries) {
-      const inherited = page.node.getInheritableAttribute(key(name));
-      if (inherited && !page.node.get(key(name))) {
-        page.node.set(key(name), inherited);
+export function pageLeafRefs(doc: PDFDocument) {
+  const refs: PDFRef[] = [];
+  const seen = new Set<PDFRef>();
+  const stack: PDFObject[] = [rootRef(doc)];
+  while (stack.length) {
+    const ref = stack.pop();
+    if (!(ref instanceof PDFRef) || seen.has(ref)) {
+      continue;
+    }
+    seen.add(ref);
+    const node = doc.context.lookup(ref);
+    if (node instanceof PDFPageLeaf) {
+      refs.push(ref);
+    } else if (node instanceof PDFDict) {
+      const kids = node.lookup(key("Kids"));
+      if (kids instanceof PDFArray) {
+        stack.push(...kids.asArray().reverse());
       }
     }
   }
-  const refs = pages.map((page) => page.ref);
+  return refs;
+}
+
+function inheritedValue(page: PDFDict, name: PDFName) {
+  const seen = new Set<PDFDict>();
+  let node = page.lookup(key("Parent"));
+  while (node instanceof PDFDict && !seen.has(node)) {
+    seen.add(node);
+    const value = node.get(name);
+    if (value) {
+      return value;
+    }
+    node = node.lookup(key("Parent"));
+  }
+  return undefined;
+}
+
+export function flattenPageTree(doc: PDFDocument) {
+  const refs = pageLeafRefs(doc);
+  for (const ref of refs) {
+    const page = doc.context.lookup(ref, PDFDict);
+    for (const name of PDFPageLeaf.InheritableEntries) {
+      const inherited = page.get(key(name)) ? undefined : inheritedValue(page, key(name));
+      if (inherited) {
+        page.set(key(name), inherited);
+      }
+    }
+  }
   setPageRefs(doc, refs);
   return refs;
 }
@@ -55,6 +92,7 @@ export function setPageRefs(doc: PDFDocument, refs: PDFRef[]) {
     doc.context.lookup(ref, PDFDict).set(key("Parent"), parent);
   }
   const root = doc.catalog.Pages();
+  root.delete(key("Parent"));
   root.set(key("Kids"), doc.context.obj(refs));
   root.set(key("Count"), PDFNumber.of(refs.length));
 }
@@ -88,13 +126,24 @@ export function acroForm(doc: PDFDocument) {
 
 export function pruneFields(doc: PDFDocument, doomed: Set<PDFRef>) {
   const removed = new Set<PDFRef>();
+  const visited = new Set<PDFDict>();
+  const ancestors = new Set<PDFDict>();
   const prune = (array: PDFArray) =>
     removeEntries(array, (entry) => {
-      const field = doc.context.lookup(entry);
-      const kids = field instanceof PDFDict ? field.lookup(key("Kids")) : undefined;
-      let remove = entry instanceof PDFRef && doomed.has(entry);
-      if (!remove && kids instanceof PDFArray && kids.size()) {
+      const found = doc.context.lookup(entry);
+      const field = found instanceof PDFDict ? found : null;
+      if (field && ancestors.has(field)) {
+        return true;
+      }
+      const kids = field && !visited.has(field) ? field.lookup(key("Kids")) : undefined;
+      if (field) {
+        visited.add(field);
+      }
+      let remove = entry instanceof PDFRef && (doomed.has(entry) || removed.has(entry));
+      if (field && !remove && kids instanceof PDFArray && kids.size()) {
+        ancestors.add(field);
         prune(kids);
+        ancestors.delete(field);
         remove = kids.size() === 0;
       }
       if (remove && entry instanceof PDFRef) {

@@ -1,5 +1,6 @@
-import { EncryptedPDFError, PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFPageLeaf, PDFRef, PDFString, type PDFContext } from "@cantoo/pdf-lib";
+import { EncryptedPDFError, PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext } from "@cantoo/pdf-lib";
 import type { StickyNote } from "./notes";
+import { pageLeafRefs } from "./pdfStructure";
 
 const POPUP_WIDTH = 180;
 const POPUP_HEIGHT = 100;
@@ -98,9 +99,9 @@ function updateNote(context: PDFContext, note: PDFDict, { text, date, rect }: St
   }
 }
 
-async function loadForUpdate(bytes: Uint8Array) {
+async function loadForUpdate(bytes: Uint8Array, forIncrementalUpdate: boolean) {
   try {
-    return await PDFDocument.load(bytes, { forIncrementalUpdate: true, updateMetadata: false });
+    return await PDFDocument.load(bytes, { forIncrementalUpdate, updateMetadata: false });
   } catch (error) {
     if (error instanceof EncryptedPDFError) {
       throw new NoteSaveError("Comments can't be saved in password-protected PDFs yet.");
@@ -109,18 +110,21 @@ async function loadForUpdate(bytes: Uint8Array) {
   }
 }
 
+const latin1 = new TextDecoder("latin1");
+
+export function hasXrefAt(bytes: Uint8Array, offset: number) {
+  return offset > 0 && offset < bytes.length && /^\s*(xref|\d+\s+\d+\s+obj\b)/.test(latin1.decode(bytes.subarray(offset, offset + 40)));
+}
+
 export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[]) {
   if (!notes.length) {
     return bytes;
   }
-  const doc = await loadForUpdate(bytes);
+  const appendable = await loadForUpdate(bytes, true);
+  const incremental = hasXrefAt(bytes, appendable.context.pdfFileDetails.prevStartXRef);
+  const doc = incremental ? appendable : await loadForUpdate(bytes, false);
   const { context } = doc;
-  const pages: PDFRef[] = [];
-  doc.catalog.Pages().traverse((node, ref) => {
-    if (node instanceof PDFPageLeaf) {
-      pages.push(ref);
-    }
-  });
+  const pages = pageLeafRefs(doc);
   for (const note of notes) {
     const pageRef = pages[note.pageIndex];
     const page = pageRef && context.lookupMaybe(pageRef, PDFDict);
@@ -144,5 +148,5 @@ export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[]) {
       updateNote(context, existing, note);
     }
   }
-  return doc.commit();
+  return incremental ? doc.commit() : doc.save({ addDefaultPage: false, updateFieldAppearances: false });
 }

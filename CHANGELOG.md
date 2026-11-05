@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Page edits, flattening a form, and saving sticky notes no longer fail with "Maximum call stack size exceeded" on PDFs whose page tree or form fields loop back on themselves
+- Sticky notes saved into a PDF with a missing or broken cross-reference table are no longer lost when the file is reopened. Clumsy rewrites such a file in full instead of appending to it
+
 ## [0.10.5] - 2026-11-05
 
 ### Changed

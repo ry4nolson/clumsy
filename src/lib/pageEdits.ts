@@ -3,7 +3,7 @@ import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pa
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
 import { flattenForm } from "./pdfForm";
-import { collectGarbage, flattenPageTree, importPageRefs, removePageRefs, setPageRefs } from "./pdfStructure";
+import { collectGarbage, flattenPageTree, importPageRefs, pageLeafRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 async function load(bytes: Uint8Array) {
   try {
@@ -22,20 +22,20 @@ async function save(doc: PDFDocument) {
 }
 
 export async function pageCount(bytes: Uint8Array) {
-  return (await load(bytes)).getPageCount();
+  return pageLeafRefs(await load(bytes)).length;
 }
 
 async function importLabeled(target: PDFDocument, bytes: Uint8Array): Promise<LabelSource> {
   const source = await load(bytes);
-  const labels = readPageLabels(source);
-  return { refs: importPageRefs(target, source), labels };
+  const refs = importPageRefs(target, source);
+  return { refs, labels: readPageLabels(source, refs.length) };
 }
 
 export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
   const doc = await load(bytes);
-  const pages = doc.getPages();
-  const labels = readPageLabels(doc);
   const refs = flattenPageTree(doc);
+  const pages = doc.getPages();
+  const labels = readPageLabels(doc, refs.length);
   const extra: LabelSource[] = [];
   switch (edit.kind) {
     case "move":
@@ -81,8 +81,8 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
 
 export async function extractPages(bytes: Uint8Array, pages: number[]) {
   const doc = await load(bytes);
-  const labels = readPageLabels(doc);
   const refs = flattenPageTree(doc);
+  const labels = readPageLabels(doc, refs.length);
   const keep = new Set(uniqueSorted(pages).filter((page) => page >= 0 && page < refs.length));
   if (!keep.size) {
     throw new PageEditError("No pages to extract.");
@@ -95,8 +95,8 @@ export async function extractPages(bytes: Uint8Array, pages: number[]) {
 export async function combinePdfs(files: Uint8Array[]) {
   const [first, ...rest] = files;
   const doc = await load(first);
-  const labels = readPageLabels(doc);
   const refs = flattenPageTree(doc);
+  const labels = readPageLabels(doc, refs.length);
   const extra: LabelSource[] = [];
   for (const bytes of rest) {
     extra.push(await importLabeled(doc, bytes));
