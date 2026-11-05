@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.7] - 2026-11-05
+
 ### Fixed
 - Comparing long documents (hundreds of pages) where pages were added or removed no longer marks nearly everything after the first such page as changed. Comparing two revisions of a 1,200-page file now takes about 3 seconds instead of 27 and finds the real changes
 - Comparing two very different long documents no longer builds a sidebar and Document Map with over a million elements. The Changes list shows 400 changes at a time around the one in view, with buttons to show more
