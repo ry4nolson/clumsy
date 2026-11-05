@@ -1,4 +1,5 @@
 import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
+import { buffersOf, failureOf, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
@@ -105,4 +106,26 @@ export async function combinePdfs(files: Uint8Array[]) {
   setPageRefs(doc, combined);
   relabelPages(doc, { refs, labels }, combined, extra);
   return save(doc);
+}
+
+export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> {
+  switch (job.op) {
+    case "edit": {
+      const inserted = job.edit.kind === "insert" ? await pageCount(job.edit.data) : 0;
+      return { bytes: await applyPageEdit(job.bytes, job.edit), original: job.bytes, inserted };
+    }
+    case "extract":
+      return { bytes: await extractPages(job.bytes, job.pages) };
+    case "combine":
+      return { bytes: await combinePdfs(job.files) };
+  }
+}
+
+export async function answerPageEditJob(job: PageEditJob): Promise<[PageEditResponse, ArrayBuffer[]]> {
+  try {
+    const result = await runPageEditJob(job);
+    return [{ result }, buffersOf([result.bytes, result.original])];
+  } catch (error) {
+    return [{ failure: failureOf(error) }, []];
+  }
 }

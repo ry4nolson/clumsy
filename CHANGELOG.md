@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Rotating, deleting, moving, inserting, extracting, and combining pages, flattening forms, and editing page labels now run in the background, so the window stays responsive while a very large PDF is rewritten
+
 ## [0.10.6] - 2026-11-05
 
 ### Fixed
