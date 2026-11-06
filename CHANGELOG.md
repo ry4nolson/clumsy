@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Print** (⌘P) in the File menu, and **Print Selected Pages** in the Pages menu and the thumbnail menu. Unsaved markup, typed form values, and sticky notes print with the page, and the system print panel brings the preview, page ranges, copies, paper size, and Save as PDF. Password-protected files print once they're open, and files that restrict printing print normally, at full quality
+
+### Changed
+- **Go to File** moves to ⌥⌘P, since ⌘P now prints
+
 ## [0.10.9] - 2026-11-06
 
 ### Changed

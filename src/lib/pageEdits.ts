@@ -3,12 +3,15 @@ import { buffersOf, failureOf, type PageEditJob, type PageEditResponse, type Pag
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
+import { installDecryptedStrings } from "./pdfDecrypt";
 import { flattenForm } from "./pdfForm";
 import { collectGarbage, flattenPageTree, importPageRefs, pageLeafRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
-async function load(bytes: Uint8Array) {
+installDecryptedStrings();
+
+async function load(bytes: Uint8Array, password?: string) {
   try {
-    return await PDFDocument.load(bytes, { updateMetadata: false });
+    return await PDFDocument.load(bytes, { updateMetadata: false, password });
   } catch (error) {
     if (error instanceof EncryptedPDFError) {
       throw new PageEditError("Pages in password-protected PDFs can't be changed yet.");
@@ -80,8 +83,12 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
   return save(doc);
 }
 
-export async function extractPages(bytes: Uint8Array, pages: number[]) {
-  const doc = await load(bytes);
+export async function decryptPdf(bytes: Uint8Array, password = "") {
+  return save(await load(bytes, password));
+}
+
+export async function extractPages(bytes: Uint8Array, pages: number[], password?: string) {
+  const doc = await load(bytes, password);
   const refs = flattenPageTree(doc);
   const labels = readPageLabels(doc, refs.length);
   const keep = new Set(uniqueSorted(pages).filter((page) => page >= 0 && page < refs.length));
@@ -115,7 +122,9 @@ export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> 
       return { bytes: await applyPageEdit(job.bytes, job.edit), original: job.bytes, inserted };
     }
     case "extract":
-      return { bytes: await extractPages(job.bytes, job.pages) };
+      return { bytes: await extractPages(job.bytes, job.pages, job.password) };
+    case "decrypt":
+      return { bytes: await decryptPdf(job.bytes, job.password) };
     case "combine":
       return { bytes: await combinePdfs(job.files) };
   }

@@ -170,6 +170,12 @@ export async function writePdf(path: string, data: Uint8Array, expectedStamp?: s
   return invoke<string>("write_pdf", data, { headers });
 }
 
+export type PrintOutcome = "shown" | "unreadable" | "busy";
+
+export async function printPdf(name: string, data: Uint8Array) {
+  return invoke<PrintOutcome>("print_pdf", data, { headers: { "x-name": encodeURIComponent(name) } });
+}
+
 export async function pickSavePath(suggestedName: string) {
   return invoke<string | null>("pick_save_path", { suggestedName: ensurePdfExtension(suggestedName) });
 }
@@ -228,6 +234,8 @@ export async function openExternal(url: string) {
 export const isMac = navigator.userAgent.includes("Mac");
 
 export const hasOverlayTitlebar = isDesktop && isMac;
+
+export const canPrint = isDesktop && isMac;
 
 export async function onFullscreenChange(handler: (fullscreen: boolean) => void) {
   if (!isDesktop) {

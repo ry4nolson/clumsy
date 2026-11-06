@@ -12,6 +12,8 @@ export type CommandId =
   | "newPdfFromImages"
   | "exportPagesAsImages"
   | "exportSelectedPagesAsImages"
+  | "print"
+  | "printSelectedPages"
   | "compareWithFile"
   | "compareSplitPanes"
   | "exportComparison"
@@ -118,6 +120,7 @@ export type Command = {
   needsSplit?: boolean;
   needsComparison?: boolean;
   needsForm?: boolean;
+  needsPrinting?: boolean;
 };
 
 const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) => ({
@@ -149,6 +152,7 @@ export const commands: Command[] = [
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
   { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true },
+  { id: "print", label: "Print…", menu: "File", combos: ["mod+p"], needsDocument: true, needsPrinting: true },
 
   { id: "undo", label: "Undo", menu: "Edit", combos: ["mod+z"] },
   { id: "redo", label: "Redo", menu: "Edit", combos: ["mod+shift+z"] },
@@ -199,7 +203,7 @@ export const commands: Command[] = [
   { id: "previousField", label: "Previous Form Field", menu: "Go", combos: [], needsDocument: true, needsForm: true },
   { id: "nextChange", label: "Next Change", menu: "Go", combos: ["alt+F5"], needsComparison: true },
   { id: "previousChange", label: "Previous Change", menu: "Go", combos: ["shift+alt+F5"], needsComparison: true },
-  { id: "quickOpen", label: "Go to File…", menu: "Go", combos: ["mod+p"] },
+  { id: "quickOpen", label: "Go to File…", menu: "Go", combos: ["alt+mod+p"] },
 
   { id: "toolSelect", label: "Select", menu: "Tools", combos: ["v"], needsDocument: true },
   { id: "toolHand", label: "Hand", menu: "Tools", combos: [], needsDocument: true },
@@ -225,6 +229,7 @@ export const commands: Command[] = [
   { id: "deletePages", label: "Delete Pages", menu: "Pages", combos: [], needsDocument: true },
   { id: "extractPages", label: "Extract Pages to New Tab", menu: "Pages", combos: [], needsDocument: true },
   { id: "exportSelectedPagesAsImages", label: "Export Selected Pages as Images…", menu: "Pages", combos: [], needsDocument: true },
+  { id: "printSelectedPages", label: "Print Selected Pages…", menu: "Pages", combos: [], needsDocument: true, needsPrinting: true },
   { id: "pageLabels", label: "Page Labels…", menu: "Pages", combos: [], needsDocument: true },
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
@@ -246,7 +251,9 @@ export const commands: Command[] = [
 
 export const commandById = new Map(commands.map((command) => [command.id, command]));
 
-export type CommandContext = { hasDocument: boolean; hasMarkdown?: boolean; hasForm?: boolean; split: boolean; comparing: boolean };
+export type CommandContext = { hasDocument: boolean; hasMarkdown?: boolean; hasForm?: boolean; split: boolean; comparing: boolean; canPrint?: boolean };
+
+export const platformSupports = (command: Command, { canPrint = false }: Pick<CommandContext, "canPrint">) => !command.needsPrinting || canPrint;
 
 export function documentAvailable(command: Command, { hasDocument, hasMarkdown = false }: Pick<CommandContext, "hasDocument" | "hasMarkdown">) {
   if (command.needsMarkdown) {
@@ -260,7 +267,8 @@ export function commandAvailable(command: Command, context: CommandContext) {
     documentAvailable(command, context) &&
     (context.split || !command.needsSplit) &&
     (context.comparing || !command.needsComparison) &&
-    (!!context.hasForm || !command.needsForm)
+    (!!context.hasForm || !command.needsForm) &&
+    platformSupports(command, context)
   );
 }
 

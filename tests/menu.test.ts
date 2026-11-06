@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { commands } from "../src/lib/commands";
-import { checkedCommands, menuLayout, type MenuState } from "../src/lib/menu";
+import { checkedCommands, menuLayout, visibleSlots, type MenuState } from "../src/lib/menu";
 
 describe("menu layout", () => {
   const placed = menuLayout.flatMap(([menu, slots]) =>
@@ -19,6 +19,27 @@ describe("menu layout", () => {
     const known = new Set(commands.map((command) => command.id));
     for (const entry of placed) {
       expect(known.has(entry.id), entry.id).toBe(true);
+    }
+  });
+});
+
+describe("visibleSlots", () => {
+  const slotsOf = (name: string) => menuLayout.find(([menu]) => menu === name)![1];
+
+  it("shows the print commands where the platform can print", () => {
+    expect(visibleSlots(slotsOf("File"), true).slice(-3)).toEqual(["revealInFinder", "-", "print"]);
+    expect(visibleSlots(slotsOf("Pages"), true)).toContain("printSelectedPages");
+  });
+
+  it("drops them, and the separators they leave behind, where it can't", () => {
+    expect(visibleSlots(slotsOf("File"), false).slice(-2)).toEqual(["-", "revealInFinder"]);
+    expect(visibleSlots(slotsOf("Pages"), false)).not.toContain("printSelectedPages");
+    expect(visibleSlots(["-", "print", "-", "-", "open", "-", "printSelectedPages", "-"], false)).toEqual(["open"]);
+  });
+
+  it("leaves every other menu as laid out", () => {
+    for (const [menu, slots] of menuLayout.filter(([name]) => name !== "File" && name !== "Pages")) {
+      expect(visibleSlots(slots, false), menu).toEqual(slots);
     }
   });
 });

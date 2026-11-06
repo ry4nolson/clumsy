@@ -8,7 +8,7 @@ import { imagesIn, imagesToSource, markdownIn, pagesFrom, pdfsIn } from "../lib/
 import { remapStops } from "../lib/navHistory";
 import { shareBudget, trimHistory, type Version } from "../lib/pageHistory";
 import { applyPageEditOffThread, combinePdfsOffThread, extractPagesOffThread } from "../lib/pageEditWorker";
-import { pickPdfs, showContextMenu, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
+import { canPrint, pickPdfs, showContextMenu, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -352,6 +352,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
           "-",
           { label: `Extract ${plural} to New Tab`, run: () => runCommand("extractPages") },
           { label: count > 1 ? `Export ${plural} as Images…` : "Export Page as Image…", run: () => runCommand("exportSelectedPagesAsImages") },
+          ...(canPrint ? [{ label: `Print ${plural}…`, run: () => runCommand("printSelectedPages") }] : []),
           { label: "Insert Pages from File…", run: () => runCommand("insertPages") },
           { label: "Page Labels…", run: () => runCommand("pageLabels") },
           "-",

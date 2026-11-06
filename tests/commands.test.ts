@@ -67,6 +67,18 @@ describe("commandAvailable", () => {
   const markdownTab = { hasDocument: false, hasMarkdown: true, split: false, comparing: false };
   const pdfTab = { hasDocument: true, hasMarkdown: false, split: false, comparing: false };
 
+  it("offers printing for PDFs only, and only where the platform can print", () => {
+    for (const id of ["print", "printSelectedPages"] as const) {
+      expect(commandById.get(id)?.needsDocument, id).toBe(true);
+      expect(available(id, { ...pdfTab, canPrint: true }), id).toBe(true);
+      expect(available(id, { ...markdownTab, canPrint: true }), id).toBe(false);
+      expect(available(id, { ...pdfTab, hasDocument: false, hasMarkdown: false, canPrint: true }), id).toBe(false);
+      expect(available(id, pdfTab), id).toBe(false);
+    }
+    expect(commandById.get("print")?.menu).toBe("File");
+    expect(commandById.get("printSelectedPages")?.menu).toBe("Pages");
+  });
+
   it("offers file commands for Markdown tabs and keeps PDF-only ones off", () => {
     for (const id of ["save", "saveAs", "find", "findNext", "toggleSidebar", "showOutline", "zoomIn", "firstPage", "toggleMarkdownSource"] as const) {
       expect(available(id, markdownTab), id).toBe(true);
@@ -134,7 +146,8 @@ describe("resolveCommand", () => {
     expect(resolveCommand(eventFor("mod+shift+n"), true, false)).toBe("newWindow");
     expect(resolveCommand(eventFor("mod+shift+t"), true, false)).toBe("reopenClosedTab");
     expect(resolveCommand(eventFor("ctrl+g"), true, false)).toBe("goToPage");
-    expect(resolveCommand(eventFor("mod+p"), true, false)).toBe("quickOpen");
+    expect(resolveCommand(eventFor("mod+p"), true, false)).toBe("print");
+    expect(resolveCommand(eventFor("alt+mod+p"), true, false)).toBe("quickOpen");
     expect(resolveCommand(eventFor("mod+shift+p"), true, false)).toBe("commandPalette");
     expect(resolveCommand(eventFor("mod+1"), true, false)).toBe("tab1");
     expect(resolveCommand(eventFor("ctrl+-"), true, false)).toBe("goBack");

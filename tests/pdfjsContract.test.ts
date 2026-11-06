@@ -268,6 +268,14 @@ describe("worker", () => {
   });
 });
 
+describe("saving", () => {
+  it("clears the modified flag through annotationStorage.resetModified, which printing suppresses", () => {
+    expectIn(methodSource(display, "PDFDocumentProxy", "saveDocument"), "this._transport.saveDocument(");
+    expectIn(methodSource(display, "WorkerTransport", "saveDocument"), /\.finally\(\(\) => \{[^}]*this\.annotationStorage\.resetModified\(\);/);
+    expectIn(classMembers(display, "AnnotationStorage"), "resetModified");
+  });
+});
+
 describe("CSS", () => {
   const editing = app.read("src/components/Editing.css");
 

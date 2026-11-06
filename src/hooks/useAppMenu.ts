@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
 import { onWindowFocused } from "../lib/documentWindows";
 import { installAppMenu, type AppMenu, type MenuState } from "../lib/menu";
-import { clearRecentFiles, isDesktop } from "../lib/platform";
+import { canPrint, clearRecentFiles, isDesktop } from "../lib/platform";
 import type { RecentEntry } from "../lib/recent";
 
 type AppMenuCallbacks = {
@@ -25,6 +25,7 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: MenuState, recent
       onCommand: (id) => callbacksRef.current.onCommand(id),
       onOpenRecent: (entry) => callbacksRef.current.onOpenRecent(entry),
       onClearRecent: () => clearRecentFiles(),
+      canPrint,
     })
       .then((menu) => {
         if (!cancelled) {

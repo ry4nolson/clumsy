@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationEditorType, AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
 import { EventBus, LinkTarget, PDFLinkService, PDFViewer, ScrollMode, SpreadMode } from "pdfjs-dist/web/pdf_viewer.mjs";
 import "pdfjs-dist/web/pdf_viewer.css";
@@ -13,6 +13,7 @@ import { publishPageCanvas } from "../lib/pageCanvases";
 import { notesIn } from "../lib/notes";
 import { hasCustomLabels } from "../lib/pageLabels";
 import { assetsUrl } from "../lib/pdfjs";
+import { oneAtATime, saveKeepingModified } from "../lib/print";
 import { PatternFindController } from "../lib/patternFindController";
 import { defaultViewModes, type ScrollModeName, type SpreadModeName, type ViewModes } from "../lib/viewModes";
 import { useViewerControls } from "./useViewerControls";
@@ -434,20 +435,20 @@ export function usePdfViewer() {
     };
   }, [stops]);
 
-  const save = useCallback(async () => {
+  const save = useMemo(() => oneAtATime(async (keepModified = false) => {
     const doc = partsRef.current?.viewer.pdfDocument;
     if (!doc) {
       return null;
     }
     commitEdits();
-    const bytes = await doc.saveDocument();
+    const bytes = await (keepModified ? saveKeepingModified(doc) : doc.saveDocument());
     const notes = notesIn(doc.annotationStorage);
     if (!notes.length) {
       return bytes;
     }
     const { writeStickyNotes } = await import("../lib/notesPdf");
     return writeStickyNotes(bytes, notes);
-  }, [commitEdits]);
+  }), [commitEdits]);
 
   const markSaved = useCallback(() => {
     partsRef.current?.viewer.pdfDocument?.annotationStorage.resetModified();

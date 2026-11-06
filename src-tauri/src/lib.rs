@@ -1,6 +1,9 @@
 mod default_app;
 mod files;
+mod images;
 mod navigation;
+mod print;
+mod print_layout;
 mod recent;
 mod session;
 mod updates;
@@ -17,7 +20,7 @@ use tauri::{AppHandle, DragDropEvent, Emitter, Manager, Runtime, Window, WindowE
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, MessageDialogButtons, MessageDialogKind};
 
 use files::{
-    AllowedFolders, AllowedPaths, IMAGE_EXTENSIONS, MARKDOWN_EXTENSIONS, ReadOnlyPaths, is_document, is_export_image, is_image, is_markdown, is_pdf,
+    AllowedFolders, AllowedPaths, IMAGE_EXTENSIONS, MARKDOWN_EXTENSIONS, ReadOnlyPaths, is_document, is_image, is_markdown, is_pdf,
 };
 use recent::RecentFiles;
 use session::RestartSession;
@@ -62,7 +65,7 @@ fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
     }
 }
 
-fn allowed_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool) -> Result<PathBuf, String> {
+pub(crate) fn allowed_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool) -> Result<PathBuf, String> {
     let path = PathBuf::from(path);
     if kind(&path) && app.state::<AllowedPaths>().is_allowed(&path) {
         Ok(path)
@@ -225,7 +228,7 @@ async fn file_stamp(app: AppHandle, path: String) -> Result<Option<String>, Stri
     Ok(files::stamp(&readable_path(&app, &path, is_document)?))
 }
 
-fn header<'a>(request: &'a Request<'_>, name: &str) -> Option<&'a str> {
+pub(crate) fn header<'a>(request: &'a Request<'_>, name: &str) -> Option<&'a str> {
     request.headers().get(name).and_then(|value| value.to_str().ok())
 }
 
@@ -247,67 +250,6 @@ fn write_document(app: &AppHandle, request: &Request<'_>, kind: fn(&std::path::P
     let decoded = percent_decode_str(encoded).decode_utf8().map_err(|err| err.to_string())?;
     let path = allowed_path(app, &decoded, kind).map_err(|err| if readable_path(app, &decoded, kind).is_ok() { files::NOT_WRITABLE.into() } else { err })?;
     files::write_atomically(&path, bytes, header(request, "x-expected-stamp"))
-}
-
-fn image_target(app: &AppHandle, request: &Request<'_>) -> Result<(PathBuf, bool), String> {
-    let decoded = |name: &str| -> Result<String, String> {
-        let encoded = header(request, name).ok_or("Missing destination path")?;
-        Ok(percent_decode_str(encoded).decode_utf8().map_err(|err| err.to_string())?.into_owned())
-    };
-    if header(request, "x-folder").is_none() {
-        return Ok((allowed_path(app, &decoded("x-path")?, is_export_image)?, true));
-    }
-    let (folder, name) = (PathBuf::from(decoded("x-folder")?), decoded("x-name")?);
-    let folders = app.state::<AllowedFolders>();
-    let path = folders
-        .file_in(&folder, &name)
-        .ok_or_else(|| format!("Clumsy wasn't given access to {}", folder.join(&name).display()))?;
-    let replace = folders.take_replacing(&path);
-    Ok((path, replace))
-}
-
-#[tauri::command]
-async fn write_image(app: AppHandle, request: Request<'_>) -> Result<String, String> {
-    let InvokeBody::Raw(bytes) = request.body() else {
-        return Err("Expected raw image bytes".into());
-    };
-    let (path, overwrite) = image_target(&app, &request)?;
-    files::write_file(&path, bytes, overwrite)?;
-    Ok(path.to_string_lossy().into_owned())
-}
-
-fn replace_prompt(names: &[String], folder: &str) -> String {
-    match names {
-        [name] => format!("“{name}” already exists in “{folder}”. Replace it?"),
-        _ => format!("{} of these images already exist in “{folder}”, including “{}”. Replace them?", names.len(), names[0]),
-    }
-}
-
-#[tauri::command]
-async fn confirm_replace(app: AppHandle, window: Window, folder: String, names: Vec<String>) -> Result<bool, String> {
-    let folder = PathBuf::from(folder);
-    let folders = app.state::<AllowedFolders>();
-    if !folders.is_allowed(&folder) {
-        return Err(format!("Clumsy wasn't given access to {}", folder.display()));
-    }
-    let existing = files::existing_files(&folders, &folder, &names);
-    if existing.is_empty() {
-        return Ok(true);
-    }
-    let existing_names: Vec<String> = existing.iter().filter_map(|path| path.file_name()).map(|name| name.to_string_lossy().into_owned()).collect();
-    let folder_name = folder.file_name().map_or_else(|| folder.to_string_lossy(), |name| name.to_string_lossy());
-    let replace = app
-        .dialog()
-        .message(replace_prompt(&existing_names, &folder_name))
-        .title("Replace existing files?")
-        .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom("Replace".into(), "Cancel".into()))
-        .parent(&window)
-        .blocking_show();
-    if replace {
-        folders.allow_replacing(&existing);
-    }
-    Ok(replace)
 }
 
 #[tauri::command]
@@ -470,8 +412,9 @@ pub fn run() {
             file_stamp,
             write_pdf,
             write_markdown,
-            write_image,
-            confirm_replace,
+            images::write_image,
+            images::confirm_replace,
+            print::print_pdf,
             report_documents,
             document_window,
             request_quit,
@@ -503,16 +446,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{discard_prompt, replace_prompt};
-
-    #[test]
-    fn asks_before_replacing_exported_images() {
-        assert_eq!(replace_prompt(&["a - page 1.png".into()], "Desktop"), "“a - page 1.png” already exists in “Desktop”. Replace it?");
-        assert_eq!(
-            replace_prompt(&["a - page 1.png".into(), "a - page 2.png".into()], "Desktop"),
-            "2 of these images already exist in “Desktop”, including “a - page 1.png”. Replace them?"
-        );
-    }
+    use super::discard_prompt;
 
     #[test]
     fn names_the_documents_that_would_be_discarded() {

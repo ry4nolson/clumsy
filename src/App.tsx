@@ -16,6 +16,7 @@ import { useEditorOptions } from "./hooks/useEditorOptions";
 import { useExternalChanges } from "./hooks/useExternalChanges";
 import { useFormControls } from "./hooks/useFormControls";
 import { useImageExport } from "./hooks/useImageExport";
+import { usePrint } from "./hooks/usePrint";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMarkdownCommands } from "./hooks/useMarkdownCommands";
 import { usePageEdits } from "./hooks/usePageEdits";
@@ -37,6 +38,7 @@ import { openDocumentWindow, requestRestart } from "./lib/documentWindows";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import { pickImage } from "./lib/imageFiles";
 import {
+  canPrint,
   clearRecentFiles,
   closeWindow,
   hasOverlayTitlebar,
@@ -92,6 +94,7 @@ export default function App() {
   useExternalChanges(workspaceApi);
   const save = useSaveDocument(workspaceApi, pageEdits.settled);
   const imageExport = useImageExport(workspaceApi, pageEdits.settled);
+  const printing = usePrint(workspaceApi, pageEdits.settled);
   const pageEditsRef = useRef(pageEdits);
   pageEditsRef.current = pageEdits;
   const passwords = usePasswordPrompts();
@@ -194,6 +197,7 @@ export default function App() {
     hasForm,
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
+    canPrint,
     documentMapAvailable: viewMenuState.documentMapAvailable,
     isMac,
     tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),
@@ -234,7 +238,7 @@ export default function App() {
     if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
-    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || imageExport.runExportCommand(id)) {
+    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || imageExport.runExportCommand(id) || printing.runPrintCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
