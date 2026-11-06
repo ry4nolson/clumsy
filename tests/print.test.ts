@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PDFDict, PDFDocument, PDFName, PDFString, type SecurityOptions } from "@cantoo/pdf-lib";
 import { getDocument, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { decryptPdf, extractPages } from "../src/lib/pageEdits";
-import { pagesToPrint, printableBytes, saveKeepingModified, type PrintOps } from "../src/lib/print";
+import { oneAtATime, pagesToPrint, printableBytes, saveKeepingModified, type PrintOps } from "../src/lib/print";
 
 Promise.withResolvers ??= <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -184,9 +184,16 @@ describe("printing encrypted files", () => {
     }
   });
 
-  it("fails clearly with the wrong password", async () => {
+  it("hands PDFKit the saved bytes when they can't be decrypted", async () => {
     const bytes = await encrypted({ userPassword: "secret", ownerPassword: "owner" });
-    await expect(printableBytes(bytes, null, "nope", ops)).rejects.toThrow();
+    const copy = bytes.slice();
+    const detaching: PrintOps = { ...ops, decrypt: async (input, password) => decryptPdf(input, password).finally(() => structuredClone(input.buffer, { transfer: [input.buffer] })) };
+    expect(await printableBytes(bytes, null, "nope", detaching)).toEqual(copy);
+  });
+
+  it("still fails when selected pages can't be decrypted", async () => {
+    const bytes = await encrypted({ userPassword: "secret", ownerPassword: "owner" });
+    await expect(printableBytes(bytes, [0], "nope", ops)).rejects.toThrow();
   });
 });
 
@@ -204,5 +211,34 @@ describe("saveKeepingModified", () => {
     expect(Object.hasOwn(doc.annotationStorage, "resetModified")).toBe(false);
     await doc.saveDocument();
     expect(events).toEqual(["modified", "reset"]);
+  });
+});
+
+describe("oneAtATime", () => {
+  it("runs each call after the previous one finishes, even when one fails", async () => {
+    const events: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const run = oneAtATime(async (name: string) => {
+      events.push(`start ${name}`);
+      if (name === "print") {
+        await gate;
+      }
+      events.push(`end ${name}`);
+      if (name === "bad") {
+        throw new Error("bad");
+      }
+      return name;
+    });
+    const print = run("print");
+    const bad = run("bad");
+    const save = run("save");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(events).toEqual(["start print"]);
+    release();
+    expect(await print).toBe("print");
+    await expect(bad).rejects.toThrow("bad");
+    expect(await save).toBe("save");
+    expect(events).toEqual(["start print", "end print", "start bad", "end bad", "start save", "end save"]);
   });
 });

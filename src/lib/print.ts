@@ -21,7 +21,16 @@ export async function printableBytes(bytes: Uint8Array, pages: number[] | null, 
   if (pages) {
     return ops.extract(bytes, pages, decryptWith ?? undefined);
   }
-  return decryptWith === null ? bytes : ops.decrypt(bytes, decryptWith);
+  return decryptWith === null ? bytes : ops.decrypt(bytes.slice(), decryptWith).catch(() => bytes);
+}
+
+export function oneAtATime<A extends unknown[], R>(task: (...args: A) => Promise<R>) {
+  let last: Promise<unknown> = Promise.resolve();
+  return (...args: A) => {
+    const run = last.catch(() => undefined).then(() => task(...args));
+    last = run;
+    return run;
+  };
 }
 
 export async function saveKeepingModified(doc: PDFDocumentProxy) {

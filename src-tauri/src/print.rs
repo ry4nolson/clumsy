@@ -61,7 +61,7 @@ mod macos {
     use objc2_pdf_kit::{PDFDisplayBox, PDFDocument, PDFPage};
     use tauri::Window;
 
-    use crate::print_layout::{Rect, place, upright_size};
+    use crate::print_layout::{Rect, pages_in, place, upright_size};
 
     const LETTER: NSSize = NSSize { width: 612.0, height: 792.0 };
 
@@ -99,13 +99,12 @@ mod macos {
                     return;
                 };
                 let context = context.CGContext();
-                for index in 0..self.page_count() {
-                    let slot = self.slot(index as NSInteger);
-                    if slot.max().y < dirty.min().y || slot.min().y > dirty.max().y {
-                        continue;
-                    }
+                let paper = self.paper();
+                let printable = self.printable(paper);
+                for index in pages_in(dirty.min().y, dirty.max().y, paper.height, self.page_count()) {
                     if let Some(page) = unsafe { self.ivars().document.pageAtIndex(index) } {
-                        self.draw_page(&context, &page, slot);
+                        let slot = NSRect::new(NSPoint::new(0.0, paper.height * index as f64), paper);
+                        draw_page(&context, &page, slot, printable);
                     }
                 }
             }
@@ -135,30 +134,32 @@ mod macos {
             NSRect::new(NSPoint::new(0.0, paper.height * index.max(0) as f64), paper)
         }
 
-        fn draw_page(&self, context: &CGContext, page: &PDFPage, slot: NSRect) {
-            let bounds = unsafe { page.boundsForBox(PDFDisplayBox::CropBox) }.size;
-            let (width, height) = upright_size(bounds.width, bounds.height, unsafe { page.rotation() } as i64);
-            if width <= 0.0 || height <= 0.0 {
-                return;
-            }
-            let paper = slot.size;
+        fn printable(&self, paper: NSSize) -> Rect {
             let area = self
                 .print_info()
                 .map(|info| info.imageablePageBounds())
                 .filter(|area| area.size.width > 0.0 && area.size.height > 0.0)
                 .unwrap_or(NSRect::new(NSPoint::ZERO, paper));
-            let printable = Rect { x: area.origin.x, y: area.origin.y, width: area.size.width, height: area.size.height };
-            let placement = place((width, height), (paper.width, paper.height), printable);
-            CGContext::save_g_state(Some(context));
-            CGContext::translate_ctm(Some(context), slot.origin.x + placement.x, slot.origin.y + placement.y);
-            if placement.turned {
-                CGContext::translate_ctm(Some(context), height * placement.scale, 0.0);
-                CGContext::rotate_ctm(Some(context), std::f64::consts::FRAC_PI_2);
-            }
-            CGContext::scale_ctm(Some(context), placement.scale, placement.scale);
-            unsafe { page.drawWithBox_toContext(PDFDisplayBox::CropBox, context) };
-            CGContext::restore_g_state(Some(context));
+            Rect { x: area.origin.x, y: area.origin.y, width: area.size.width, height: area.size.height }
         }
+    }
+
+    fn draw_page(context: &CGContext, page: &PDFPage, slot: NSRect, printable: Rect) {
+        let bounds = unsafe { page.boundsForBox(PDFDisplayBox::CropBox) }.size;
+        let (width, height) = upright_size(bounds.width, bounds.height, unsafe { page.rotation() } as i64);
+        if width <= 0.0 || height <= 0.0 {
+            return;
+        }
+        let placement = place((width, height), (slot.size.width, slot.size.height), printable);
+        CGContext::save_g_state(Some(context));
+        CGContext::translate_ctm(Some(context), slot.origin.x + placement.x, slot.origin.y + placement.y);
+        if placement.turned {
+            CGContext::translate_ctm(Some(context), height * placement.scale, 0.0);
+            CGContext::rotate_ctm(Some(context), std::f64::consts::FRAC_PI_2);
+        }
+        CGContext::scale_ctm(Some(context), placement.scale, placement.scale);
+        unsafe { page.drawWithBox_toContext(PDFDisplayBox::CropBox, context) };
+        CGContext::restore_g_state(Some(context));
     }
 
     pub fn print(window: &Window, bytes: Vec<u8>, name: &str) -> Result<String, String> {

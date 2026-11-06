@@ -16,6 +16,17 @@ pub struct Placement {
     pub y: f64,
 }
 
+const EDGE: f64 = 1e-6;
+
+pub fn pages_in(bottom: f64, top: f64, page_height: f64, count: usize) -> std::ops::Range<usize> {
+    if page_height <= 0.0 || top <= bottom {
+        return 0..0;
+    }
+    let first = (bottom / page_height + EDGE).floor().max(0.0) as usize;
+    let last = ((top / page_height - EDGE).ceil().max(0.0) as usize).min(count);
+    first.min(last)..last
+}
+
 pub fn upright_size(width: f64, height: f64, rotation: i64) -> (f64, f64) {
     let (width, height) = (width.abs(), height.abs());
     if rotation.rem_euclid(180) == 90 { (height, width) } else { (width, height) }
@@ -43,7 +54,20 @@ pub fn place(page: (f64, f64), paper: (f64, f64), printable: Rect) -> Placement 
 
 #[cfg(test)]
 mod tests {
-    use super::{Placement, Rect, place, upright_size};
+    use super::{Placement, Rect, pages_in, place, upright_size};
+
+    #[test]
+    fn draws_only_the_pages_the_dirty_rect_covers() {
+        assert_eq!(pages_in(792.0, 1584.0, 792.0, 25), 1..2);
+        assert_eq!(pages_in(0.0, 792.0 * 25.0, 792.0, 25), 0..25);
+        assert_eq!(pages_in(800.0, 900.0, 792.0, 25), 1..2);
+        assert_eq!(pages_in(700.0, 900.0, 792.0, 25), 0..2);
+        assert_eq!(pages_in(792.0 * 24.0, 792.0 * 30.0, 792.0, 25), 24..25);
+        assert_eq!(pages_in(-50.0, 10.0, 792.0, 25), 0..1);
+        assert_eq!(pages_in(10.0, 10.0, 792.0, 25), 0..0);
+        assert_eq!(pages_in(0.0, 792.0, 0.0, 25), 0..0);
+        assert_eq!(pages_in(792.0 * 0.1 * 3.0, 792.0 * 0.1 * 6.0, 792.0 * 0.1, 25), 3..6);
+    }
 
     const LETTER: (f64, f64) = (612.0, 792.0);
     const BROTHER: Rect = Rect { x: 18.0, y: 40.0, width: 576.0, height: 734.0 };

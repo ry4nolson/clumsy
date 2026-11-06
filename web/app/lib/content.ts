@@ -98,7 +98,7 @@ export const FEATURES = [
 
 export const SHORTCUTS = [
   { keys: ["⇧", "⌘", "P"], label: "Command Palette", note: "Every command, searchable" },
-  { keys: ["⌘", "P"], label: "Go to File", note: "Open tabs, then recent files" },
+  { keys: ["⌥", "⌘", "P"], label: "Go to File", note: "Open tabs, then recent files" },
   { keys: ["⌘", "\\"], label: "Split Right", note: "Two documents, one window" },
   { keys: ["⌥", "⌘", "B"], label: "Document Map", note: "The whole file at a glance" },
   { keys: ["⇧", "⌘", "V"], label: "Markdown Source", note: "Rendered and back" },

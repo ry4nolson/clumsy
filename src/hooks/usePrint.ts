@@ -18,15 +18,17 @@ async function decryptionPassword(doc: PDFDocumentProxy) {
 export function usePrint({ workspaceRef, handles }: WorkspaceApi, settled: (tabId: string) => Promise<void>) {
   const running = useRef(false);
 
-  const print = async (tabId: string, name: string, pages: number[] | null) => {
+  const print = async (id: CommandId, tabId: string, name: string) => {
     running.current = true;
     try {
       await settled(tabId);
-      const viewer = handles.current.get(tabId)?.viewer;
+      const handle = handles.current.get(tabId);
+      const viewer = handle?.viewer;
       const doc = viewer?.pdfDocument;
-      if (!viewer || !doc) {
+      if (!handle || !viewer || !doc) {
         return;
       }
+      const pages = pagesToPrint(id, handle.selectedPages(), doc.numPages);
       const saved = await viewer.save(true);
       if (!saved) {
         return;
@@ -49,10 +51,8 @@ export function usePrint({ workspaceRef, handles }: WorkspaceApi, settled: (tabI
       return false;
     }
     const tab = ws.focusedTab(workspaceRef.current);
-    const handle = handles.current.get(tab.id);
-    const doc = handle?.viewer.pdfDocument;
-    if (canPrint && tab.kind === "document" && handle && doc && !running.current) {
-      print(tab.id, tab.name, pagesToPrint(id, handle.selectedPages(), doc.numPages));
+    if (canPrint && tab.kind === "document" && handles.current.get(tab.id)?.viewer.pdfDocument && !running.current) {
+      print(id, tab.id, tab.name);
     }
     return true;
   }, []);
