@@ -1,12 +1,20 @@
 use percent_encoding::percent_decode_str;
-use tauri::Window;
 use tauri::ipc::{InvokeBody, Request};
+#[cfg(target_os = "macos")]
+use tauri::Manager;
+use tauri::{Webview, Window};
 
 const NAME_LIMIT: usize = 200;
 const FALLBACK_NAME: &str = "Document";
+#[cfg(target_os = "macos")]
+const SHEET_POLL: std::time::Duration = std::time::Duration::from_secs(1);
 
 fn job_name(encoded: Option<&str>) -> String {
     let decoded = encoded.and_then(|value| percent_decode_str(value).decode_utf8().ok()).unwrap_or_default();
+    clean_job_name(&decoded)
+}
+
+fn clean_job_name(decoded: &str) -> String {
     let cleaned: String = decoded
         .chars()
         .filter(|character| !character.is_control())
@@ -31,6 +39,44 @@ pub async fn print_pdf(window: Window, request: Request<'_>) -> Result<String, S
     show_print_panel(window, bytes, name).await
 }
 
+#[tauri::command]
+pub async fn print_webview(webview: Webview, name: String) -> Result<String, String> {
+    show_webview_print_panel(webview, clean_job_name(&name)).await
+}
+
+#[cfg(target_os = "macos")]
+async fn show_webview_print_panel(webview: Webview, name: String) -> Result<String, String> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let (finished, done) = std::sync::mpsc::channel();
+    webview
+        .with_webview(move |platform| {
+            let _ = sender.send(macos::print_webview(platform.inner(), &name, finished));
+        })
+        .map_err(|err| err.to_string())?;
+    let outcome = tauri::async_runtime::spawn_blocking(move || receiver.recv())
+        .await
+        .map_err(|err| err.to_string())?
+        .map_err(|_| "The print panel didn't open".to_string())??;
+    if outcome == "shown" {
+        let app = webview.app_handle().clone();
+        let label = webview.label().to_string();
+        let _ = tauri::async_runtime::spawn_blocking(move || {
+            while let Err(std::sync::mpsc::RecvTimeoutError::Timeout) = done.recv_timeout(SHEET_POLL) {
+                if app.get_webview_window(&label).is_none() {
+                    break;
+                }
+            }
+        })
+        .await;
+    }
+    Ok(outcome)
+}
+
+#[cfg(not(target_os = "macos"))]
+async fn show_webview_print_panel(_webview: Webview, _name: String) -> Result<String, String> {
+    Err("Printing isn't available on this platform yet".into())
+}
+
 #[cfg(target_os = "macos")]
 async fn show_print_panel(window: Window, bytes: Vec<u8>, name: String) -> Result<String, String> {
     let (sender, receiver) = std::sync::mpsc::channel();
@@ -53,17 +99,55 @@ async fn show_print_panel(_window: Window, _bytes: Vec<u8>, _name: String) -> Re
 
 #[cfg(target_os = "macos")]
 mod macos {
+    use std::cell::Cell;
+    use std::ffi::c_void;
+    use std::sync::mpsc::Sender;
+
     use objc2::rc::Retained;
-    use objc2::{AnyThread, DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send};
+    use objc2::runtime::{AnyObject, Bool, NSObject};
+    use objc2::{AnyThread, DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send, sel};
     use objc2_app_kit::{NSGraphicsContext, NSPrintInfo, NSPrintOperation, NSPrintPanelOptions, NSView, NSWindow};
     use objc2_core_graphics::CGContext;
     use objc2_foundation::{NSCopying, NSData, NSInteger, NSPoint, NSRange, NSRect, NSSize, NSString};
     use objc2_pdf_kit::{PDFDisplayBox, PDFDocument, PDFPage};
+    use objc2_web_kit::WKWebView;
     use tauri::Window;
 
     use crate::print_layout::{Rect, pages_in, place, upright_size};
 
     const LETTER: NSSize = NSSize { width: 612.0, height: 792.0 };
+    const PAGE_MARGIN: f64 = 36.0;
+
+    pub struct Finished {
+        sender: Cell<Option<Sender<()>>>,
+    }
+
+    define_class!(
+        #[unsafe(super(NSObject))]
+        #[thread_kind = MainThreadOnly]
+        #[name = "ClumsyPrintDelegate"]
+        #[ivars = Finished]
+        pub struct PrintDelegate;
+
+        impl PrintDelegate {
+            #[unsafe(method(printOperationDidRun:success:contextInfo:))]
+            fn did_run(&self, _operation: &NSPrintOperation, _success: Bool, context: *mut c_void) {
+                if let Some(sender) = self.ivars().sender.take() {
+                    let _ = sender.send(());
+                }
+                if let Some(this) = unsafe { Retained::from_raw(context.cast::<PrintDelegate>()) } {
+                    let _ = Retained::autorelease_return(this);
+                }
+            }
+        }
+    );
+
+    impl PrintDelegate {
+        fn new(sender: Sender<()>, mtm: MainThreadMarker) -> Retained<Self> {
+            let this = Self::alloc(mtm).set_ivars(Finished { sender: Cell::new(Some(sender)) });
+            unsafe { msg_send![super(this), init] }
+        }
+    }
 
     pub struct Pages {
         document: Retained<PDFDocument>,
@@ -188,19 +272,58 @@ mod macos {
         info.setVerticallyCentered(true);
         let view = PrintView::new(document, mtm);
         let operation = NSPrintOperation::printOperationWithView_printInfo(&view, &info);
+        present(&operation, name);
+        unsafe { operation.runOperationModalForWindow_delegate_didRunSelector_contextInfo(ns_window, None, None, std::ptr::null_mut()) };
+        Ok("shown".into())
+    }
+
+    pub fn print_webview(pointer: *mut c_void, name: &str, finished: Sender<()>) -> Result<String, String> {
+        let mtm = MainThreadMarker::new().ok_or("Printing must start on the main thread")?;
+        if pointer.is_null() {
+            return Err("This window can't print".into());
+        }
+        let webview: &WKWebView = unsafe { &*pointer.cast() };
+        let ns_window = webview.window().ok_or("This window can't print")?;
+        if ns_window.attachedSheet().is_some() {
+            return Ok("busy".into());
+        }
+        let info: Retained<NSPrintInfo> = NSPrintInfo::sharedPrintInfo().copy();
+        info.setLeftMargin(PAGE_MARGIN);
+        info.setRightMargin(PAGE_MARGIN);
+        info.setTopMargin(PAGE_MARGIN);
+        info.setBottomMargin(PAGE_MARGIN);
+        info.setHorizontallyCentered(false);
+        info.setVerticallyCentered(false);
+        let operation = unsafe { webview.printOperationWithPrintInfo(&info) };
+        if let Some(view) = operation.view() {
+            view.setFrame(webview.bounds());
+        }
+        present(&operation, name);
+        let delegate = Retained::into_raw(PrintDelegate::new(finished, mtm));
+        let target: &AnyObject = unsafe { &*delegate.cast() };
+        unsafe {
+            operation.runOperationModalForWindow_delegate_didRunSelector_contextInfo(
+                &ns_window,
+                Some(target),
+                Some(sel!(printOperationDidRun:success:contextInfo:)),
+                delegate.cast(),
+            )
+        };
+        Ok("shown".into())
+    }
+
+    fn present(operation: &NSPrintOperation, name: &str) {
         operation.setJobTitle(Some(&NSString::from_str(name)));
         operation.setShowsPrintPanel(true);
         operation.setShowsProgressPanel(true);
         let panel = operation.printPanel();
         panel.setOptions(panel.options() | NSPrintPanelOptions::ShowsPaperSize | NSPrintPanelOptions::ShowsOrientation | NSPrintPanelOptions::ShowsPreview);
-        unsafe { operation.runOperationModalForWindow_delegate_didRunSelector_contextInfo(ns_window, None, None, std::ptr::null_mut()) };
-        Ok("shown".into())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{job_name, print_body};
+    use super::{clean_job_name, job_name, print_body};
     use tauri::ipc::InvokeBody;
 
     #[test]
@@ -227,6 +350,12 @@ mod tests {
         assert_eq!(job_name(None), "Document");
         assert_eq!(job_name(Some("%20%20")), "Document");
         assert_eq!(job_name(Some("%FF%FE")), "Document");
+    }
+
+    #[test]
+    fn cleans_a_plain_job_name() {
+        assert_eq!(clean_job_name("Notes/2026.md"), "Notes-2026.md");
+        assert_eq!(clean_job_name("  "), "Document");
     }
 
     #[test]

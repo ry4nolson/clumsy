@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import type { Progress } from "../components/ProgressView";
 import type { CommandId } from "../lib/commands";
 import { confirmReplace, downloadImage, offerToShowExport, pickFolder, pickImageSavePath, writeImage, writeImageInFolder } from "../lib/imageFiles";
 import { defaultExportOptions, exportSummary, mimeTypeFor, normalizeExportOptions, pageImageNames, type ExportOptions } from "../lib/imageExport";
@@ -17,7 +18,7 @@ export type ExportRequest = {
   pageSize: { width: number; height: number };
 };
 
-export type ExportProgress = { done: number; total: number };
+export type ExportProgress = Progress;
 
 type Write = (name: string, bytes: Uint8Array) => Promise<string | void>;
 

@@ -176,6 +176,10 @@ export async function printPdf(name: string, data: Uint8Array) {
   return invoke<PrintOutcome>("print_pdf", data, { headers: { "x-name": encodeURIComponent(name) } });
 }
 
+export async function printWebview(name: string) {
+  return invoke<PrintOutcome>("print_webview", { name });
+}
+
 export async function pickSavePath(suggestedName: string) {
   return invoke<string | null>("pick_save_path", { suggestedName: ensurePdfExtension(suggestedName) });
 }

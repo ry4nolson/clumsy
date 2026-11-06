@@ -415,6 +415,7 @@ pub fn run() {
             images::write_image,
             images::confirm_replace,
             print::print_pdf,
+            print::print_webview,
             report_documents,
             document_window,
             request_quit,

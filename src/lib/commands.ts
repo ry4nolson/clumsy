@@ -152,7 +152,7 @@ export const commands: Command[] = [
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
   { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true },
-  { id: "print", label: "Print…", menu: "File", combos: ["mod+p"], needsDocument: true, needsPrinting: true },
+  { id: "print", label: "Print…", menu: "File", combos: ["mod+p"], needsDocument: true, markdown: true, needsPrinting: true },
 
   { id: "undo", label: "Undo", menu: "Edit", combos: ["mod+z"] },
   { id: "redo", label: "Redo", menu: "Edit", combos: ["mod+shift+z"] },

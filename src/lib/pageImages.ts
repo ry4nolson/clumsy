@@ -1,9 +1,11 @@
 import { AnnotationMode, type PDFDocumentProxy } from "pdfjs-dist";
-import { exportPixelSize, mimeTypeFor, renderScale, type ExportOptions } from "./imageExport";
+import { exportPixelSize, mimeTypeFor, renderScale, type ExportFormat } from "./imageExport";
 
 export class ExportCancelledError extends Error {}
 
-type PrintStorage = PDFDocumentProxy["annotationStorage"]["print"];
+export type PrintStorage = PDFDocumentProxy["annotationStorage"]["print"];
+
+type RenderOptions = { format: ExportFormat; dpi: number; quality: number };
 
 function canvasBytes(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Uint8Array>((resolve, reject) =>
@@ -15,7 +17,7 @@ function canvasBytes(canvas: HTMLCanvasElement, type: string, quality: number) {
   );
 }
 
-export async function renderPageImage(doc: PDFDocumentProxy, storage: PrintStorage, pageIndex: number, options: ExportOptions, signal: AbortSignal) {
+export async function renderPageImage(doc: PDFDocumentProxy, storage: PrintStorage, pageIndex: number, options: RenderOptions, signal: AbortSignal) {
   const page = await doc.getPage(pageIndex + 1);
   const canvas = document.createElement("canvas");
   try {

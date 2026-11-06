@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AboutDialog, type AboutRequest, type AboutTab } from "./components/AboutDialog";
 import { ExportImagesDialog } from "./components/ExportImagesDialog";
+import { PrintProgressDialog } from "./components/PrintProgressDialog";
 import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { QuickPick } from "./components/QuickPick";
@@ -484,6 +485,7 @@ export default function App() {
         onRestart={() => quitApp(true)}
       />
       <ExportImagesDialog {...imageExport.dialog} />
+      <PrintProgressDialog {...printing.progressDialog} />
       <AboutDialog
         request={infoSheet?.kind === "about" ? infoSheet : null}
         updateInstall={updateInstall}

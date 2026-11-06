@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ExportProgress, ExportRequest } from "../hooks/useImageExport";
 import { exportPixelSize, exportResolutions, pagesToExport, type ExportOptions, type PageChoice } from "../lib/imageExport";
 import { formatPageRange, parsePageRange } from "../lib/pageRanges";
+import { ProgressView } from "./ProgressView";
 
 type ExportImagesDialogProps = {
   request: ExportRequest | null;
@@ -72,19 +73,7 @@ export function ExportImagesDialog({ request, progress, options, onExport, onClo
       }}
     >
       {progress ? (
-        <>
-          <h2>Exporting Pages</h2>
-          <p className="dialog-hint">
-            Page {progress.done + 1} of {progress.total}
-          </p>
-          <progress className="export-progress" max={progress.total} value={progress.done} />
-          <div className="dialog-actions">
-            <span className="spacer" />
-            <button type="button" className="button" onClick={onStop}>
-              Cancel
-            </button>
-          </div>
-        </>
+        <ProgressView title="Exporting Pages" progress={progress} onStop={onStop} />
       ) : (
         <form
           method="dialog"

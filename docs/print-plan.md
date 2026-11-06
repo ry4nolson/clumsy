@@ -78,7 +78,9 @@ Native, so none of this runs in the container.
 - Hostile set: every file either prints or shows the error, nothing hangs or crashes.
 - Two windows, Print in each: each sheet lands on its own window.
 
-## Phase 2: fallbacks and Markdown (v0.11.x)
+## Phase 2: fallbacks and Markdown (v0.11.x, done)
+
+Built as planned, with these differences: image pages keep each page's own size instead of `pdfFromImages`' fit-to-Letter, the resolution steps down from 300 dpi through 200 and 150 to 100 past 500 pages, failed decrypts and extracts go to images instead of handing PDFKit the encrypted bytes, and the Markdown print root renders behind the app, since WebKit doesn't decode images under `display: none`. Rust runs the web view's print operation itself (`print_webview`) rather than wry's `print()`, to copy the print info instead of changing the shared one, give the view a frame, set the job title, and know when the sheet ends.
 
 ### Raster fallback
 

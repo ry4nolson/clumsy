@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Print** works for Markdown files too. It prints the rendered document, with its images, in light colors even in dark mode, with long code lines wrapped instead of cut off. Source view prints the rendered version of what's in the editor, unsaved edits included. Save as PDF in the print panel turns any Markdown file into a PDF
+- PDFs that are damaged in a way the system print panel can't read, and encrypted files that can't be decrypted for printing, now print as images instead of showing an error. Clumsy shows progress while it renders the pages, with Cancel
+
 ## [0.11.0] - 2026-11-06
 
 ### Added
