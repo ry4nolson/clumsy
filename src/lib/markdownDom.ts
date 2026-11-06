@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { clearHighlights } from "./domFind";
 import { isLocalImage, opensElsewhere } from "./markdownLinks";
 import { lineAtOffset, offsetForLine, type LineBlock } from "./markdownScroll";
 
@@ -62,4 +63,26 @@ export const renderedOffsetOf = (container: HTMLElement, content: HTMLElement, l
 
 export function offsetWithin(container: HTMLElement, element: Element) {
   return element.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+}
+
+type ImageLoader = (root: HTMLElement) => Promise<unknown>;
+
+async function readyForPrint(article: HTMLElement, loadImages: ImageLoader) {
+  clearHighlights(article);
+  await loadImages(article);
+  article.querySelectorAll("img").forEach((image) => {
+    image.loading = "eager";
+  });
+  return article;
+}
+
+export function printableArticle(html: string, loadImages: ImageLoader) {
+  const article = document.createElement("article");
+  article.className = "markdown-body";
+  article.innerHTML = sanitizeMarkdownHtml(html);
+  return readyForPrint(article, loadImages);
+}
+
+export function printCopy(article: HTMLElement, loadImages: ImageLoader) {
+  return readyForPrint(article.cloneNode(true) as HTMLElement, loadImages);
 }

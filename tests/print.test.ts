@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { PDFDict, PDFDocument, PDFName, PDFString, type SecurityOptions } from "@cantoo/pdf-lib";
 import { getDocument, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { decryptPdf, extractPages } from "../src/lib/pageEdits";
-import { oneAtATime, pagesToPrint, printableBytes, saveKeepingModified, type PrintOps } from "../src/lib/print";
+import { oneAtATime, pagesToPrint, printableBytes, printJobName, printWithFallback, rasterDpi, saveKeepingModified, type PrintOps, type PrintSteps } from "../src/lib/print";
+import type { PrintOutcome } from "../src/lib/platform";
 
 Promise.withResolvers ??= <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -184,16 +185,82 @@ describe("printing encrypted files", () => {
     }
   });
 
-  it("hands PDFKit the saved bytes when they can't be decrypted", async () => {
+  it("fails when the saved bytes can't be decrypted, so the print falls back to images", async () => {
     const bytes = await encrypted({ userPassword: "secret", ownerPassword: "owner" });
-    const copy = bytes.slice();
-    const detaching: PrintOps = { ...ops, decrypt: async (input, password) => decryptPdf(input, password).finally(() => structuredClone(input.buffer, { transfer: [input.buffer] })) };
-    expect(await printableBytes(bytes, null, "nope", detaching)).toEqual(copy);
+    await expect(printableBytes(bytes, null, "nope", ops)).rejects.toThrow();
   });
 
   it("still fails when selected pages can't be decrypted", async () => {
     const bytes = await encrypted({ userPassword: "secret", ownerPassword: "owner" });
     await expect(printableBytes(bytes, [0], "nope", ops)).rejects.toThrow();
+  });
+});
+
+describe("printWithFallback", () => {
+  const steps = (outcomes: PrintOutcome[], images: Uint8Array | null = new Uint8Array([2])) => {
+    const sent: number[][] = [];
+    let rendered = 0;
+    const plan: PrintSteps = {
+      ...ops,
+      send: async (bytes) => {
+        sent.push([...bytes.slice(0, 1)]);
+        return outcomes.shift() ?? "shown";
+      },
+      asImages: async () => {
+        rendered += 1;
+        return images;
+      },
+    };
+    return { plan, sent, rendered: () => rendered };
+  };
+
+  it("prints the saved bytes and never renders images when PDFKit takes them", async () => {
+    const run = steps(["shown"]);
+    expect(await printWithFallback(new Uint8Array([1]), null, null, run.plan)).toBe("shown");
+    expect(run.sent).toEqual([[1]]);
+    expect(run.rendered()).toBe(0);
+  });
+
+  it("prints the pages as images when PDFKit can't read the file", async () => {
+    const run = steps(["unreadable", "shown"]);
+    expect(await printWithFallback(new Uint8Array([1]), null, null, run.plan)).toBe("shown");
+    expect(run.sent).toEqual([[1], [2]]);
+  });
+
+  it("goes straight to images when the file can't be decrypted", async () => {
+    const bytes = await encrypted({ userPassword: "secret", ownerPassword: "owner" });
+    const locked = steps([]);
+    expect(await printWithFallback(bytes, null, "nope", locked.plan)).toBe("shown");
+    expect(locked.sent).toEqual([[2]]);
+  });
+
+  it("stops when rendering is cancelled, and leaves a busy print panel alone", async () => {
+    const cancelled = steps(["unreadable"], null);
+    expect(await printWithFallback(new Uint8Array([1]), null, null, cancelled.plan)).toBe("cancelled");
+    expect(cancelled.sent).toEqual([[1]]);
+    const busy = steps(["busy"]);
+    expect(await printWithFallback(new Uint8Array([1]), null, null, busy.plan)).toBe("busy");
+    expect(busy.rendered()).toBe(0);
+  });
+
+  it("reports unreadable when even the images can't be printed", async () => {
+    const run = steps(["unreadable", "unreadable"]);
+    expect(await printWithFallback(new Uint8Array([1]), null, null, run.plan)).toBe("unreadable");
+  });
+});
+
+describe("rasterDpi", () => {
+  it("drops the resolution as the page count grows", () => {
+    expect([1, 50, 51, 200, 201, 500, 501, 5000].map(rasterDpi)).toEqual([300, 300, 200, 200, 150, 150, 100, 100]);
+  });
+});
+
+describe("printJobName", () => {
+  it("names Markdown print jobs without the extension, so Save as PDF doesn't double it", () => {
+    expect(printJobName("Notes.md")).toBe("Notes");
+    expect(printJobName("README.MARKDOWN")).toBe("README");
+    expect(printJobName(".md")).toBe(".md");
+    expect(printJobName("Lease.pdf")).toBe("Lease.pdf");
   });
 });
 

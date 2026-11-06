@@ -67,14 +67,16 @@ describe("commandAvailable", () => {
   const markdownTab = { hasDocument: false, hasMarkdown: true, split: false, comparing: false };
   const pdfTab = { hasDocument: true, hasMarkdown: false, split: false, comparing: false };
 
-  it("offers printing for PDFs only, and only where the platform can print", () => {
+  it("offers printing only where the platform can print, and Print Selected Pages for PDFs only", () => {
     for (const id of ["print", "printSelectedPages"] as const) {
       expect(commandById.get(id)?.needsDocument, id).toBe(true);
       expect(available(id, { ...pdfTab, canPrint: true }), id).toBe(true);
-      expect(available(id, { ...markdownTab, canPrint: true }), id).toBe(false);
       expect(available(id, { ...pdfTab, hasDocument: false, hasMarkdown: false, canPrint: true }), id).toBe(false);
       expect(available(id, pdfTab), id).toBe(false);
     }
+    expect(available("print", { ...markdownTab, canPrint: true })).toBe(true);
+    expect(available("print", markdownTab)).toBe(false);
+    expect(available("printSelectedPages", { ...markdownTab, canPrint: true })).toBe(false);
     expect(commandById.get("print")?.menu).toBe("File");
     expect(commandById.get("printSelectedPages")?.menu).toBe("Pages");
   });

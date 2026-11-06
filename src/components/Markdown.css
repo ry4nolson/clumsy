@@ -313,7 +313,7 @@
   font-weight: 600;
 }
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   .markdown-body .hljs-comment,
   .markdown-body .hljs-quote,
   .markdown-body .hljs-meta {
@@ -361,5 +361,86 @@
 
   .markdown-body .hljs-deletion {
     color: #ffdcd7;
+  }
+}
+
+.markdown-print {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@media print {
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  body > :not(.markdown-print) {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: var(--app-width, 100%) !important;
+    height: var(--app-height, 100%) !important;
+  }
+
+  body > :not(.markdown-print),
+  body > :not(.markdown-print) * {
+    visibility: hidden !important;
+  }
+
+  .markdown-print {
+    --md-zoom: 1;
+    --md-page: #ffffff;
+    --md-code-bg: #f4f4f5;
+    --md-code-text: #b4235a;
+    --md-rule: #e4e4e7;
+    --md-quote: #d4d4d8;
+    --text: #18181b;
+    --text-muted: #52525b;
+    --accent: #1d4ed8;
+    --hover: transparent;
+    position: static;
+    z-index: auto;
+    overflow: visible;
+    color-scheme: light;
+    background: #ffffff;
+  }
+
+  .markdown-print .markdown-body {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    font-size: 11pt;
+  }
+
+  .markdown-print pre,
+  .markdown-print pre code {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow: visible;
+  }
+
+  .markdown-print :is(pre, blockquote, img, tr) {
+    break-inside: avoid;
+  }
+
+  .markdown-print :is(h1, h2, h3, h4, h5, h6) {
+    break-after: avoid;
+  }
+
+  .markdown-print img {
+    max-width: 100%;
+  }
+
+  .markdown-print table {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    overflow: visible;
   }
 }

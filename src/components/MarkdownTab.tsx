@@ -3,7 +3,7 @@ import { useMarkdownFind } from "../hooks/useMarkdownFind";
 import { imageTypeOf } from "../lib/imageFiles";
 import { headingAt, headingTree, renderMarkdown, type Heading, type HeadingNode } from "../lib/markdown";
 import type { ViewerScroll } from "../lib/documentMap";
-import { measureBlocks, offsetWithin, renderedLineAtTop, renderedOffsetOf, sanitizeMarkdownHtml } from "../lib/markdownDom";
+import { measureBlocks, offsetWithin, printableArticle, printCopy, renderedLineAtTop, renderedOffsetOf, sanitizeMarkdownHtml } from "../lib/markdownDom";
 import type { MarkdownEditor } from "../lib/markdownEditor";
 import { isTypingTarget } from "../lib/commands";
 import { anchorIds, classifyHref, localImagePath } from "../lib/markdownLinks";
@@ -29,6 +29,7 @@ export type MarkdownHandle = {
   zoom: (step: -1 | 0 | 1) => void;
   toEdge: (top: boolean) => boolean;
   editingCommand: (name: "undo" | "redo") => boolean;
+  printable: () => Promise<HTMLElement>;
 };
 
 type MarkdownTabProps = {
@@ -170,7 +171,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
 
   const loadImages = useCallback((root: HTMLElement) => {
     const path = pathRef.current;
-    root.querySelectorAll<HTMLImageElement>("img[data-local-src]").forEach((image) => {
+    const loading = [...root.querySelectorAll<HTMLImageElement>("img[data-local-src]")].map((image) => {
       const src = image.dataset.localSrc!;
       const fallback = () => {
         const missing = document.createElement("span");
@@ -180,7 +181,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
       };
       if (!path) {
         fallback();
-        return;
+        return Promise.resolve();
       }
       const key = `${path}\n${src}`;
       let url = images.current.get(key);
@@ -191,8 +192,9 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
           .catch(() => null);
         images.current.set(key, url);
       }
-      url.then((value) => (value ? (image.src = value) : fallback()));
+      return url.then((value) => (value ? (image.src = value) : fallback()));
     });
+    return Promise.all(loading);
   }, []);
 
   useLayoutEffect(() => {
@@ -418,8 +420,10 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
         (name === "undo" ? editor.undo : editor.redo)();
         return true;
       },
+      printable: () =>
+        modeRef.current === "rendered" && contentRef.current ? printCopy(contentRef.current, loadImages) : printableArticle(renderMarkdown(textRef.current).html, loadImages),
     }),
-    [changeZoom, currentLine, find.closeFind, find.findAgain, find.openFind, toggleSource, zoom],
+    [changeZoom, currentLine, find.closeFind, find.findAgain, find.openFind, loadImages, toggleSource, zoom],
   );
 
   useEffect(() => {
