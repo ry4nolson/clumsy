@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { installAbortSignalAny, installIteratorJoin, installStreamIterator, isWebKit, removeDecompressionStream } from "../src/lib/polyfills";
+import { installAbortSignalAny, installGetOrInsert, installIteratorJoin, installStreamIterator, installSumPrecise, isWebKit, removeDecompressionStream, sumPrecise } from "../src/lib/polyfills";
 
 const safari = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)";
 const chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
@@ -174,5 +174,174 @@ describe("installAbortSignalAny", () => {
     end.abort();
     expect(added).toEqual(["keep", "end"]);
     expect(removed).toEqual(["keep", "end"]);
+  });
+});
+
+type Upsert<K, V> = { getOrInsert(key: K, value: V): V; getOrInsertComputed(key: K, callback: (key: K) => V): V };
+
+function upsertMap<K, V>(map: Map<K, V>) {
+  const prototype = Object.create(Map.prototype);
+  installGetOrInsert(prototype);
+  Object.setPrototypeOf(map, prototype);
+  return map as Map<K, V> & Upsert<K, V>;
+}
+
+function upsertWeakMap<K extends WeakKey, V>(map: WeakMap<K, V>) {
+  const prototype = Object.create(WeakMap.prototype);
+  installGetOrInsert(prototype, true);
+  Object.setPrototypeOf(map, prototype);
+  return map as WeakMap<K, V> & Upsert<K, V>;
+}
+
+describe("installGetOrInsert", () => {
+  it("returns an existing value without inserting or calling back", () => {
+    const map = upsertMap(new Map([["a", 1]]));
+    let calls = 0;
+    expect(map.getOrInsert("a", 2)).toBe(1);
+    expect(map.getOrInsertComputed("a", () => ++calls)).toBe(1);
+    expect(calls).toBe(0);
+    expect(map.get("a")).toBe(1);
+  });
+
+  it("inserts a missing value and returns it", () => {
+    const map = upsertMap(new Map<string, number[]>());
+    map.getOrInsertComputed("pages", () => []).push(1);
+    map.getOrInsertComputed("pages", () => []).push(2);
+    expect(map.get("pages")).toEqual([1, 2]);
+    expect(map.getOrInsert("other", [3])).toEqual([3]);
+    expect(map.size).toBe(2);
+  });
+
+  it("passes the key to the callback with -0 normalized", () => {
+    const map = upsertMap(new Map<number, string>());
+    let seen: number | undefined;
+    map.getOrInsertComputed(-0, (key) => {
+      seen = key;
+      return "zero";
+    });
+    expect(Object.is(seen, 0)).toBe(true);
+    expect(map.get(0)).toBe("zero");
+  });
+
+  it("keeps the callback's value over anything the callback inserted", () => {
+    const map = upsertMap(new Map<string, number>());
+    expect(map.getOrInsertComputed("a", () => {
+      map.set("a", 1);
+      return 2;
+    })).toBe(2);
+    expect(map.get("a")).toBe(2);
+  });
+
+  it("rejects a callback that isn't a function before touching the map", () => {
+    const map = upsertMap(new Map<string, number>());
+    expect(() => map.getOrInsertComputed("a", 1 as unknown as () => number)).toThrow(TypeError);
+    expect(map.size).toBe(0);
+  });
+
+  it("works on weak maps and rejects keys they can't hold before calling back", () => {
+    const map = upsertWeakMap(new WeakMap<object, number>());
+    const key = {};
+    expect(map.getOrInsertComputed(key, () => 1)).toBe(1);
+    expect(map.getOrInsert(key, 2)).toBe(1);
+    let calls = 0;
+    expect(() => map.getOrInsertComputed("a" as unknown as object, () => ++calls)).toThrow(TypeError);
+    expect(calls).toBe(0);
+  });
+
+  it("leaves native methods alone", () => {
+    const native = () => "native";
+    const prototype = { has: () => false, get: () => undefined, set: () => undefined, getOrInsert: native, getOrInsertComputed: native };
+    installGetOrInsert(prototype);
+    expect(prototype.getOrInsert).toBe(native);
+    expect(prototype.getOrInsertComputed).toBe(native);
+  });
+});
+
+function random(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32;
+  };
+}
+
+const SCALE = 2n ** 100n;
+
+function exactReference(values: number[]) {
+  const total = values.reduce((sum, value) => sum + (Number.isInteger(value) ? BigInt(value) * SCALE : BigInt(value * 2 ** 100)), 0n);
+  return total % SCALE === 0n ? Number(total / SCALE) : Number(total) / 2 ** 100;
+}
+
+function randomDouble(next: () => number, minExponent: number, maxExponent: number) {
+  const mantissa = Math.floor(next() * 2 ** 20) * 2 ** 32 + Math.floor(next() * 2 ** 32);
+  const exponent = minExponent + Math.floor(next() * (maxExponent - minExponent + 1));
+  const value = (mantissa + 2 ** 52) * 2 ** (exponent - 52);
+  return next() < 0.5 ? -value : value;
+}
+
+describe("sumPrecise", () => {
+  it("sums exactly where adding in order loses precision", () => {
+    expect(sumPrecise([1e20, 0.1, -1e20])).toBe(0.1);
+    expect(sumPrecise([0.1, 0.2, 0.3])).toBe(0.6);
+    expect(sumPrecise([2 ** 53, 1, 1])).toBe(2 ** 53 + 2);
+    expect(sumPrecise([1, 2 ** -53, 2 ** -106])).toBe(1 + 2 ** -52);
+  });
+
+  it("matches an exact BigInt sum on random inputs", () => {
+    const next = random(1);
+    for (let round = 0; round < 400; round++) {
+      const count = 1 + Math.floor(next() * 12);
+      const values = Array.from({ length: count }, () => randomDouble(next, -40, next() < 0.5 ? 60 : 900));
+      if (next() < 0.3) {
+        values.push(-values[0]);
+      }
+      expect(sumPrecise(values)).toBe(exactReference(values));
+    }
+  });
+
+  it("handles sums that overflow along the way", () => {
+    const max = Number.MAX_VALUE;
+    expect(sumPrecise([max, max, -max])).toBe(max);
+    expect(sumPrecise([max, max, max, -max, -max, -max, 1])).toBe(1);
+    expect(sumPrecise([max, max])).toBe(Infinity);
+    expect(sumPrecise([-max, -max])).toBe(-Infinity);
+    expect(sumPrecise([max, 2 ** 970])).toBe(Infinity);
+    expect(sumPrecise([max, 2 ** 970, -(2 ** 918)])).toBe(max);
+    expect(sumPrecise([max, 2 ** 970, -1])).toBe(max);
+    expect(sumPrecise([-max, -(2 ** 970), 1])).toBe(-max);
+    const next = random(2);
+    for (let round = 0; round < 200; round++) {
+      const values = Array.from({ length: 2 + Math.floor(next() * 8) }, () => randomDouble(next, 1015, 1023));
+      expect(sumPrecise(values)).toBe(exactReference(values));
+    }
+  });
+
+  it("follows the spec for zeros, infinities, and NaN", () => {
+    expect(Object.is(sumPrecise([]), -0)).toBe(true);
+    expect(Object.is(sumPrecise([-0, -0]), -0)).toBe(true);
+    expect(Object.is(sumPrecise([-0, 0]), 0)).toBe(true);
+    expect(Object.is(sumPrecise([1, -1]), 0)).toBe(true);
+    expect(sumPrecise([Infinity, 1])).toBe(Infinity);
+    expect(sumPrecise([-Infinity, Number.MAX_VALUE])).toBe(-Infinity);
+    expect(sumPrecise([Infinity, -Infinity])).toBeNaN();
+    expect(sumPrecise([1, NaN])).toBeNaN();
+  });
+
+  it("accepts any iterable of numbers and rejects anything else", () => {
+    expect(sumPrecise(new Set([1, 2, 3]))).toBe(6);
+    expect(sumPrecise([1, 2].values())).toBe(3);
+    expect(() => sumPrecise([1, "2"])).toThrow(TypeError);
+    expect(() => sumPrecise(5 as unknown as Iterable<number>)).toThrow(TypeError);
+  });
+
+  it("installs only when Math has no sumPrecise", () => {
+    const target: { sumPrecise?: unknown } = {};
+    installSumPrecise(target);
+    expect(target.sumPrecise).toBe(sumPrecise);
+    const native = () => 0;
+    const existing = { sumPrecise: native };
+    installSumPrecise(existing);
+    expect(existing.sumPrecise).toBe(native);
   });
 });
