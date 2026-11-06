@@ -1,8 +1,10 @@
 import { Link } from "react-router";
 
-import { GITHUB, ISSUES, LICENSE, RELEASES, SPONSOR, VERSION } from "~/lib/links";
+import { GITHUB, ISSUES, LICENSE, RELEASES, SPONSOR } from "~/lib/links";
+import { useVersion } from "~/lib/useVersion";
 
 export default function SiteFooter() {
+  const version = useVersion();
   return (
     <>
       <section className="sponsor" aria-labelledby="sponsor-title">
@@ -30,7 +32,7 @@ export default function SiteFooter() {
               Clumsy
             </div>
             <p className="site-footer__copy">
-              No tricks, no acrobatics. v{VERSION}, MIT licensed.
+              No tricks, no acrobatics. v{version}, MIT licensed.
             </p>
           </div>
           <nav className="site-footer__links" aria-label="Footer">

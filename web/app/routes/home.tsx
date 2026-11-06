@@ -2,9 +2,18 @@ import { useState } from "react";
 
 import type { Route } from "./+types/home";
 import { ThemeSlider } from "~/components/ThemeSlider";
-import { FEATURES, SCREENS, SHORTCUTS, type ScreenId } from "~/lib/content";
-import { DOWNLOAD, GITHUB, VERSION } from "~/lib/links";
+import { SCREENS, type ScreenId } from "~/lib/content";
+import { loadFeatures } from "~/lib/features.server";
+import { DOWNLOAD, GITHUB } from "~/lib/links";
+import { CACHE_HEADERS } from "~/lib/remote.server";
+import { useVersion } from "~/lib/useVersion";
 import { pageMeta } from "~/lib/meta";
+
+export function loader() {
+  return loadFeatures();
+}
+
+export const headers: Route.HeadersFunction = () => CACHE_HEADERS;
 
 export function meta(_args: Route.MetaArgs) {
   return pageMeta("Clumsy · A small, fast PDF (and Markdown) viewer for Mac");
@@ -62,7 +71,8 @@ function Showcase() {
   );
 }
 
-export default function Home() {
+export default function Home({ loaderData }: Route.ComponentProps) {
+  const version = useVersion();
   return (
     <main>
       <header className="hero">
@@ -90,7 +100,7 @@ export default function Home() {
             </a>
           </div>
           <p className="hero__note">
-            Free and open source · v{VERSION} · Apple Silicon and Intel
+            Free and open source · v{version} · Apple Silicon and Intel
           </p>
         </div>
 
@@ -119,7 +129,7 @@ export default function Home() {
           </div>
 
           <div className="features">
-            {FEATURES.map((feature) => (
+            {loaderData.features.map((feature) => (
               <article key={feature.title} className="feature">
                 <h3 className="feature__title">{feature.title}</h3>
                 <ul className="feature__list">
@@ -149,7 +159,7 @@ export default function Home() {
           </div>
 
           <ul className="shortcuts">
-            {SHORTCUTS.map((shortcut) => (
+            {loaderData.shortcuts.map((shortcut) => (
               <li key={shortcut.label} className="shortcut">
                 <span className="shortcut__keys">
                   {shortcut.keys.map((key) => (
@@ -196,7 +206,7 @@ export default function Home() {
             <div>
               <p className="section__label">Download</p>
               <h2 id="download-title" className="section__title">
-                Get Clumsy {VERSION}
+                Get Clumsy {version}
               </h2>
               <p className="section__body">
                 One universal build for Apple Silicon and Intel, signed and

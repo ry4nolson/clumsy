@@ -11,6 +11,14 @@ import type { Route } from "./+types/root";
 import stylesheet from "./app.css?url";
 import SiteFooter from "./components/SiteFooter";
 import SiteNav from "./components/SiteNav";
+import { latestVersion } from "./lib/releases.server";
+import { CACHE_HEADERS } from "./lib/remote.server";
+
+export async function loader() {
+  return { version: await latestVersion() };
+}
+
+export const headers: Route.HeadersFunction = () => CACHE_HEADERS;
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/favicon.png", type: "image/png" },

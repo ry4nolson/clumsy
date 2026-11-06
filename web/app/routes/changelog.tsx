@@ -1,9 +1,10 @@
 import { Fragment } from "react";
 
-import changelog from "../../../CHANGELOG.md?raw";
-import { parseChangelog, parseInline } from "../../../src/lib/changelog";
+import { parseInline } from "../../../src/lib/changelog";
 import type { Route } from "./+types/changelog";
 import { RELEASES } from "~/lib/links";
+import { loadReleases } from "~/lib/releases.server";
+import { CACHE_HEADERS } from "~/lib/remote.server";
 import { pageMeta } from "~/lib/meta";
 
 export function meta(_args: Route.MetaArgs) {
@@ -13,13 +14,11 @@ export function meta(_args: Route.MetaArgs) {
   );
 }
 
-export function loader() {
-  return {
-    releases: parseChangelog(changelog).filter(
-      (release) => release.version !== "Unreleased",
-    ),
-  };
+export async function loader() {
+  return { releases: await loadReleases() };
 }
+
+export const headers: Route.HeadersFunction = () => CACHE_HEADERS;
 
 function formatDate(date: string) {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
