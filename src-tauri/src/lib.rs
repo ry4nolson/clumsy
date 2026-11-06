@@ -7,7 +7,7 @@ mod windows;
 
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use percent_encoding::percent_decode_str;
@@ -16,12 +16,16 @@ use tauri::{AppHandle, DragDropEvent, Emitter, Manager, Runtime, Window, WindowE
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, MessageDialogButtons, MessageDialogKind};
 
 use files::{
-    AllowedFolders, AllowedPaths, LinkedPaths, IMAGE_EXTENSIONS, MARKDOWN_EXTENSIONS, is_document, is_export_image, is_image, is_markdown, is_pdf,
+    AllowedFolders, AllowedPaths, IMAGE_EXTENSIONS, MARKDOWN_EXTENSIONS, ReadOnlyPaths, is_document, is_export_image, is_image, is_markdown, is_pdf,
 };
 use recent::RecentFiles;
 use session::RestartSession;
 use updates::Updates;
 use windows::{Documents, FocusTracker, Transfers, WindowDocuments};
+
+pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
 
 #[derive(Default)]
 struct PendingFiles(Mutex<Vec<String>>);
@@ -31,8 +35,16 @@ struct QuitPrompt(AtomicBool);
 
 fn allow_paths(app: &AppHandle, paths: &[PathBuf]) {
     let allowed = app.state::<AllowedPaths>();
-    for path in paths.iter().filter(|path| path.is_file()) {
+    for path in paths.iter().filter(|path| is_document(path) && path.is_file()) {
         allowed.allow(path);
+    }
+}
+
+fn allow_dropped(app: &AppHandle, paths: &[PathBuf]) {
+    allow_paths(app, paths);
+    let read_only = app.state::<ReadOnlyPaths>();
+    for path in paths.iter().filter(|path| is_image(path) && path.is_file()) {
+        read_only.0.allow(path);
     }
 }
 
@@ -42,11 +54,7 @@ fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
         return;
     }
     allow_paths(app, &paths);
-    app.state::<PendingFiles>()
-        .0
-        .lock()
-        .unwrap()
-        .extend(paths.iter().map(|path| path.to_string_lossy().into_owned()));
+    lock(&app.state::<PendingFiles>().0).extend(paths.iter().map(|path| path.to_string_lossy().into_owned()));
     if let Some(window) = app.state::<FocusTracker>().target(app) {
         let _ = window.emit_to(window.label(), "files-opened", ());
         let _ = window.set_focus();
@@ -65,12 +73,17 @@ fn allowed_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool)
 fn readable_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool) -> Result<PathBuf, String> {
     allowed_path(app, path, kind).or_else(|err| {
         let path = PathBuf::from(path);
-        (kind(&path) && app.state::<LinkedPaths>().0.is_allowed(&path)).then_some(path).ok_or(err)
+        (kind(&path) && app.state::<ReadOnlyPaths>().0.is_allowed(&path)).then_some(path).ok_or(err)
     })
 }
 
 fn is_app_url(url: &tauri::Url) -> bool {
-    matches!(url.scheme(), "tauri" | "about") || matches!(url.host_str(), Some("tauri.localhost" | "localhost" | "127.0.0.1"))
+    match (url.scheme(), url.host_str(), url.port()) {
+        ("tauri", Some("localhost"), None) | ("http" | "https", Some("tauri.localhost"), None) => true,
+        ("http", Some("localhost"), Some(1420)) => cfg!(debug_assertions),
+        ("about", None, None) => matches!(url.path(), "blank" | "srcdoc"),
+        _ => false,
+    }
 }
 
 fn file_dialog<R: Runtime>(window: &Window<R>) -> FileDialogBuilder<R> {
@@ -83,6 +96,12 @@ fn file_dialog<R: Runtime>(window: &Window<R>) -> FileDialogBuilder<R> {
 fn chosen(app: &AppHandle, picked: Option<tauri_plugin_dialog::FilePath>, finish: fn(PathBuf) -> PathBuf) -> Option<String> {
     let path = finish(picked?.into_path().ok()?);
     app.state::<AllowedPaths>().allow(&path);
+    Some(path.to_string_lossy().into_owned())
+}
+
+fn chosen_to_read(app: &AppHandle, picked: tauri_plugin_dialog::FilePath) -> Option<String> {
+    let path = picked.into_path().ok()?;
+    app.state::<ReadOnlyPaths>().0.allow(&path);
     Some(path.to_string_lossy().into_owned())
 }
 
@@ -111,7 +130,7 @@ async fn pick_image(app: AppHandle, window: Window) -> Option<String> {
     let picked = file_dialog(&window)
         .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "svg"])
         .blocking_pick_file();
-    chosen(&app, picked, |path| path)
+    chosen_to_read(&app, picked?)
 }
 
 #[tauri::command]
@@ -123,7 +142,7 @@ async fn pick_images(app: AppHandle, window: Window, include_pdfs: bool) -> Vec<
         dialog.add_filter("Images", &IMAGE_EXTENSIONS)
     };
     let picked = dialog.blocking_pick_files().unwrap_or_default();
-    picked.into_iter().filter_map(|path| chosen(&app, Some(path), |path| path)).collect()
+    picked.into_iter().filter_map(|path| chosen_to_read(&app, path)).collect()
 }
 
 #[tauri::command]
@@ -197,13 +216,13 @@ async fn read_linked_image(app: AppHandle, document: String, src: String) -> Res
 #[tauri::command]
 async fn open_linked_file(app: AppHandle, document: String, href: String) -> Result<String, String> {
     let path = linked_target(&app, &document, &href, is_document)?;
-    app.state::<LinkedPaths>().0.allow(&path);
+    app.state::<ReadOnlyPaths>().0.allow(&path);
     Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
 async fn read_image(app: AppHandle, path: String) -> Result<Response, String> {
-    let path = allowed_path(&app, &path, is_image)?;
+    let path = readable_path(&app, &path, is_image)?;
     fs::read(&path)
         .map(Response::new)
         .map_err(|err| format!("Could not read {}: {err}", path.display()))
@@ -247,12 +266,12 @@ fn image_target(app: &AppHandle, request: &Request<'_>) -> Result<(PathBuf, bool
         return Ok((allowed_path(app, &decoded("x-path")?, is_export_image)?, true));
     }
     let (folder, name) = (PathBuf::from(decoded("x-folder")?), decoded("x-name")?);
-    let path = app
-        .state::<AllowedFolders>()
+    let folders = app.state::<AllowedFolders>();
+    let path = folders
         .file_in(&folder, &name)
-        .filter(|path| is_export_image(path))
         .ok_or_else(|| format!("Clumsy wasn't given access to {}", folder.join(&name).display()))?;
-    Ok((path, header(request, "x-overwrite") == Some("1")))
+    let replace = folders.take_replacing(&path);
+    Ok((path, replace))
 }
 
 #[tauri::command]
@@ -265,13 +284,38 @@ async fn write_image(app: AppHandle, request: Request<'_>) -> Result<String, Str
     Ok(path.to_string_lossy().into_owned())
 }
 
+fn replace_prompt(names: &[String], folder: &str) -> String {
+    match names {
+        [name] => format!("“{name}” already exists in “{folder}”. Replace it?"),
+        _ => format!("{} of these images already exist in “{folder}”, including “{}”. Replace them?", names.len(), names[0]),
+    }
+}
+
 #[tauri::command]
-async fn existing_files(app: AppHandle, folder: String, names: Vec<String>) -> Result<Vec<String>, String> {
+async fn confirm_replace(app: AppHandle, window: Window, folder: String, names: Vec<String>) -> Result<bool, String> {
     let folder = PathBuf::from(folder);
-    if !app.state::<AllowedFolders>().is_allowed(&folder) {
+    let folders = app.state::<AllowedFolders>();
+    if !folders.is_allowed(&folder) {
         return Err(format!("Clumsy wasn't given access to {}", folder.display()));
     }
-    Ok(files::existing_names(&folder, &names))
+    let existing = files::existing_files(&folders, &folder, &names);
+    if existing.is_empty() {
+        return Ok(true);
+    }
+    let existing_names: Vec<String> = existing.iter().filter_map(|path| path.file_name()).map(|name| name.to_string_lossy().into_owned()).collect();
+    let folder_name = folder.file_name().map_or_else(|| folder.to_string_lossy(), |name| name.to_string_lossy());
+    let replace = app
+        .dialog()
+        .message(replace_prompt(&existing_names, &folder_name))
+        .title("Replace existing files?")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom("Replace".into(), "Cancel".into()))
+        .parent(&window)
+        .blocking_show();
+    if replace {
+        folders.allow_replacing(&existing);
+    }
+    Ok(replace)
 }
 
 #[tauri::command]
@@ -279,7 +323,7 @@ async fn stash_transfer(request: Request<'_>, transfers: tauri::State<'_, Transf
     let InvokeBody::Raw(bytes) = request.body() else {
         return Err("Expected raw document bytes".into());
     };
-    Ok(transfers.stash(bytes.clone()))
+    transfers.stash(bytes.clone())
 }
 
 #[tauri::command]
@@ -350,30 +394,30 @@ fn make_default_app(app: AppHandle, kind: String) -> Result<default_app::Default
 }
 
 #[tauri::command]
-fn recent_files(app: AppHandle) -> Vec<recent::RecentEntry> {
+async fn recent_files(app: AppHandle) -> Vec<recent::RecentEntry> {
     app.state::<RecentFiles>().entries(&app)
 }
 
 #[tauri::command]
-fn record_recent_file(app: AppHandle, path: String) {
+async fn record_recent_file(app: AppHandle, path: String) {
     if allowed_path(&app, &path, is_document).is_ok() {
         app.state::<RecentFiles>().add(&app, &path);
     }
 }
 
 #[tauri::command]
-fn remove_recent_file(app: AppHandle, path: String) {
+async fn remove_recent_file(app: AppHandle, path: String) {
     app.state::<RecentFiles>().remove(&app, &path);
 }
 
 #[tauri::command]
-fn clear_recent_files(app: AppHandle) {
+async fn clear_recent_files(app: AppHandle) {
     app.state::<RecentFiles>().clear(&app);
 }
 
 #[tauri::command]
 fn take_pending_files(state: tauri::State<'_, PendingFiles>) -> Vec<String> {
-    std::mem::take(&mut *state.0.lock().unwrap())
+    std::mem::take(&mut *lock(&state.0))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -388,7 +432,7 @@ pub fn run() {
         .manage(Transfers::default())
         .manage(AllowedPaths::default())
         .manage(AllowedFolders::default())
-        .manage(LinkedPaths::default())
+        .manage(ReadOnlyPaths::default())
         .plugin(tauri::plugin::Builder::<tauri::Wry>::new("navigation-guard").on_navigation(|_, url| is_app_url(url)).build())
         .manage(Documents::default())
         .manage(QuitPrompt::default())
@@ -396,13 +440,13 @@ pub fn run() {
         .manage(RestartSession::default())
         .on_window_event(|window, event| match event {
             WindowEvent::Focused(true) => window.state::<FocusTracker>().focused(window.label()),
-            WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => allow_paths(window.app_handle(), paths),
+            WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => allow_dropped(window.app_handle(), paths),
             WindowEvent::Destroyed => window.state::<Documents>().forget(window.label()),
             _ => {}
         })
         .on_webview_event(|webview, event| {
             if let tauri::WebviewEvent::DragDrop(DragDropEvent::Drop { paths, .. }) = event {
-                allow_paths(webview.app_handle(), paths);
+                allow_dropped(webview.app_handle(), paths);
             }
         })
         .setup(|app| {
@@ -435,7 +479,7 @@ pub fn run() {
             write_pdf,
             write_markdown,
             write_image,
-            existing_files,
+            confirm_replace,
             report_documents,
             document_window,
             request_quit,
@@ -467,16 +511,41 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{discard_prompt, is_app_url};
+    use super::{discard_prompt, is_app_url, replace_prompt};
 
     #[test]
     fn keeps_windows_on_the_app() {
-        for url in ["tauri://localhost/index.html?transfer=1", "http://tauri.localhost/", "http://localhost:1420/", "about:blank"] {
+        for url in ["tauri://localhost/index.html?transfer=1", "http://tauri.localhost/", "https://tauri.localhost/x", "about:blank", "about:srcdoc"] {
             assert!(is_app_url(&url.parse().unwrap()), "{url}");
         }
-        for url in ["https://evil.example/", "file:///etc/passwd", "http://localhost.evil.example/"] {
+        for url in [
+            "https://evil.example/",
+            "file:///etc/passwd",
+            "file://localhost/etc/passwd",
+            "http://localhost.evil.example/",
+            "http://localhost:3000/",
+            "http://localhost/",
+            "https://localhost:1420/",
+            "http://127.0.0.1:1420/",
+            "http://tauri.localhost:8080/",
+            "tauri://evil.example/",
+            "ftp://localhost/",
+            "about:config",
+            "data:text/html,hi",
+            "blob:tauri://localhost/x",
+        ] {
             assert!(!is_app_url(&url.parse().unwrap()), "{url}");
         }
+        assert_eq!(is_app_url(&"http://localhost:1420/".parse().unwrap()), cfg!(debug_assertions));
+    }
+
+    #[test]
+    fn asks_before_replacing_exported_images() {
+        assert_eq!(replace_prompt(&["a - page 1.png".into()], "Desktop"), "“a - page 1.png” already exists in “Desktop”. Replace it?");
+        assert_eq!(
+            replace_prompt(&["a - page 1.png".into(), "a - page 2.png".into()], "Desktop"),
+            "2 of these images already exist in “Desktop”, including “a - page 1.png”. Replace them?"
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
-import { confirmReplace, downloadImage, existingFiles, offerToShowExport, pickFolder, pickImageSavePath, writeImage, writeImageInFolder } from "../lib/imageFiles";
+import { confirmReplace, downloadImage, offerToShowExport, pickFolder, pickImageSavePath, writeImage, writeImageInFolder } from "../lib/imageFiles";
 import { defaultExportOptions, exportSummary, mimeTypeFor, normalizeExportOptions, pageImageNames, type ExportOptions } from "../lib/imageExport";
 import { ExportCancelledError, renderPageImage } from "../lib/pageImages";
 import { isDesktop, showError } from "../lib/platform";
@@ -35,11 +35,10 @@ async function chooseDestination(names: string[], options: ExportOptions): Promi
   if (!folder) {
     return null;
   }
-  const existing = await existingFiles(folder, names);
-  if (existing.length && !(await confirmReplace(existing, folder))) {
+  if (!(await confirmReplace(folder, names))) {
     return null;
   }
-  return (name, bytes) => writeImageInFolder(folder, name, bytes, existing.length > 0);
+  return (name, bytes) => writeImageInFolder(folder, name, bytes);
 }
 
 export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled: (tabId: string) => Promise<void>) {

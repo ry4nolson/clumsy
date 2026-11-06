@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, Window};
 
-use crate::files::{AllowedPaths, LinkedPaths, is_document};
+use crate::lock;
+use crate::files::{AllowedPaths, ReadOnlyPaths, is_document};
 use crate::windows::{FocusTracker, Transfers, is_document_window};
 
 const CAPTURE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -213,7 +214,7 @@ fn finish(app: &AppHandle, capture: Capture) {
 
 fn abandon(app: &AppHandle, id: u64) {
     let state = app.state::<RestartSession>();
-    let mut capture = state.capture.lock().unwrap();
+    let mut capture = lock(&state.capture);
     if capture.as_ref().is_some_and(|capture| capture.id == id) {
         *capture = None;
         drop(capture);
@@ -227,7 +228,7 @@ pub fn request_restart(app: AppHandle) {
     let expected: HashSet<String> = app.webview_windows().into_keys().filter(|label| is_document_window(label)).collect();
     let id = state.next.fetch_add(1, Ordering::Relaxed);
     {
-        let mut capture = state.capture.lock().unwrap();
+        let mut capture = lock(&state.capture);
         if capture.is_some() {
             return;
         }
@@ -247,7 +248,7 @@ pub fn request_restart(app: AppHandle) {
 #[tauri::command]
 pub fn report_session(app: AppHandle, window: Window, id: u64, session: Option<SessionWindow>) {
     let state = app.state::<RestartSession>();
-    let mut guard = state.capture.lock().unwrap();
+    let mut guard = lock(&state.capture);
     let Some(capture) = guard.as_mut().filter(|capture| capture.id == id) else {
         return;
     };
@@ -260,7 +261,7 @@ pub fn report_session(app: AppHandle, window: Window, id: u64, session: Option<S
             Access::Denied
         } else if app.state::<AllowedPaths>().is_allowed(path) {
             Access::Writable
-        } else if app.state::<LinkedPaths>().0.is_allowed(path) {
+        } else if app.state::<ReadOnlyPaths>().0.is_allowed(path) {
             Access::ReadOnly
         } else {
             Access::Denied
@@ -295,7 +296,7 @@ pub fn load(app: &AppHandle) -> bool {
                     let Some(bytes) = blobs.remove(&key) else {
                         return false;
                     };
-                    tab.transfer_id = Some(transfers.stash(bytes));
+                    tab.transfer_id = Some(transfers.restore(bytes));
                 }
                 let Some(path) = tab.path.as_deref().map(PathBuf::from) else {
                     return true;
@@ -308,7 +309,7 @@ pub fn load(app: &AppHandle) -> bool {
                     return false;
                 }
                 if tab.read_only {
-                    app.state::<LinkedPaths>().0.allow(&path);
+                    app.state::<ReadOnlyPaths>().0.allow(&path);
                 } else {
                     app.state::<AllowedPaths>().allow(&path);
                 }
@@ -317,18 +318,18 @@ pub fn load(app: &AppHandle) -> bool {
         }
     }
     let restored = !windows.is_empty();
-    *app.state::<RestartSession>().restored.lock().unwrap() = windows.into_iter().map(Some).collect();
+    *lock(&app.state::<RestartSession>().restored) = windows.into_iter().map(Some).collect();
     restored
 }
 
 #[tauri::command]
 pub fn restored_windows(state: tauri::State<'_, RestartSession>) -> Vec<usize> {
-    state.restored.lock().unwrap().iter().enumerate().filter(|(_, window)| window.is_some()).map(|(index, _)| index).collect()
+    lock(&state.restored).iter().enumerate().filter(|(_, window)| window.is_some()).map(|(index, _)| index).collect()
 }
 
 #[tauri::command]
 pub fn take_restored_window(index: usize, state: tauri::State<'_, RestartSession>) -> Option<SessionWindow> {
-    state.restored.lock().unwrap().get_mut(index).and_then(Option::take)
+    lock(&state.restored).get_mut(index).and_then(Option::take)
 }
 
 #[cfg(test)]

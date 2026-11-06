@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Manager, WebviewWindow};
 
+use crate::lock;
+
 pub fn is_document_window(label: &str) -> bool {
     label == "main" || label.starts_with("doc-")
 }
@@ -24,22 +26,23 @@ pub struct FocusTracker(Mutex<Option<String>>);
 impl FocusTracker {
     pub fn focused(&self, label: &str) {
         if is_document_window(label) {
-            *self.0.lock().unwrap() = Some(label.to_string());
+            *lock(&self.0) = Some(label.to_string());
         }
     }
 
     pub fn last(&self) -> Option<String> {
-        self.0.lock().unwrap().clone()
+        lock(&self.0).clone()
     }
 
     pub fn target(&self, app: &AppHandle) -> Option<WebviewWindow> {
         let open: Vec<String> = app.webview_windows().into_keys().collect();
-        let last = self.0.lock().unwrap().clone();
+        let last = lock(&self.0).clone();
         choose_document_window(last.as_deref(), &open).and_then(|label| app.get_webview_window(&label))
     }
 }
 
 const TRANSFER_LIFETIME: Duration = Duration::from_secs(300);
+const TRANSFER_LIMIT: usize = 2 << 30;
 
 #[derive(Default)]
 pub struct Transfers {
@@ -48,20 +51,28 @@ pub struct Transfers {
 }
 
 impl Transfers {
-    pub fn stash(&self, bytes: Vec<u8>) -> String {
-        self.stash_at(bytes, Instant::now())
+    pub fn stash(&self, bytes: Vec<u8>) -> Result<String, String> {
+        self.stash_at(bytes, Instant::now(), TRANSFER_LIMIT)
     }
 
-    fn stash_at(&self, bytes: Vec<u8>, now: Instant) -> String {
-        let id = format!("transfer-{}", self.next.fetch_add(1, Ordering::Relaxed));
-        let mut items = self.items.lock().unwrap();
+    pub fn restore(&self, bytes: Vec<u8>) -> String {
+        self.stash_at(bytes, Instant::now(), usize::MAX).unwrap_or_default()
+    }
+
+    fn stash_at(&self, bytes: Vec<u8>, now: Instant, limit: usize) -> Result<String, String> {
+        let mut items = lock(&self.items);
         items.retain(|_, (stashed, _)| now.duration_since(*stashed) < TRANSFER_LIFETIME);
+        let held: usize = items.values().map(|(_, bytes)| bytes.len()).sum();
+        if held.saturating_add(bytes.len()) > limit {
+            return Err("There isn't room to move this document right now. Try again in a few minutes.".into());
+        }
+        let id = format!("transfer-{}", self.next.fetch_add(1, Ordering::Relaxed));
         items.insert(id.clone(), (now, bytes));
-        id
+        Ok(id)
     }
 
     pub fn take(&self, id: &str) -> Option<Vec<u8>> {
-        self.items.lock().unwrap().remove(id).map(|(_, bytes)| bytes)
+        lock(&self.items).remove(id).map(|(_, bytes)| bytes)
     }
 }
 
@@ -76,15 +87,15 @@ pub struct Documents(Mutex<HashMap<String, WindowDocuments>>);
 
 impl Documents {
     pub fn report(&self, label: &str, documents: WindowDocuments) {
-        self.0.lock().unwrap().insert(label.to_string(), documents);
+        lock(&self.0).insert(label.to_string(), documents);
     }
 
     pub fn forget(&self, label: &str) {
-        self.0.lock().unwrap().remove(label);
+        lock(&self.0).remove(label);
     }
 
     pub fn window_with(&self, path: &str, except: &str) -> Option<String> {
-        let windows = self.0.lock().unwrap();
+        let windows = lock(&self.0);
         let mut labels: Vec<&String> = windows
             .iter()
             .filter(|(label, documents)| label.as_str() != except && documents.paths.iter().any(|open| open == path))
@@ -95,7 +106,7 @@ impl Documents {
     }
 
     pub fn unsaved(&self) -> Vec<String> {
-        let windows = self.0.lock().unwrap();
+        let windows = lock(&self.0);
         let mut labels: Vec<&String> = windows.keys().collect();
         labels.sort();
         labels.into_iter().flat_map(|label| windows[label].unsaved.clone()).collect()
@@ -126,8 +137,8 @@ mod tests {
     fn stale_transfers_are_dropped() {
         let transfers = Transfers::default();
         let start = Instant::now();
-        let old = transfers.stash_at(vec![1], start);
-        let fresh = transfers.stash_at(vec![2], start + TRANSFER_LIFETIME);
+        let old = transfers.stash_at(vec![1], start, TRANSFER_LIMIT).unwrap();
+        let fresh = transfers.stash_at(vec![2], start + TRANSFER_LIFETIME, TRANSFER_LIMIT).unwrap();
         assert_eq!(transfers.take(&old), None);
         assert_eq!(transfers.take(&fresh), Some(vec![2]));
     }
@@ -161,8 +172,22 @@ mod tests {
     #[test]
     fn transfers_are_taken_once() {
         let transfers = Transfers::default();
-        let id = transfers.stash(vec![1, 2, 3]);
+        let id = transfers.stash(vec![1, 2, 3]).unwrap();
         assert_eq!(transfers.take(&id), Some(vec![1, 2, 3]));
         assert_eq!(transfers.take(&id), None);
+    }
+
+    #[test]
+    fn stashed_bytes_are_capped() {
+        let transfers = Transfers::default();
+        let start = Instant::now();
+        let first = transfers.stash_at(vec![0; 6], start, 10).unwrap();
+        assert!(transfers.stash_at(vec![0; 5], start, 10).is_err());
+        let second = transfers.stash_at(vec![0; 4], start, 10).unwrap();
+        transfers.take(&first);
+        assert!(transfers.stash_at(vec![0; 6], start, 10).is_ok());
+        assert!(transfers.stash_at(vec![0; 9], start + TRANSFER_LIFETIME, 10).is_ok());
+        assert_eq!(transfers.take(&second), None);
+        assert!(!transfers.restore(vec![0; 100]).is_empty());
     }
 }

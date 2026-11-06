@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Markdown files can no longer load images or open files outside their own folder, or outside their repository when they're in one, through absolute paths, `..`, or symlinks
+- Images picked for New PDF from Images, Insert Pages, or a signature, and images dropped on the window, are now only ever read, never written
+- The Replace prompt when exporting pages into a folder now comes from Clumsy itself, and only the files you agreed to replace can be overwritten
+- Windows can no longer be navigated to other local web servers
+- The recent files list no longer freezes the window while a network volume in it is slow to respond
+
 ## [0.10.8] - 2026-11-05
 
 ### Changed

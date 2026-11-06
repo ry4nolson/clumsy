@@ -4,6 +4,8 @@ use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
+
+use crate::lock;
 use std::time::UNIX_EPOCH;
 
 pub const CHANGED_ON_DISK: &str = "changed-on-disk";
@@ -76,12 +78,17 @@ pub fn resolve(path: &Path) -> PathBuf {
     }
 }
 
+pub fn link_root(folder: &Path) -> &Path {
+    folder.ancestors().find(|dir| dir.join(".git").exists()).unwrap_or(folder)
+}
+
 pub fn resolve_linked(document: &Path, href: &str) -> Option<PathBuf> {
     if href.is_empty() || href.contains('\0') {
         return None;
     }
-    let target = document.parent()?.join(href);
-    fs::canonicalize(target).ok().filter(|path| path.is_file())
+    let folder = fs::canonicalize(document.parent()?).ok()?;
+    let target = fs::canonicalize(folder.join(href)).ok().filter(|path| path.is_file())?;
+    target.starts_with(link_root(&folder)).then_some(target)
 }
 
 fn saving_path(path: &Path) -> PathBuf {
@@ -91,45 +98,65 @@ fn saving_path(path: &Path) -> PathBuf {
     path.with_file_name(name)
 }
 
+fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if fs::symlink_metadata(path).is_ok() {
+        fs::remove_file(path)?;
+    }
+    OpenOptions::new().write(true).create_new(true).open(path)?.write_all(bytes)
+}
+
 #[derive(Default)]
 pub struct AllowedPaths(Mutex<HashSet<PathBuf>>);
 
 impl AllowedPaths {
     pub fn allow(&self, path: &Path) {
-        self.0.lock().unwrap().insert(resolve(path));
+        lock(&self.0).insert(resolve(path));
     }
 
     pub fn is_allowed(&self, path: &Path) -> bool {
-        self.0.lock().unwrap().contains(&resolve(path))
+        lock(&self.0).contains(&resolve(path))
     }
 }
 
 #[derive(Default)]
-pub struct LinkedPaths(pub AllowedPaths);
+pub struct ReadOnlyPaths(pub AllowedPaths);
 
 #[derive(Default)]
-pub struct AllowedFolders(AllowedPaths);
+pub struct AllowedFolders {
+    folders: AllowedPaths,
+    replaceable: AllowedPaths,
+}
 
 impl AllowedFolders {
     pub fn allow(&self, folder: &Path) {
-        self.0.allow(folder);
+        self.folders.allow(folder);
     }
 
     pub fn is_allowed(&self, folder: &Path) -> bool {
-        folder.is_dir() && self.0.is_allowed(folder)
+        folder.is_dir() && self.folders.is_allowed(folder)
     }
 
     pub fn file_in(&self, folder: &Path, name: &str) -> Option<PathBuf> {
-        let name = plain_file_name(name)?;
+        let name = plain_file_name(name).filter(|name| is_export_image(Path::new(name)))?;
         self.is_allowed(folder).then(|| resolve(folder).join(name))
+    }
+
+    pub fn allow_replacing(&self, files: &[PathBuf]) {
+        for file in files {
+            self.replaceable.allow(file);
+        }
+    }
+
+    pub fn take_replacing(&self, file: &Path) -> bool {
+        lock(&self.replaceable.0).remove(&resolve(file))
     }
 }
 
-pub fn existing_names(folder: &Path, names: &[String]) -> Vec<String> {
+pub fn existing_files(folders: &AllowedFolders, folder: &Path, names: &[String]) -> Vec<PathBuf> {
     names
         .iter()
-        .filter(|name| plain_file_name(name).is_some_and(|name| fs::symlink_metadata(folder.join(name)).is_ok()))
-        .cloned()
+        .filter_map(|name| folders.file_in(folder, name))
+        .filter(|path| fs::symlink_metadata(path).is_ok())
         .collect()
 }
 
@@ -146,7 +173,7 @@ pub fn write_file(path: &Path, bytes: &[u8], overwrite: bool) -> Result<(), Stri
         });
     }
     let tmp = saving_path(path);
-    let result = fs::write(&tmp, bytes).and_then(|_| fs::rename(&tmp, path));
+    let result = write_new(&tmp, bytes).and_then(|_| fs::rename(&tmp, path));
     result.map_err(|err| {
         let _ = fs::remove_file(&tmp);
         failed(err)
@@ -168,7 +195,7 @@ pub fn write_atomically(path: &Path, bytes: &[u8], expected_stamp: Option<&str>)
     }
     let permissions = fs::metadata(&target).ok().map(|metadata| metadata.permissions());
     let tmp = saving_path(&target);
-    let result = fs::write(&tmp, bytes)
+    let result = write_new(&tmp, bytes)
         .and_then(|_| permissions.map_or(Ok(()), |permissions| fs::set_permissions(&tmp, permissions)))
         .and_then(|_| fs::rename(&tmp, &target));
     if let Err(err) = result {
@@ -212,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    fn writes_only_into_folders_it_was_given() {
+    fn writes_only_images_into_folders_it_was_given() {
         let dir = scratch("folders");
         let folders = AllowedFolders::default();
         assert_eq!(folders.file_in(&dir, "a.png"), None);
@@ -220,6 +247,9 @@ mod tests {
         assert_eq!(folders.file_in(&dir, "a.png"), Some(resolve(&dir).join("a.png")));
         assert_eq!(folders.file_in(&dir, "../a.png"), None);
         assert_eq!(folders.file_in(&dir.join("sub"), "a.png"), None);
+        for name in ["notes.txt", "a.png.", "a.png ", ".png", "a.pdf"] {
+            assert_eq!(folders.file_in(&dir, name), None, "{name}");
+        }
     }
 
     #[test]
@@ -229,10 +259,28 @@ mod tests {
         write_file(&file, b"one", false).unwrap();
         assert_eq!(write_file(&file, b"two", false), Err(ALREADY_EXISTS.into()));
         assert_eq!(fs::read(&file).unwrap(), b"one");
-        assert_eq!(existing_names(&dir, &["page 1.png".into(), "page 2.png".into(), "../page 1.png".into()]), vec!["page 1.png".to_string()]);
         write_file(&file, b"two", true).unwrap();
         assert_eq!(fs::read(&file).unwrap(), b"two");
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn replaces_only_files_the_user_agreed_to_once() {
+        let dir = scratch("replace");
+        fs::write(dir.join("page 1.png"), b"x").unwrap();
+        fs::write(dir.join("notes.txt"), b"x").unwrap();
+        let folders = AllowedFolders::default();
+        let names = ["page 1.png", "page 2.png", "../page 1.png", "notes.txt"].map(String::from);
+        assert!(existing_files(&folders, &dir, &names).is_empty());
+        folders.allow(&dir);
+        let existing = existing_files(&folders, &dir, &names);
+        assert_eq!(existing, [resolve(&dir).join("page 1.png")]);
+        let file = dir.join("page 1.png");
+        assert!(!folders.take_replacing(&file));
+        folders.allow_replacing(&existing);
+        assert!(!folders.take_replacing(&dir.join("page 2.png")));
+        assert!(folders.take_replacing(&file));
+        assert!(!folders.take_replacing(&file));
     }
 
     #[cfg(unix)]
@@ -273,12 +321,61 @@ mod tests {
         let real = |path: &str| fs::canonicalize(dir.join(path)).unwrap();
         assert_eq!(resolve_linked(&document, "img/a.png"), Some(real("docs/img/a.png")));
         assert_eq!(resolve_linked(&document, "./img/a.png"), Some(real("docs/img/a.png")));
-        assert_eq!(resolve_linked(&document, "../logo.png"), Some(real("logo.png")));
-        let absolute = real("logo.png");
+        let absolute = real("docs/img/a.png");
         assert_eq!(resolve_linked(&document, absolute.to_str().unwrap()), Some(absolute.clone()));
+        assert_eq!(resolve_linked(&document, "../logo.png"), None);
+        assert_eq!(resolve_linked(&document, real("logo.png").to_str().unwrap()), None);
         assert_eq!(resolve_linked(&document, "missing.png"), None);
         assert_eq!(resolve_linked(&document, "img"), None);
         assert_eq!(resolve_linked(&document, ""), None);
+    }
+
+    #[test]
+    fn links_reach_the_rest_of_their_repository_only() {
+        let dir = scratch("repo");
+        let repo = dir.join("repo");
+        fs::create_dir_all(repo.join("docs")).unwrap();
+        fs::create_dir_all(repo.join(".git")).unwrap();
+        fs::write(repo.join("docs/guide.md"), b"x").unwrap();
+        fs::write(repo.join("logo.png"), b"x").unwrap();
+        fs::write(dir.join("secret.png"), b"x").unwrap();
+        let document = repo.join("docs/guide.md");
+        let real = |path: &Path| fs::canonicalize(path).unwrap();
+        assert_eq!(resolve_linked(&document, "../logo.png"), Some(real(&repo.join("logo.png"))));
+        assert_eq!(resolve_linked(&document, "../../secret.png"), None);
+        assert_eq!(resolve_linked(&document, real(&dir.join("secret.png")).to_str().unwrap()), None);
+        assert_eq!(resolve_linked(&document, "/etc/hosts"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn links_cannot_leave_through_a_symlink() {
+        use std::os::unix::fs::symlink;
+        let dir = scratch("linkescape");
+        fs::create_dir_all(dir.join("notes")).unwrap();
+        fs::write(dir.join("notes/a.md"), b"x").unwrap();
+        fs::write(dir.join("secret.png"), b"x").unwrap();
+        symlink(dir.join("secret.png"), dir.join("notes/inside.png")).unwrap();
+        assert_eq!(resolve_linked(&dir.join("notes/a.md"), "inside.png"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_planted_temp_symlink_is_replaced_not_followed() {
+        use std::os::unix::fs::symlink;
+        let dir = scratch("tmplink");
+        let outside = dir.join("outside.txt");
+        fs::write(&outside, b"keep").unwrap();
+        let file = dir.join("a.pdf");
+        fs::write(&file, b"old").unwrap();
+        symlink(&outside, saving_path(&resolve(&file))).unwrap();
+        write_atomically(&file, b"new", None).unwrap();
+        assert_eq!(fs::read(&outside).unwrap(), b"keep");
+        assert_eq!(fs::read(&file).unwrap(), b"new");
+        let image = dir.join("b.png");
+        symlink(&outside, saving_path(&image)).unwrap();
+        write_file(&image, b"png", true).unwrap();
+        assert_eq!(fs::read(&outside).unwrap(), b"keep");
     }
 
     #[test]

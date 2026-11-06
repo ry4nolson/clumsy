@@ -99,16 +99,16 @@ export async function pickImageSavePath(suggestedName: string, format: ExportFor
   return invoke<string | null>("pick_image_save_path", { suggestedName, format });
 }
 
-export async function existingFiles(folder: string, names: string[]) {
-  return invoke<string[]>("existing_files", { folder, names });
+export async function confirmReplace(folder: string, names: string[]) {
+  return invoke<boolean>("confirm_replace", { folder, names });
 }
 
 export async function writeImage(path: string, data: Uint8Array) {
   return invoke<string>("write_image", data, { headers: { "x-path": encodeURIComponent(path) } });
 }
 
-export async function writeImageInFolder(folder: string, name: string, data: Uint8Array, overwrite: boolean) {
-  const headers = { "x-folder": encodeURIComponent(folder), "x-name": encodeURIComponent(name), "x-overwrite": overwrite ? "1" : "0" };
+export async function writeImageInFolder(folder: string, name: string, data: Uint8Array) {
+  const headers = { "x-folder": encodeURIComponent(folder), "x-name": encodeURIComponent(name) };
   return invoke<string>("write_image", data, { headers });
 }
 
@@ -127,13 +127,3 @@ export async function offerToShowExport(summary: string, path: string) {
   }
 }
 
-export async function confirmReplace(names: string[], folder: string) {
-  const prompt =
-    names.length === 1
-      ? `“${names[0]}” already exists in “${fileNameFromPath(folder)}”. Replace it?`
-      : `${names.length} of these images already exist in “${fileNameFromPath(folder)}”, including “${names[0]}”. Replace them?`;
-  if (!isDesktop) {
-    return window.confirm(prompt);
-  }
-  return ask(prompt, { title: "Replace existing files?", kind: "warning", okLabel: "Replace", cancelLabel: "Cancel" });
-}
