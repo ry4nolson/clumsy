@@ -13,6 +13,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - The Replace prompt when exporting pages into a folder now comes from Clumsy itself, and only the files you agreed to replace can be overwritten
 - Windows can no longer be navigated to other local web servers
 - The recent files list no longer freezes the window while a network volume in it is slow to respond
+- Clicking math in a Markdown file that carries a link, or choosing Open Link, Back, or Reload from the right-click menu, no longer reloads the window and throws away every unsaved tab in it
+- Markdown files can no longer cover the toolbar and tabs with fixed-position content, pop up boxes over the whole window, or clash with the app's own element names
+- Links in a PDF or Markdown file only open web and mail addresses. A PDF link to a phone number (`tel:`) or another app no longer starts a call or opens that app
 
 ## [0.10.8] - 2026-11-05
 

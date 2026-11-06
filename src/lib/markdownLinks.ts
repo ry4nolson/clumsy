@@ -8,6 +8,10 @@ const external = /^(https?|mailto):/i;
 const scheme = /^[a-z][a-z0-9+.-]*:/i;
 const openable = /\.(md|markdown|pdf)$/i;
 
+export const isExternalUrl = (url: string) => external.test(url.trim());
+
+export const opensElsewhere = (href: string) => scheme.test(href.trim()) && !isExternalUrl(href);
+
 function decode(text: string) {
   try {
     return decodeURIComponent(text);
@@ -24,7 +28,7 @@ export function classifyHref(href: string | null): LinkTarget {
   if (value.startsWith("#")) {
     return value.length > 1 ? { kind: "anchor", id: decode(value.slice(1)) } : { kind: "ignored" };
   }
-  if (external.test(value)) {
+  if (isExternalUrl(value)) {
     return { kind: "external", url: value };
   }
   if (scheme.test(value) || value.startsWith("//")) {
@@ -33,6 +37,12 @@ export function classifyHref(href: string | null): LinkTarget {
   const [withoutHash, hash] = value.split(/#(.*)/s, 2);
   const path = decode(withoutHash.split("?")[0]);
   return openable.test(path) ? { kind: "file", path, anchor: hash ? decode(hash) : null } : { kind: "ignored" };
+}
+
+export const namedPrefix = "user-content-";
+
+export function anchorIds(id: string) {
+  return id.startsWith(namedPrefix) ? [namedPrefix + id, id] : [namedPrefix + id];
 }
 
 export function isLocalImage(src: string | null) {

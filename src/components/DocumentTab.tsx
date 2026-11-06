@@ -9,6 +9,7 @@ import type { ViewState } from "../lib/documentWindows";
 import type { SignaturePreview } from "../lib/editorManagers";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
+import { isExternalUrl } from "../lib/markdownLinks";
 import { getRecentFiles, readPdfFromPath, type PdfSource } from "../lib/platform";
 import { runEnd, type LabelNumbering } from "../lib/pageLabels";
 import { documentView, scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
@@ -322,17 +323,34 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     if (!container) {
       return;
     }
+    const outsideHref = (event: MouseEvent) => {
+      const href = (event.target as HTMLElement).closest("a[href]")?.getAttribute("href");
+      return href && !href.startsWith("#") ? href : null;
+    };
     const onClick = (event: MouseEvent) => {
-      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
-      const href = link?.getAttribute("href");
-      if (href && /^(https?|mailto):/i.test(href)) {
+      const href = outsideHref(event);
+      if (href) {
         event.preventDefault();
         event.stopPropagation();
-        onOpenUrl(href);
+        if (event.type === "click" && isExternalUrl(href)) {
+          onOpenUrl(href);
+        }
+      }
+    };
+    const onContextMenu = (event: MouseEvent) => {
+      const href = outsideHref(event);
+      if (href && !isExternalUrl(href)) {
+        event.preventDefault();
       }
     };
     container.addEventListener("click", onClick, true);
-    return () => container.removeEventListener("click", onClick, true);
+    container.addEventListener("auxclick", onClick, true);
+    container.addEventListener("contextmenu", onContextMenu, true);
+    return () => {
+      container.removeEventListener("click", onClick, true);
+      container.removeEventListener("auxclick", onClick, true);
+      container.removeEventListener("contextmenu", onContextMenu, true);
+    };
   }, [viewer.containerRef, onOpenUrl]);
 
   return (

@@ -7,6 +7,7 @@ import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppKind, DefaultAppStatus } from "./defaultApp";
+import { isExternalUrl } from "./markdownLinks";
 import type { RecentEntry } from "./recent";
 import { decodeText, encodeText, ensureMarkdownExtension, isMarkdownName, type TextFormat } from "./textFile";
 import type { UpdateProgress } from "./updates";
@@ -214,6 +215,9 @@ export async function setWindowTitle(title: string) {
 }
 
 export async function openExternal(url: string) {
+  if (!isExternalUrl(url)) {
+    return;
+  }
   if (isDesktop) {
     await openUrl(url);
   } else {

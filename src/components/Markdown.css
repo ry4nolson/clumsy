@@ -65,6 +65,7 @@
   overflow-wrap: break-word;
   user-select: text;
   cursor: auto;
+  contain: layout;
 }
 
 .markdown-body > :first-child {

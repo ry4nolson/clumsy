@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyHref, isLocalImage, localImagePath } from "../src/lib/markdownLinks";
+import { anchorIds, classifyHref, isExternalUrl, isLocalImage, localImagePath, opensElsewhere } from "../src/lib/markdownLinks";
 
 describe("classifyHref", () => {
   it("scrolls to anchors inside the document", () => {
@@ -35,5 +35,34 @@ describe("local images", () => {
     expect(isLocalImage("//cdn.example/a.png")).toBe(false);
     expect(isLocalImage("")).toBe(false);
     expect(localImagePath("img/my%20shot.png?raw=1")).toBe("img/my shot.png");
+  });
+});
+
+describe("isExternalUrl", () => {
+  it("only lets web and mail links leave the app", () => {
+    for (const url of ["https://example.com", "HTTP://example.com", " mailto:a@b.c"]) {
+      expect(isExternalUrl(url)).toBe(true);
+    }
+    for (const url of ["tel:5551234", "ftp://example.com", "file:///etc/hosts", "javascript:alert(1)", "/", "x-apple.systempreferences:"]) {
+      expect(isExternalUrl(url)).toBe(false);
+    }
+  });
+});
+
+describe("anchorIds", () => {
+  it("looks for the sanitizer's prefixed ids", () => {
+    expect(anchorIds("install")).toEqual(["user-content-install"]);
+    expect(anchorIds("user-content-install")).toEqual(["user-content-user-content-install", "user-content-install"]);
+  });
+});
+
+describe("opensElsewhere", () => {
+  it("flags links that would hand a scheme to another app", () => {
+    for (const href of ["tel:5551234", "sms:1", "facetime:a@b.c", "x-apple.systempreferences:", "file:///etc/hosts"]) {
+      expect(opensElsewhere(href)).toBe(true);
+    }
+    for (const href of ["https://example.com", "mailto:a@b.c", "#top", "notes.md", "/abs/path.pdf", ""]) {
+      expect(opensElsewhere(href)).toBe(false);
+    }
   });
 });

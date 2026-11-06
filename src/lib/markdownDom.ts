@@ -1,5 +1,5 @@
 import DOMPurify from "dompurify";
-import { isLocalImage } from "./markdownLinks";
+import { isLocalImage, opensElsewhere } from "./markdownLinks";
 import { lineAtOffset, offsetForLine, type LineBlock } from "./markdownScroll";
 
 const purifier = DOMPurify();
@@ -21,8 +21,10 @@ purifier.addHook("afterSanitizeAttributes", (node) => {
   }
   if (node instanceof HTMLAnchorElement) {
     node.removeAttribute("target");
-  }
-  if (node instanceof SVGElement) {
+    if (opensElsewhere(node.getAttribute("href") ?? "")) {
+      node.removeAttribute("href");
+    }
+  } else {
     node.removeAttribute("href");
     node.removeAttribute("xlink:href");
   }
@@ -31,7 +33,8 @@ purifier.addHook("afterSanitizeAttributes", (node) => {
 export function sanitizeMarkdownHtml(html: string) {
   return purifier.sanitize(html, {
     FORBID_TAGS: ["style", "link", "meta", "base", "form", "button", "select", "textarea", "iframe", "object", "embed", "dialog", "map", "area"],
-    FORBID_ATTR: ["autofocus"],
+    FORBID_ATTR: ["autofocus", "popover", "popovertarget", "popovertargetaction", "commandfor", "command"],
+    SANITIZE_NAMED_PROPS: true,
   });
 }
 
