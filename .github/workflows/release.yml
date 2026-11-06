@@ -3,12 +3,15 @@ name: Build and Release
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
-      - 'docs/**'
-      - 'web/**'
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
   workflow_dispatch:
 
 permissions:
