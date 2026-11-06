@@ -48,7 +48,7 @@ export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled:
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const running = useRef<AbortController | null>(null);
 
-  const runExportCommand = useCallback((id: CommandId) => {
+  const runExportCommand = useCallback((id: CommandId, explicit?: number[]) => {
     if (!exportCommands.has(id)) {
       return false;
     }
@@ -57,7 +57,7 @@ export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled:
     const doc = handle?.viewer.pdfDocument;
     if (tab.kind === "document" && handle && doc && !running.current) {
       const currentPage = handle.viewer.pageNumber - 1;
-      const selection = handle.explicitPages();
+      const selection = explicit?.length ? explicit : handle.explicitPages();
       doc.getPage(currentPage + 1).then((page) => {
         const { width, height } = page.getViewport({ scale: 1 });
         setRequest({ tabId: tab.id, name: tab.name, selection, pageCount: doc.numPages, currentPage, pageSize: { width, height } });

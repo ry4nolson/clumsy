@@ -220,6 +220,8 @@ export function createCommentManager(eventBus: EventBus, linkService: PDFLinkSer
     },
     finishComment,
     showComment,
+    canAddNote: () => !!notes?.writable(),
+    addNoteAt: (pageDiv: HTMLElement, clientX: number, clientY: number) => !!notes?.addAt(pageDiv, clientX, clientY),
     dispose() {
       notes?.dispose();
       popup.destroy();

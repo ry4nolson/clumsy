@@ -316,6 +316,8 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
     placeSignature,
     forgetSignature,
     showComment: comments.showComment,
+    canAddNote: comments.canAddNote,
+    addNoteAt: comments.addNoteAt,
     dispose() {
       window.removeEventListener("storage", onStorage);
       comments.dispose();

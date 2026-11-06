@@ -1,9 +1,8 @@
 import type { CommandId } from "../lib/commands";
+import { markCommands } from "../lib/contextTools";
 import type { MarkKind } from "../lib/marks";
 import { usePersistentState } from "../lib/preferences";
 import type { PdfViewerApi } from "./usePdfViewer";
-
-export const markCommands: Record<MarkKind, CommandId> = { check: "markCheck", cross: "markCross", dot: "markDot", date: "markDate" };
 
 const marksByCommand = new Map(Object.entries(markCommands).map(([kind, id]) => [id, kind as MarkKind]));
 

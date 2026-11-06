@@ -1,3 +1,4 @@
+mod context_menu;
 mod default_app;
 mod files;
 mod images;
@@ -414,6 +415,7 @@ pub fn run() {
             write_markdown,
             images::write_image,
             images::confirm_replace,
+            context_menu::show_document_menu,
             print::print_pdf,
             print::print_webview,
             report_documents,

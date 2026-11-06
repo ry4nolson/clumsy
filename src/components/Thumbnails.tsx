@@ -155,7 +155,7 @@ type ThumbnailsProps = {
   selection: number[];
   onSelect: (page: number, modifiers: SelectModifiers) => void;
   onMove: (page: number, slot: number) => void;
-  onContextMenu: (page: number) => void;
+  onContextMenu: (page: number, point: { x: number; y: number }) => void;
   onDelete: () => void;
 };
 
@@ -238,10 +238,7 @@ export function Thumbnails({ pdfDocument, paused, restoreImages, currentPage, pa
 
   const contextMenu = (page: number, event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    if (!selected.has(page)) {
-      onSelect(page, { toggle: false, range: false });
-    }
-    onContextMenu(page);
+    onContextMenu(page, { x: event.clientX, y: event.clientY });
   };
 
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {

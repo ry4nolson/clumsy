@@ -8,7 +8,7 @@ import { imagesIn, imagesToSource, markdownIn, pagesFrom, pdfsIn } from "../lib/
 import { remapStops } from "../lib/navHistory";
 import { shareBudget, trimHistory, type Version } from "../lib/pageHistory";
 import { applyPageEditOffThread, combinePdfsOffThread, extractPagesOffThread } from "../lib/pageEditWorker";
-import { canPrint, pickPdfs, showContextMenu, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
+import { pickPdfs, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -108,14 +108,15 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     return bytes ? { bytes, page: snapshot.pageNumber - 1, count: snapshot.pagesCount } : null;
   };
 
-  const show = (tabId: string, version: Version, selection: number[], baseline: PdfSource | null, pageAt?: (page: number) => number) => {
+  const show = (tabId: string, version: Version, selection: number[], baseline: PdfSource | null, pageAt?: (page: number) => number, keepPlace = false) => {
     const edits = editsFor(tabId);
     const tab = docTab(tabId);
     if (!tab || tab.source !== baseline) {
       throw new StaleEditError();
     }
     const previous = handles.current.get(tabId)?.viewer.viewState();
-    const page = Math.min(Math.max(0, selection[0] ?? version.page), version.count - 1);
+    const shown = keepPlace && previous ? previous.page - 1 : (selection[0] ?? version.page);
+    const page = Math.min(Math.max(0, shown), version.count - 1);
     const samePage = previous?.page === page + 1;
     const view = {
       ...previous,
@@ -151,6 +152,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
       selectionAfterEdit(edit, before.count, inserted),
       baseline,
       (old) => pageAfterEdit(edit, old, before.count, inserted),
+      edit.kind === "rotate",
     );
     edits.undo = trimHistory([...edits.undo, { ...before, bytes: original }]);
     edits.redo = [];
@@ -291,7 +293,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
       .catch(report);
 
   const runPageCommand = useCallback(
-    (id: CommandId) => {
+    (id: CommandId, explicit?: number[]) => {
       if (id === "combineFiles") {
         combineFiles();
         return true;
@@ -305,14 +307,14 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
       if (tab.kind !== "document" || !handle) {
         return false;
       }
-      const pages = handle.selectedPages();
+      const pages = explicit?.length ? explicit : handle.selectedPages();
       const generation = editsFor(tab.id).generation;
       const actions: Partial<Record<CommandId, () => unknown>> = {
         rotatePagesLeft: () => editPages(tab.id, { kind: "rotate", pages, by: -90 }),
         rotatePagesRight: () => editPages(tab.id, { kind: "rotate", pages, by: 90 }),
         deletePages: () => editPages(tab.id, { kind: "delete", pages }),
         flattenForm: () => editPages(tab.id, { kind: "flatten" }),
-        pageLabels: () => handle.editPageLabels(),
+        pageLabels: () => handle.editPageLabels(explicit?.length ? explicit : undefined),
         insertPages: () => insertFiles(tab.id, pickImages(true), Math.max(...pages) + 1),
         extractPages: () =>
           enqueue(tab.id, async () => {
@@ -342,22 +344,6 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         runCommand("deletePages");
       } else if (action.kind === "label") {
         editPages(tabId, { kind: "label", from: action.from, to: action.to, numbering: action.numbering });
-      } else {
-        const selected = handles.current.get(tabId)?.selectedPages() ?? [];
-        const count = selected.includes(action.page) ? selected.length : 1;
-        const plural = count > 1 ? `${count} Pages` : "Page";
-        showContextMenu([
-          { label: `Rotate ${plural} Left`, run: () => runCommand("rotatePagesLeft") },
-          { label: `Rotate ${plural} Right`, run: () => runCommand("rotatePagesRight") },
-          "-",
-          { label: `Extract ${plural} to New Tab`, run: () => runCommand("extractPages") },
-          { label: count > 1 ? `Export ${plural} as Images…` : "Export Page as Image…", run: () => runCommand("exportSelectedPagesAsImages") },
-          ...(canPrint ? [{ label: `Print ${plural}…`, run: () => runCommand("printSelectedPages") }] : []),
-          { label: "Insert Pages from File…", run: () => runCommand("insertPages") },
-          { label: "Page Labels…", run: () => runCommand("pageLabels") },
-          "-",
-          { label: `Delete ${plural}`, enabled: count < (snapshotsRef.current[tabId]?.pagesCount ?? 0), run: () => runCommand("deletePages") },
-        ]);
       }
     },
     [editPages],

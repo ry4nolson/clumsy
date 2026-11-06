@@ -62,7 +62,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
     }
   };
 
-  const printDocument = async (id: CommandId, tabId: string, name: string) => {
+  const printDocument = async (id: CommandId, tabId: string, name: string, explicit?: number[]) => {
     await settled(tabId);
     const handle = handles.current.get(tabId);
     const viewer = handle?.viewer;
@@ -70,7 +70,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
     if (!handle || !viewer || !doc) {
       return;
     }
-    const pages = pagesToPrint(id, handle.selectedPages(), doc.numPages);
+    const pages = pagesToPrint(id, explicit?.length ? explicit : handle.selectedPages(), doc.numPages);
     const saved = await viewer.save(true).catch((error) => {
       if (viewer.pdfDocument === doc) {
         throw error;
@@ -108,7 +108,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
     }
   };
 
-  const runPrintCommand = useCallback((id: CommandId) => {
+  const runPrintCommand = useCallback((id: CommandId, explicit?: number[]) => {
     if (!printCommands.has(id)) {
       return false;
     }
@@ -120,7 +120,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
     if (tab.kind === "markdown" && markdown && id === "print") {
       run(() => printMarkdown(markdown, tab.name), tab.id, tab.name);
     } else if (tab.kind === "document" && handles.current.get(tab.id)?.viewer.pdfDocument) {
-      run(() => printDocument(id, tab.id, tab.name), tab.id, tab.name);
+      run(() => printDocument(id, tab.id, tab.name, explicit), tab.id, tab.name);
     }
     return true;
   }, []);

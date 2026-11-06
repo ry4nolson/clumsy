@@ -383,6 +383,23 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     dismissing = hooks.isPopupPinned() || !!container.querySelector(".annotationEditorLayer .selectedEditor");
   };
 
+  const writable = () => !readOnly && !!doc && (viewer.pdfDocument ?? null) === doc;
+
+  const addAt = (pageDiv: HTMLElement, clientX: number, clientY: number) => {
+    const pageIndex = Number(pageDiv.dataset.pageNumber) - 1;
+    const view = pageView(pageIndex);
+    if (!view || !writable()) {
+      return false;
+    }
+    const box = pageDiv.getBoundingClientRect();
+    const point = view.viewport.convertToPdfPoint(clientX - box.left, clientY - box.top);
+    const id = `note-${crypto.randomUUID()}`;
+    drafts.forEach((_, draft) => targets.delete(draft));
+    drafts = new Map([[id, newNote(id, pageIndex, point, "", pdfDate(new Date()))]]);
+    hooks.editComment(target(id), clientX, clientY, { parentDimensions: box });
+    return true;
+  };
+
   const onClick = (event: MouseEvent) => {
     const layer = event.target as HTMLElement | null;
     const pageDiv = layer?.closest<HTMLElement>(".page");
@@ -396,17 +413,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
       hooks.hidePopup();
       return;
     }
-    const pageIndex = Number(pageDiv.dataset.pageNumber) - 1;
-    const view = pageView(pageIndex);
-    if (!view || (viewer.pdfDocument ?? null) !== doc) {
-      return;
-    }
-    const box = pageDiv.getBoundingClientRect();
-    const point = view.viewport.convertToPdfPoint(event.clientX - box.left, event.clientY - box.top);
-    const id = `note-${crypto.randomUUID()}`;
-    drafts.forEach((_, draft) => targets.delete(draft));
-    drafts = new Map([[id, newNote(id, pageIndex, point, "", pdfDate(new Date()))]]);
-    hooks.editComment(target(id), event.clientX, event.clientY, { parentDimensions: box });
+    addAt(pageDiv, event.clientX, event.clientY);
   };
 
   const onRendered = ({ source, isDetailView }: { source: { id: number }; isDetailView?: boolean }) => {
@@ -424,6 +431,8 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
 
   return {
     has: (id: string) => !!findNote(id),
+    writable,
+    addAt,
     async entries(): Promise<CommentEntry[]> {
       await loadAll();
       return allNotes()

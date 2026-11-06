@@ -3,10 +3,11 @@ import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { Menu, MenuItem, PredefinedMenuItem } from "@tauri-apps/api/menu";
+import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppKind, DefaultAppStatus } from "./defaultApp";
+import { flattenMenu, type DocumentMenuId, type DocumentMenuSpec, type FlatEntry } from "./documentMenu";
 import { isExternalUrl } from "./markdownLinks";
 import type { RecentEntry } from "./recent";
 import { decodeText, encodeText, ensureMarkdownExtension, isMarkdownName, type TextFormat } from "./textFile";
@@ -159,6 +160,45 @@ export async function showContextMenu(items: ContextMenuItem[]) {
     ),
   );
   await (await Menu.new({ items: entries })).popup();
+  return true;
+}
+
+async function fallbackEntry(entry: FlatEntry, choose: (id: DocumentMenuId) => void): Promise<MenuItem | CheckMenuItem | PredefinedMenuItem | Submenu> {
+  switch (entry.kind) {
+    case "separator":
+      return PredefinedMenuItem.new({ item: "Separator" });
+    case "copy":
+      return PredefinedMenuItem.new({ item: "Copy", text: entry.label });
+    case "copyText":
+      return MenuItem.new({ text: entry.label, action: () => void navigator.clipboard.writeText(entry.text).catch(() => undefined) });
+    case "header":
+      return MenuItem.new({ text: entry.label, enabled: false });
+    case "submenu":
+      return Submenu.new({ text: entry.label, items: await Promise.all(entry.items.map((child) => fallbackEntry(child, choose))) });
+    default: {
+      const options = { text: entry.label, enabled: entry.enabled ?? true, action: () => choose(entry.id) };
+      return entry.checked === undefined ? MenuItem.new(options) : CheckMenuItem.new({ ...options, checked: entry.checked });
+    }
+  }
+}
+
+export async function showDocumentMenu(spec: DocumentMenuSpec, point: { x: number; y: number }, choose: (id: DocumentMenuId) => void) {
+  if (!isDesktop) {
+    return false;
+  }
+  if (isMac) {
+    try {
+      const chosen = await invoke<DocumentMenuId | null>("show_document_menu", { spec, x: point.x, y: point.y });
+      if (chosen) {
+        choose(chosen);
+      }
+      return true;
+    } catch (error) {
+      console.warn("Native document menu failed, using the fallback", error);
+    }
+  }
+  const items = await Promise.all(flattenMenu(spec).map((entry) => fallbackEntry(entry, choose)));
+  await (await Menu.new({ items })).popup();
   return true;
 }
 

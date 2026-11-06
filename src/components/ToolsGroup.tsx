@@ -1,9 +1,11 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, MouseEvent, ReactNode } from "react";
 import { CalendarDays, Check, Dot, Eye, EyeOff, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Type, X } from "lucide-react";
 import { inkColors, toolOptions } from "../hooks/useEditorOptions";
 import { highlightColors, type EditorParams, type EditorTool } from "../hooks/usePdfViewer";
+import { defaultContextTools, readContextTools, withContextTool, writeContextTools } from "../lib/contextTools";
 import type { SignaturePreview } from "../lib/editorManagers";
 import type { MarkKind } from "../lib/marks";
+import { showContextMenu } from "../lib/platform";
 import { IconButton } from "./IconButton";
 import { SignaturePath } from "./SignatureDialog";
 
@@ -34,6 +36,19 @@ const marks: Array<{ kind: MarkKind; label: string; icon: ReactNode }> = [
   { kind: "date", label: "Today's date", icon: <CalendarDays size={16} /> },
 ];
 
+function toolMenu(tool: EditorTool) {
+  return (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const tools = readContextTools();
+    const included = tools.includes(tool);
+    showContextMenu([
+      { label: included ? "Remove from Context Menu" : "Add to Context Menu", run: () => writeContextTools(withContextTool(readContextTools(), tool, !included)) },
+      "-",
+      { label: "Reset Context Menu Tools", enabled: tools.join() !== defaultContextTools.join(), run: () => writeContextTools(null) },
+    ]);
+  };
+}
+
 export function ToolsGroup(props: ToolsProps) {
   const { tool, toolColor } = props;
   const inkTool = tool === "text" || tool === "draw";
@@ -42,31 +57,31 @@ export function ToolsGroup(props: ToolsProps) {
   const otherColor = inkTool && hexColor !== "" && !swatches.some((color) => color.toLowerCase() === hexColor);
   return (
     <div className="toolbar-group tools" data-tauri-drag-region onPointerDownCapture={props.onEndDrawing}>
-      <IconButton title="Select (V)" active={tool === "select"} onClick={() => props.onTool("select")}>
+      <IconButton title="Select (V)" active={tool === "select"} onContextMenu={toolMenu("select")} onClick={() => props.onTool("select")}>
         <MousePointer2 size={18} />
       </IconButton>
-      <IconButton title="Hand (hold Space)" active={tool === "hand"} onClick={() => props.onTool("hand")}>
+      <IconButton title="Hand (hold Space)" active={tool === "hand"} onContextMenu={toolMenu("hand")} onClick={() => props.onTool("hand")}>
         <Hand size={18} />
       </IconButton>
-      <IconButton title="Highlight (H)" active={tool === "highlight"} onClick={() => props.onTool("highlight")}>
+      <IconButton title="Highlight (H)" active={tool === "highlight"} onContextMenu={toolMenu("highlight")} onClick={() => props.onTool("highlight")}>
         <Highlighter size={18} />
       </IconButton>
-      <IconButton title="Text note (T)" active={tool === "text"} onClick={() => props.onTool("text")}>
+      <IconButton title="Text note (T)" active={tool === "text"} onContextMenu={toolMenu("text")} onClick={() => props.onTool("text")}>
         <Type size={18} />
       </IconButton>
-      <IconButton title="Draw (D)" active={tool === "draw"} onClick={() => props.onTool("draw")}>
+      <IconButton title="Draw (D)" active={tool === "draw"} onContextMenu={toolMenu("draw")} onClick={() => props.onTool("draw")}>
         <PenLine size={18} />
       </IconButton>
-      <IconButton title="Comments (C)" active={tool === "comment"} onClick={() => props.onTool("comment")}>
+      <IconButton title="Comments (C)" active={tool === "comment"} onContextMenu={toolMenu("comment")} onClick={() => props.onTool("comment")}>
         <MessageSquare size={18} />
       </IconButton>
-      <IconButton title="Add image" active={tool === "image"} onClick={props.onImage}>
+      <IconButton title="Add image" active={tool === "image"} onContextMenu={toolMenu("image")} onClick={props.onImage}>
         <ImagePlus size={18} />
       </IconButton>
-      <IconButton title="Sign" active={tool === "signature"} onClick={props.onSign}>
+      <IconButton title="Sign" active={tool === "signature"} onContextMenu={toolMenu("signature")} onClick={props.onSign}>
         <Signature size={18} />
       </IconButton>
-      <IconButton title="Fill in: click to place a checkmark, cross, dot, or date" active={tool === "mark"} onClick={() => props.onMark(props.mark ?? "check")}>
+      <IconButton title="Fill in: click to place a checkmark, cross, dot, or date" active={tool === "mark"} onContextMenu={toolMenu("mark")} onClick={() => props.onMark(props.mark ?? "check")}>
         <SquareCheck size={18} />
       </IconButton>
       {swatches.length > 0 && (

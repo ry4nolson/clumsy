@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Right-click menu on the page.** A row of tools across the top, then Copy, Highlight, and Comment for selected text, Open and Copy Link for web links, Add Comment Here, Go Back and Forward, a Zoom submenu, and everything the thumbnail menu does for the page you clicked (or the selected pages, if it's one of them), without scrolling to it. Right-click a tool on the toolbar to add it to the menu's row or take it out
+
 ### Changed
 - **Print** works for Markdown files too. It prints the rendered document, with its images, in light colors even in dark mode, with long code lines wrapped instead of cut off. Source view prints the rendered version of what's in the editor, unsaved edits included. Save as PDF in the print panel turns any Markdown file into a PDF
 - PDFs that are damaged in a way the system print panel can't read, and encrypted files that can't be decrypted for printing, now print as images instead of showing an error. Clumsy shows progress while it renders the pages, with Cancel

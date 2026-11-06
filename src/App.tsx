@@ -230,7 +230,7 @@ export default function App() {
     await (restart ? requestRestart() : requestQuit());
   };
 
-  const runCommand = (id: CommandId, fromMenu = false) => {
+  const runCommand = (id: CommandId, { fromMenu = false, pages }: { fromMenu?: boolean; pages?: number[] } = {}) => {
     const handle = activeHandle();
     const command = commandById.get(id);
     if (command && !documentAvailable(command, { hasDocument: hasDocument && !!handle, hasMarkdown })) {
@@ -239,7 +239,7 @@ export default function App() {
     if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
-    if (pageEdits.runPageCommand(id) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || imageExport.runExportCommand(id) || printing.runPrintCommand(id)) {
+    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || imageExport.runExportCommand(id, pages) || printing.runPrintCommand(id, pages)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -346,7 +346,7 @@ export default function App() {
   runCommandRef.current = runCommand;
 
   useAppMenu(
-    { onCommand: (id) => runCommand(id, true), onOpenRecent: openRecent },
+    { onCommand: (id) => runCommand(id, { fromMenu: true }), onOpenRecent: openRecent },
     {
       hasDocument,
       hasMarkdown,
@@ -463,6 +463,7 @@ export default function App() {
             onFailed: (id, error, source) => !pageEdits.documentFailed(id, source) && handleFailed(id, error),
             onOpenUrl: openExternal,
             onPageAction: (id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command)),
+            onMenuCommand: (id, pages) => runCommandRef.current(id, { pages }),
             onUndoRemoval: pageEdits.undoIn,
           }}
           markdownProps={{ sidebarOpen, documentMap, onSnapshot: handleMarkdownSnapshot, onLoaded: handleLoaded, onOpenUrl: openExternal, onOpenFile: markdown.openLinked }}
@@ -472,10 +473,7 @@ export default function App() {
           setMarkdownHandle={setMarkdownHandle}
         />
       </PaneGrid>
-      <PasswordDialog
-        request={passwords.current}
-        onSubmit={passwords.resolvePassword}
-      />
+      <PasswordDialog request={passwords.current} onSubmit={passwords.resolvePassword} />
       <UpdateDialog
         offer={updatePrompt.offer}
         updateInstall={updateInstall}

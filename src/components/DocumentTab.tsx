@@ -1,10 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { CompareView } from "../hooks/useComparison";
+import { useDocumentMenu } from "../hooks/useDocumentMenu";
 import { useEditorUi } from "../hooks/useEditorUi";
 import { useMapMarks } from "../hooks/useMapMarks";
 import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi, type ViewStart } from "../hooks/usePdfViewer";
 import { useScrolling } from "../hooks/useScrolling";
+import type { CommandId } from "../lib/commands";
 import type { ViewState } from "../lib/documentWindows";
 import type { SignaturePreview } from "../lib/editorManagers";
 import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
@@ -47,7 +49,6 @@ export type TabSnapshot = {
 
 export type PageAction =
   | { kind: "move"; pages: number[]; slot: number }
-  | { kind: "menu"; page: number }
   | { kind: "delete" }
   | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null };
 
@@ -58,7 +59,7 @@ export type DocumentHandle = {
   openFind: (query?: string) => void;
   closeFind: () => void;
   findAgain: (previous: boolean) => void;
-  editPageLabels: () => void;
+  editPageLabels: (pages?: number[]) => void;
 };
 
 export type DocumentTabProps = {
@@ -85,6 +86,7 @@ export type DocumentTabProps = {
   onFailed: (id: string, error: unknown, source: PdfSource) => void;
   onOpenUrl: (url: string) => void;
   onPageAction: (id: string, action: PageAction) => void;
+  onMenuCommand: (id: CommandId, pages: number[]) => void;
   onUndoRemoval: (id: string) => void;
   compare: CompareView | null;
 };
@@ -135,6 +137,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     onFailed,
     onOpenUrl,
     onPageAction,
+    onMenuCommand,
     onUndoRemoval,
     compare,
   },
@@ -272,6 +275,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     viewer.goToPage(destination + 1);
   };
 
+  const documentMenu = useDocumentMenu(viewer, () => followCurrentPage(selectionRef.current, viewer.pageNumber - 1).pages, onOpenUrl, onMenuCommand);
+
   const closeFind = useCallback(() => {
     setFindOpen(false);
     findRecorded.current = false;
@@ -308,9 +313,9 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           runFind(lastQuery.current, "again", previous);
         }
       },
-      editPageLabels: () => {
+      editPageLabels: (explicit) => {
         const current = viewer.pageNumber - 1;
-        const pages = targetPages(followCurrentPage(selectionRef.current, current), current);
+        const pages = explicit ?? targetPages(followCurrentPage(selectionRef.current, current), current);
         const range = pages.length > 1 ? [Math.min(...pages), Math.max(...pages)] : [current, runEnd(viewer.pageLabels, current, viewer.pagesCount)];
         setLabelsRequest({ pagesCount: viewer.pagesCount, labels: viewer.pageLabels, from: range[0], to: range[1] });
       },
@@ -337,19 +342,11 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         }
       }
     };
-    const onContextMenu = (event: MouseEvent) => {
-      const href = outsideHref(event);
-      if (href && !isExternalUrl(href)) {
-        event.preventDefault();
-      }
-    };
     container.addEventListener("click", onClick, true);
     container.addEventListener("auxclick", onClick, true);
-    container.addEventListener("contextmenu", onContextMenu, true);
     return () => {
       container.removeEventListener("click", onClick, true);
       container.removeEventListener("auxclick", onClick, true);
-      container.removeEventListener("contextmenu", onContextMenu, true);
     };
   }, [viewer.containerRef, onOpenUrl]);
 
@@ -369,7 +366,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           onMovePages={(page, slot) =>
             onPageAction(id, { kind: "move", pages: shownSelection.pages.includes(page) ? shownSelection.pages : [page], slot })
           }
-          onPageMenu={(page) => onPageAction(id, { kind: "menu", page })}
+          onPageMenu={documentMenu.pageMenu}
           onDeletePages={() => onPageAction(id, { kind: "delete" })}
           onNavigate={viewer.goToDestination}
           onOpenUrl={onOpenUrl}

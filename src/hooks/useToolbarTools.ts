@@ -2,21 +2,9 @@ import { AnnotationEditorParamsType } from "pdfjs-dist";
 import type { TabSnapshot } from "../components/DocumentTab";
 import type { ToolsProps } from "../components/ToolsGroup";
 import type { CommandId } from "../lib/commands";
+import { markCommands, toolCommand } from "../lib/contextTools";
 import { colorParams, type useEditorOptions } from "./useEditorOptions";
-import { markCommands } from "./useFormControls";
-import type { EditorTool, PdfViewerApi } from "./usePdfViewer";
-
-const toolCommands: Record<EditorTool, CommandId> = {
-  select: "toolSelect",
-  hand: "toolHand",
-  highlight: "toolHighlight",
-  text: "toolText",
-  draw: "toolDraw",
-  comment: "toolComment",
-  image: "addImage",
-  signature: "sign",
-  mark: "markCheck",
-};
+import type { PdfViewerApi } from "./usePdfViewer";
 
 export function useToolbarTools(
   activeViewer: () => PdfViewerApi | undefined,
@@ -34,7 +22,7 @@ export function useToolbarTools(
     editorParams: editorOptions.shown,
     highlightsShown,
     signatures: snapshot?.signatures ?? [],
-    onTool: (next) => runCommand(toolCommands[next]),
+    onTool: (next) => runCommand(toolCommand(next)),
     onEndDrawing: () => activeViewer()?.endDrawing(),
     onToolColor: (color) => colorParam !== undefined && editorOptions.change(colorParam, color),
     onEditorParam: editorOptions.change,

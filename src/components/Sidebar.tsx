@@ -17,7 +17,7 @@ type SidebarProps = {
   selection: number[];
   onSelectPage: (page: number, modifiers: SelectModifiers) => void;
   onMovePages: (page: number, slot: number) => void;
-  onPageMenu: (page: number) => void;
+  onPageMenu: (page: number, point: { x: number; y: number }) => void;
   onDeletePages: () => void;
   onNavigate: (dest: unknown) => void;
   onOpenUrl: (url: string) => void;

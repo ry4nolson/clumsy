@@ -63,9 +63,9 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     const { eventBus, hand, viewer } = parts;
     const placement = attachMarkPlacement(viewer.container, viewer);
     markRef.current.placement = placement;
-    const onPointerDown = ({ target, isPrimary }: PointerEvent) => {
+    const onPointerDown = ({ target, isPrimary, button }: PointerEvent) => {
       const ink = (viewer.annotationEditorMode as unknown as number) === AnnotationEditorType.INK;
-      if (ink && isPrimary && target instanceof HTMLElement && target.classList.contains("annotationEditorLayer")) {
+      if (ink && isPrimary && button === 0 && target instanceof HTMLElement && target.classList.contains("annotationEditorLayer")) {
         target.dispatchEvent(new PointerEvent("pointerup", { button: 0 }));
       }
     };
