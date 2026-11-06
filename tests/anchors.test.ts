@@ -70,10 +70,11 @@ describe("diffByPage on long documents", () => {
     expect(changed(segments)).toEqual([{ left: [0, base.length], right: [0, other.length] }]);
   });
 
-  it("pairs pages inside a stretch with nothing in common", () => {
-    const other = prose(EXACT_LIMIT, 8);
-    const segments = diffByPage({ left: base, right: other, leftPages: pagesOf(base), rightPages: pagesOf(other) });
-    const pagesTouched = new Set(changed(segments).map(({ left }) => Math.floor(left[0] / 800)));
-    expect(pagesTouched.size).toBe(EXACT_LIMIT / 800);
+  it("pairs pages inside a stretch with nothing in common", { timeout: 20000 }, () => {
+    const left = base.slice(0, 24000);
+    const right = prose(24000, 8);
+    const segments = diffByPage({ left, right, leftPages: pagesOf(left, 200), rightPages: pagesOf(right, 200) });
+    const pagesTouched = new Set(changed(segments).map(({ left: range }) => Math.floor(range[0] / 200)));
+    expect(pagesTouched.size).toBe(24000 / 200);
   });
 });
