@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.9] - 2026-11-06
+
 ### Changed
 - Clumsy now requires macOS 15.4 or later, the oldest version whose built-in web engine has what the PDF renderer needs. Macs on macOS 15.4 through 26.1 no longer depend on a newer Safari update to run it
 
