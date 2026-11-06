@@ -6,7 +6,7 @@ import type { ViewerScroll } from "../lib/documentMap";
 import { measureBlocks, offsetWithin, renderedLineAtTop, renderedOffsetOf, sanitizeMarkdownHtml } from "../lib/markdownDom";
 import type { MarkdownEditor } from "../lib/markdownEditor";
 import { isTypingTarget } from "../lib/commands";
-import { classifyHref, localImagePath } from "../lib/markdownLinks";
+import { anchorIds, classifyHref, localImagePath } from "../lib/markdownLinks";
 import { sourceLineAt, sourceViewport } from "../lib/markdownMap";
 import { readLinkedImage, type MarkdownSource } from "../lib/platform";
 import type { MarkdownMode, MarkdownViewState } from "../lib/tabs";
@@ -48,6 +48,11 @@ type MarkdownTabProps = {
 };
 
 const ZOOM_STEPS = [0.75, 0.85, 1, 1.15, 1.3, 1.5, 1.75, 2];
+
+const anchorSelector = (id: string) =>
+  anchorIds(id)
+    .flatMap((value) => [`[id="${CSS.escape(value)}"]`, `[name="${CSS.escape(value)}"]`])
+    .join(", ");
 
 export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function MarkdownTab(
   { id, paneId, column, source, path, initialView, active, sidebarOpen, documentMap, onSnapshot, onLoaded, onOpenUrl, onOpenFile },
@@ -348,7 +353,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
         return;
       }
       const box = containerRef.current;
-      const target = contentRef.current?.querySelector(`[id="${CSS.escape(heading.id)}"]`);
+      const target = contentRef.current?.querySelector(anchorSelector(heading.id));
       if (box && target) {
         heldLine.current = null;
         box.scrollTop = offsetWithin(box, target) - 12;
@@ -370,7 +375,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
       onOpenFile(path, target.path);
     } else if (target.kind === "anchor") {
       const box = containerRef.current;
-      const element = contentRef.current?.querySelector(`[id="${CSS.escape(target.id)}"], [name="${CSS.escape(target.id)}"]`);
+      const element = contentRef.current?.querySelector(anchorSelector(target.id));
       if (box && element) {
         heldLine.current = null;
         box.scrollTop = offsetWithin(box, element) - 12;

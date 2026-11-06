@@ -1,5 +1,6 @@
 mod default_app;
 mod files;
+mod navigation;
 mod recent;
 mod session;
 mod updates;
@@ -67,10 +68,6 @@ fn readable_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool
         let path = PathBuf::from(path);
         (kind(&path) && app.state::<LinkedPaths>().0.is_allowed(&path)).then_some(path).ok_or(err)
     })
-}
-
-fn is_app_url(url: &tauri::Url) -> bool {
-    matches!(url.scheme(), "tauri" | "about") || matches!(url.host_str(), Some("tauri.localhost" | "localhost" | "127.0.0.1"))
 }
 
 fn file_dialog<R: Runtime>(window: &Window<R>) -> FileDialogBuilder<R> {
@@ -389,7 +386,7 @@ pub fn run() {
         .manage(AllowedPaths::default())
         .manage(AllowedFolders::default())
         .manage(LinkedPaths::default())
-        .plugin(tauri::plugin::Builder::<tauri::Wry>::new("navigation-guard").on_navigation(|_, url| is_app_url(url)).build())
+        .plugin(navigation::guard())
         .manage(Documents::default())
         .manage(QuitPrompt::default())
         .manage(Updates::default())
@@ -467,17 +464,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{discard_prompt, is_app_url};
-
-    #[test]
-    fn keeps_windows_on_the_app() {
-        for url in ["tauri://localhost/index.html?transfer=1", "http://tauri.localhost/", "http://localhost:1420/", "about:blank"] {
-            assert!(is_app_url(&url.parse().unwrap()), "{url}");
-        }
-        for url in ["https://evil.example/", "file:///etc/passwd", "http://localhost.evil.example/"] {
-            assert!(!is_app_url(&url.parse().unwrap()), "{url}");
-        }
-    }
+    use super::discard_prompt;
 
     #[test]
     fn names_the_documents_that_would_be_discarded() {

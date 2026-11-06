@@ -9,6 +9,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Comparing long documents (hundreds of pages) where pages were added or removed no longer marks nearly everything after the first such page as changed. Comparing two revisions of a 1,200-page file now takes about 3 seconds instead of 27 and finds the real changes
+- Clicking math in a Markdown file that carries a link, or choosing Open Link, Back, or Reload from the right-click menu, no longer reloads the window and throws away every unsaved tab in it
+- Markdown files can no longer cover the toolbar and tabs with fixed-position content, pop up boxes over the whole window, or clash with the app's own element names
+- Links in a PDF or Markdown file only open web and mail addresses. A PDF link to a phone number (`tel:`) or another app no longer starts a call or opens that app
 - Comparing two very different long documents no longer builds a sidebar and Document Map with over a million elements. The Changes list shows 400 changes at a time around the one in view, with buttons to show more
 
 ## [0.10.6] - 2026-11-05
