@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { commands, displayCombo, type Command, type MenuName } from "../lib/commands";
+import { commands, displayCombo, platformSupports, type Command, type MenuName } from "../lib/commands";
+import { canPrint } from "../lib/platform";
 
 const groupOrder: Array<MenuName | "Tabs"> = ["File", "Edit", "View", "Go", "Pages", "Tools", "Window", "Tabs", "Help"];
 
@@ -9,7 +10,7 @@ function shortcutRows(isMac: boolean) {
   const groups = new Map<string, Row[]>();
   const add = (group: string, row: Row) => groups.set(group, [...(groups.get(group) ?? []), row]);
   for (const command of commands) {
-    if (!command.combos.length || command.id === "escape" || /^tab\d$/.test(command.id)) {
+    if (!command.combos.length || command.id === "escape" || /^tab\d$/.test(command.id) || !platformSupports(command, { canPrint })) {
       continue;
     }
     add(command.menu ?? "Tabs", { label: command.label, keys: command.combos.map((combo) => displayCombo(combo, isMac)) });

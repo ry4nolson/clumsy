@@ -2,7 +2,8 @@ import { PageEditError, type PageEdit } from "./pageEditPlan";
 
 export type PageEditJob =
   | { op: "edit"; bytes: Uint8Array; edit: PageEdit }
-  | { op: "extract"; bytes: Uint8Array; pages: number[] }
+  | { op: "extract"; bytes: Uint8Array; pages: number[]; password?: string }
+  | { op: "decrypt"; bytes: Uint8Array; password?: string }
   | { op: "combine"; files: Uint8Array[] };
 
 export type PageEditResult = { bytes: Uint8Array; original?: Uint8Array; inserted?: number };
@@ -20,6 +21,7 @@ export function jobBuffers(job: PageEditJob) {
     case "edit":
       return buffersOf([job.bytes, job.edit.kind === "insert" ? job.edit.data : undefined]);
     case "extract":
+    case "decrypt":
       return buffersOf([job.bytes]);
     case "combine":
       return buffersOf(job.files);

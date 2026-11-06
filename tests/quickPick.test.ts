@@ -18,6 +18,13 @@ describe("paletteItems", () => {
     expect(items.find((item) => item.id === "combineFiles")?.hint).toBeNull();
   });
 
+  it("lists Print only where the platform can print", () => {
+    const ids = (canPrint: boolean) => paletteItems({ hasDocument: true, split: true, comparing: true, isMac: true, canPrint }).map((item) => item.id);
+    expect(ids(true)).toEqual(expect.arrayContaining(["print", "printSelectedPages"]));
+    expect(ids(false)).not.toContain("print");
+    expect(ids(false)).not.toContain("printSelectedPages");
+  });
+
   it("leaves out itself, Escape, and the tab number commands", () => {
     const ids = paletteItems({ hasDocument: true, split: true, comparing: true, isMac: true }).map((item) => item.id);
     expect(ids).not.toContain("commandPalette");

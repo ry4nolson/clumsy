@@ -33,6 +33,7 @@ Clumsy is a small, fast PDF (and Markdown) viewer. It opens PDFs in tabs and let
 **Comparing and exporting**
 - Compare two PDFs side by side. Changed, added, and removed text is highlighted on both, with a list of every change, linked scrolling, and an exportable report.
 - Export pages as PNG or JPEG at 72, 150, or 300 dpi.
+- Print (⌘P) the whole document or just the selected pages, with unsaved markup and form answers, through the system print panel (preview, page ranges, Save as PDF).
 
 **Markdown**
 - `.md` files open formatted: tables, task lists, footnotes, code highlighting, images next to the file, and links to other Markdown files and PDFs.
@@ -41,7 +42,7 @@ Clumsy is a small, fast PDF (and Markdown) viewer. It opens PDFs in tabs and let
 - Files reload on their own when another app changes them, as long as you haven't edited them.
 
 **Getting around**
-- Command Palette (⇧⌘P) and Go to File (⌘P), with shortcuts that follow VS Code's where they can. ⌘K lists them all.
+- Command Palette (⇧⌘P) and Go to File (⌥⌘P), with shortcuts that follow VS Code's where they can. ⌘K lists them all.
 - Recent files, Reopen Closed Tab (⇧⌘T), and Save All (⌥⌘S).
 - Can be your default app for PDFs and Markdown files (Clumsy menu).
 - Updates install from inside the app, and restarting brings every window and tab back where it was.

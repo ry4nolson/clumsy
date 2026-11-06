@@ -35,6 +35,9 @@ export async function applyPageEditOffThread(bytes: Uint8Array, edit: PageEdit) 
   return { bytes: result.bytes, original: result.original ?? bytes, inserted: result.inserted ?? 0 };
 }
 
-export const extractPagesOffThread = async (bytes: Uint8Array, pages: number[]) => (await runInWorker(spawn, { op: "extract", bytes, pages })).bytes;
+export const extractPagesOffThread = async (bytes: Uint8Array, pages: number[], password?: string) =>
+  (await runInWorker(spawn, { op: "extract", bytes, pages, password })).bytes;
+
+export const decryptPdfOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "decrypt", bytes, password })).bytes;
 
 export const combinePdfsOffThread = async (files: Uint8Array[]) => (await runInWorker(spawn, { op: "combine", files })).bytes;
