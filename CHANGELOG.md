@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Clumsy now requires macOS 15.4 or later, the oldest version whose built-in web engine has what the PDF renderer needs. Macs on macOS 15.4 through 26.1 no longer depend on a newer Safari update to run it
+
 ### Fixed
 - Markdown files can no longer load images or open files outside their own folder, or outside their repository when they're in one, through absolute paths, `..`, or symlinks
 - Images picked for New PDF from Images, Insert Pages, or a signature, and images dropped on the window, are now only ever read, never written
