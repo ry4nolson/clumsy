@@ -56,6 +56,9 @@ export function PasswordSetDialog({ request, onSet, onClose }: PasswordSetDialog
             className="text-input"
             type={type}
             autoComplete="new-password"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             autoFocus
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -68,6 +71,9 @@ export function PasswordSetDialog({ request, onSet, onClose }: PasswordSetDialog
             className="text-input"
             type={type}
             autoComplete="new-password"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             value={confirm}
             onChange={(event) => setConfirm(event.target.value)}
           />
