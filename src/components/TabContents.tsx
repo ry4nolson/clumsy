@@ -8,7 +8,7 @@ import { Welcome, type WelcomeProps } from "./Welcome";
 
 const MarkdownTab = lazy(() => import("./MarkdownTab").then((module) => ({ default: module.MarkdownTab })));
 
-type SharedDocumentProps = Omit<DocumentTabProps, "id" | "paneId" | "column" | "source" | "initialView" | "initialSelection" | "active" | "caretBrowsing" | "compare">;
+type SharedDocumentProps = Omit<DocumentTabProps, "id" | "paneId" | "column" | "source" | "protection" | "initialView" | "initialSelection" | "active" | "caretBrowsing" | "compare">;
 
 type SharedMarkdownProps = {
   sidebarOpen: boolean;
@@ -71,6 +71,7 @@ export function TabContents({ workspace, welcome, documentProps, markdownProps, 
           paneId={pane.id}
           column={column}
           source={tab.source}
+          protection={tab.protection}
           initialView={tab.view}
           initialSelection={tab.selection}
           active={active}

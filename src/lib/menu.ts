@@ -50,6 +50,9 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "-",
       "revealInFinder",
       "-",
+      "setPassword",
+      "removePassword",
+      "-",
       "print",
     ],
   ],
@@ -212,6 +215,7 @@ export type MenuState = {
   invertImages: boolean;
   caretBrowsing: boolean;
   hasForm: boolean;
+  isProtected: boolean;
   fieldHighlights: boolean;
 } & ViewModes;
 
@@ -248,6 +252,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const splitItems: MenuItem[] = [];
   const comparisonItems: MenuItem[] = [];
   const formItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
+  const protectionItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
   const recentMenu = await Submenu.new({ text: "Open Recent", items: [] });
 
   const commandItem = async (id: CommandId) => {
@@ -269,6 +274,8 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     }
     if (command.needsForm) {
       formItems.push([command, item]);
+    } else if (command.needsProtection) {
+      protectionItems.push([command, item]);
     } else if (command.needsDocument || command.needsMarkdown) {
       documentItems.push([command, item]);
     }
@@ -316,6 +323,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
         ...splitItems.map((item) => item.setEnabled(state.split)),
         ...comparisonItems.map((item) => item.setEnabled(state.comparing)),
         ...formItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state) && state.hasForm)),
+        ...protectionItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state) && state.isProtected)),
         checkItems.get("toggleDocumentMap")?.setEnabled(state.documentMapAvailable),
         ...[...checkItems].map(([id, item]) => item.setChecked(checked.has(id))),
       ]);

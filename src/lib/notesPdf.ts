@@ -1,6 +1,10 @@
-import { EncryptedPDFError, PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext } from "@cantoo/pdf-lib";
+import { EncryptedPDFError, PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext } from "@cantoo/pdf-lib";
 import type { StickyNote } from "./notes";
-import { pageLeafRefs } from "./pdfStructure";
+import { installDecryptedStrings, loadDecrypting } from "./pdfDecrypt";
+import { collectGarbage, pageLeafRefs } from "./pdfStructure";
+import { hasEncryptEntry } from "./protection";
+
+installDecryptedStrings();
 
 const POPUP_WIDTH = 180;
 const POPUP_HEIGHT = 100;
@@ -99,14 +103,30 @@ function updateNote(context: PDFContext, note: PDFDict, { text, date, rect }: St
   }
 }
 
-async function loadForUpdate(bytes: Uint8Array, forIncrementalUpdate: boolean) {
+async function loadForUpdate(bytes: Uint8Array, forIncrementalUpdate: boolean, password?: string) {
   try {
-    return await PDFDocument.load(bytes, { forIncrementalUpdate, updateMetadata: false });
+    return await loadDecrypting(bytes, { forIncrementalUpdate, updateMetadata: false, password });
   } catch (error) {
-    if (error instanceof EncryptedPDFError) {
-      throw new NoteSaveError("Comments can't be saved in password-protected PDFs yet.");
+    if (error instanceof EncryptedPDFError || (error instanceof Error && /^(NEEDS PASSWORD|Password incorrect)/.test(error.message))) {
+      throw new NoteSaveError("Comments couldn't be saved because this PDF's password didn't work.");
     }
     throw error;
+  }
+}
+
+async function loadForNotes(bytes: Uint8Array, password: string) {
+  const decrypting = async () => ({ doc: await loadForUpdate(bytes, false, password), incremental: false, decrypted: true });
+  if (hasEncryptEntry(bytes) === true) {
+    return decrypting();
+  }
+  try {
+    const appendable = await loadForUpdate(bytes, true);
+    return { doc: appendable, incremental: hasXrefAt(bytes, appendable.context.pdfFileDetails.prevStartXRef), decrypted: false };
+  } catch (error) {
+    if (!(error instanceof NoteSaveError)) {
+      throw error;
+    }
+    return decrypting();
   }
 }
 
@@ -116,13 +136,13 @@ export function hasXrefAt(bytes: Uint8Array, offset: number) {
   return offset > 0 && offset < bytes.length && /^\s*(xref|\d+\s+\d+\s+obj\b)/.test(latin1.decode(bytes.subarray(offset, offset + 40)));
 }
 
-export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[]) {
+export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[], password = "") {
   if (!notes.length) {
     return bytes;
   }
-  const appendable = await loadForUpdate(bytes, true);
-  const incremental = hasXrefAt(bytes, appendable.context.pdfFileDetails.prevStartXRef);
-  const doc = incremental ? appendable : await loadForUpdate(bytes, false);
+  const loaded = await loadForNotes(bytes, password);
+  const { incremental, decrypted } = loaded;
+  const doc = incremental || decrypted ? loaded.doc : await loadForUpdate(bytes, false);
   const { context } = doc;
   const pages = pageLeafRefs(doc);
   for (const note of notes) {
@@ -148,5 +168,11 @@ export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[]) {
       updateNote(context, existing, note);
     }
   }
-  return incremental ? doc.commit() : doc.save({ addDefaultPage: false, updateFieldAppearances: false });
+  if (incremental) {
+    return doc.commit();
+  }
+  if (decrypted) {
+    collectGarbage(doc);
+  }
+  return doc.save({ addDefaultPage: false, updateFieldAppearances: false });
 }

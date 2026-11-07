@@ -5,6 +5,7 @@ import { WebviewWindow, getAllWebviewWindows, getCurrentWebviewWindow } from "@t
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { isDesktop, markdownSource, readDocumentFromPath, type DocumentSource } from "./platform";
 import type { NavHistory } from "./navHistory";
+import type { Protection } from "./protection";
 import type { AnyViewState } from "./tabs";
 import type { ScrollModeName, SpreadModeName } from "./viewModes";
 
@@ -25,6 +26,7 @@ export type TabTransfer =
       kind: "document";
       format?: "markdown";
       transferId?: string;
+      passwordId?: string;
       name: string;
       path: string | null;
       stamp: string | null;
@@ -54,6 +56,21 @@ export async function stashTransferBytes(bytes: Uint8Array) {
 
 export async function takeTransferBytes(id: string) {
   return new Uint8Array(await invoke<ArrayBuffer>("take_transfer", { id }));
+}
+
+export async function stashTransferPassword(protection: Protection | undefined) {
+  return protection ? stashTransferBytes(new TextEncoder().encode(protection.password)) : undefined;
+}
+
+export async function transferProtection(transfer: Extract<TabTransfer, { kind: "document" }>): Promise<Protection | undefined> {
+  return transfer.passwordId ? { password: new TextDecoder().decode(await takeTransferBytes(transfer.passwordId)) } : undefined;
+}
+
+export async function discardTransfer(transfer: TabTransfer) {
+  if (transfer.kind === "document") {
+    const ids = [transfer.transferId, transfer.passwordId].filter((id): id is string => !!id);
+    await Promise.all(ids.map((id) => takeTransferBytes(id).catch(() => undefined)));
+  }
 }
 
 export async function transferSource(transfer: Extract<TabTransfer, { kind: "document" }>): Promise<DocumentSource> {

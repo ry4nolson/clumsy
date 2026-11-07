@@ -127,12 +127,35 @@ describe("applyPageEdit", () => {
     expect(moved.getPage(0).node.Annots()?.size()).toBe(1);
   });
 
-  it("explains password-protected files", async () => {
+  it("edits password-protected files with their password and returns plain bytes", async () => {
     const doc = await PDFDocument.create();
+    doc.addPage();
     doc.addPage();
     doc.encrypt({ userPassword: "secret", ownerPassword: "owner" });
     const locked = await doc.save();
-    await expect(applyPageEdit(locked, { kind: "delete", pages: [0] })).rejects.toThrow(/password-protected/);
+    await expect(applyPageEdit(locked, { kind: "delete", pages: [0] })).rejects.toThrow(/password didn't work/);
+    await expect(applyPageEdit(locked, { kind: "delete", pages: [0] }, "wrong")).rejects.toBeInstanceOf(PageEditError);
+    const edited = await PDFDocument.load(await applyPageEdit(locked, { kind: "delete", pages: [0] }, "secret"));
+    expect(edited.isEncrypted).toBe(false);
+    expect(edited.getPageCount()).toBe(1);
+  });
+
+  it("edits owner-only files without asking for a password", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage();
+    doc.addPage();
+    doc.encrypt({ ownerPassword: "owner", permissions: { printing: false, copying: false } });
+    const edited = await PDFDocument.load(await applyPageEdit(await doc.save(), { kind: "rotate", pages: [1], by: 90 }));
+    expect(edited.isEncrypted).toBe(false);
+    expect(edited.getPage(1).getRotation().angle).toBe(90);
+  });
+
+  it("refuses to insert pages from a password-protected file", async () => {
+    const locked = await PDFDocument.create();
+    locked.addPage();
+    locked.encrypt({ userPassword: "secret", ownerPassword: "owner" });
+    const bytes = await makePdf([100]);
+    await expect(applyPageEdit(bytes, { kind: "insert", data: await locked.save(), at: 0 })).rejects.toThrow(/password-protected PDF/);
   });
 });
 

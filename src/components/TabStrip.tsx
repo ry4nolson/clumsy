@@ -1,14 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { FileCode2, FileText, House, LoaderCircle, Plus, X } from "lucide-react";
-
-export type TabItem = {
-  id: string;
-  title: string;
-  kind: "start" | "document" | "markdown";
-  loading: boolean;
-  modified: boolean;
-  tooltip?: string;
-};
+import { FileCode2, FileLock, FileText, House, LoaderCircle, Plus, X } from "lucide-react";
+import type { TabItem } from "../lib/tabs";
 
 type TabStripProps = {
   paneId: string;
@@ -31,6 +23,9 @@ function TabIcon({ tab }: { tab: TabItem }) {
   }
   if (tab.kind === "start") {
     return <House size={14} />;
+  }
+  if (tab.locked) {
+    return <FileLock size={14} aria-label="Password protected" />;
   }
   return tab.kind === "markdown" ? <FileCode2 size={14} /> : <FileText size={14} />;
 }

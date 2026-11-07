@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
+  discardTransfer,
   documentWindowAt,
   initialTransfer,
   onReceiveTab,
   openDocumentWindow,
   sendTabToWindow,
   stashTransferBytes,
+  stashTransferPassword,
+  transferProtection,
   transferSource,
   type TabTransfer,
 } from "../lib/documentWindows";
+import { encryptPdfOffThread } from "../lib/pageEditWorker";
 import { closeWindow, showError } from "../lib/platform";
+import { bytesForDisk } from "../lib/protection";
 import { encodeText } from "../lib/textFile";
 import { createStartTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
@@ -56,13 +61,15 @@ export async function captureTab(
   if (!handle || !snapshotsRef.current[tabId]?.loaded) {
     return null;
   }
-  const bytes = await handle.viewer.save();
-  if (!bytes) {
+  const saved = await handle.viewer.save();
+  if (!saved) {
     return null;
   }
+  const bytes = keepBytes ? saved : await bytesForDisk(saved, tab.protection, encryptPdfOffThread);
   return {
     kind: "document",
     transferId: await stashTransferBytes(bytes),
+    passwordId: keepBytes ? await stashTransferPassword(tab.protection) : undefined,
     name: tab.name,
     path: tab.path,
     stamp: tab.stamp,
@@ -80,7 +87,8 @@ export function useTabTransfer(api: WorkspaceApi, settled: (tabId: string) => Pr
         return;
       }
       try {
-        await openSource(await transferSource(transfer), { view: transfer.view, carriedChanges: transfer.modified, allowDuplicate: true });
+        const protection = await transferProtection(transfer);
+        await openSource(await transferSource(transfer), { view: transfer.view, carriedChanges: transfer.modified, allowDuplicate: true, protection });
       } catch (error) {
         await showError(`Could not move “${transfer.name}” here.\n\n${error instanceof Error ? error.message : String(error)}`);
       }
@@ -116,10 +124,15 @@ export function useTabTransfer(api: WorkspaceApi, settled: (tabId: string) => Pr
       return;
     }
     const lastTab = Object.keys(workspaceRef.current.tabs).length === 1;
-    if (merging) {
-      await sendTabToWindow(destination.label, transfer);
-    } else {
-      await openDocumentWindow(transfer, destination.at);
+    try {
+      if (merging) {
+        await sendTabToWindow(destination.label, transfer);
+      } else {
+        await openDocumentWindow(transfer, destination.at);
+      }
+    } catch (error) {
+      await discardTransfer(transfer);
+      throw error;
     }
     dropTab(tabId);
     if (lastTab) {

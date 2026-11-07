@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPaneId, createStartTab, createTabId, isModified, type DocTab } from "../src/lib/tabs";
+import { createFileTab, createPaneId, createStartTab, createTabId, isModified, tabItemFor, type DocTab } from "../src/lib/tabs";
 
 const documentTab = (overrides: Partial<DocTab> = {}): DocTab => ({
   id: "doc",
@@ -34,5 +34,21 @@ describe("isModified", () => {
 
   it("stays modified for changes carried over from another window", () => {
     expect(isModified(documentTab({ carriedChanges: true }), {})).toBe(true);
+  });
+});
+
+describe("tabItemFor", () => {
+  it("shows a lock and says so in the tooltip for protected PDFs", () => {
+    const item = tabItemFor(documentTab({ protection: { password: "secret" } }), { doc: { modified: false, loaded: true } });
+    expect(item).toMatchObject({ locked: true, loading: false, modified: false, tooltip: "/a.pdf\nPassword protected" });
+    expect(JSON.stringify(item)).not.toContain("secret");
+    expect(tabItemFor(documentTab(), {})).toMatchObject({ locked: false, loading: true, tooltip: "/a.pdf" });
+    expect(tabItemFor(createStartTab(), {})).toMatchObject({ kind: "start", title: "Start" });
+  });
+
+  it("carries protection into tabs opened with it", () => {
+    const source = { name: "a.pdf", path: null, data: new Uint8Array() };
+    expect(createFileTab(source, { protection: { password: "pw" } })).toMatchObject({ kind: "document", protection: { password: "pw" } });
+    expect(createFileTab(source, {})).not.toHaveProperty("protection");
   });
 });

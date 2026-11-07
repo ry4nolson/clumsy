@@ -98,7 +98,7 @@ describe("runInWorker", () => {
     const { spawn } = spawner();
     const edit = runInWorker(spawn, { op: "edit", bytes: await doc.save(), edit: { kind: "delete", pages: [0] } });
     await expect(edit).rejects.toBeInstanceOf(PageEditError);
-    await expect(edit).rejects.toThrow(/password-protected/);
+    await expect(edit).rejects.toThrow(/password didn't work/);
   });
 
   it("passes other errors on as plain errors", async () => {

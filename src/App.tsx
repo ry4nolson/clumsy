@@ -9,7 +9,6 @@ import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import type { SidebarTab } from "./components/Sidebar";
 import { TabContents } from "./components/TabContents";
 import { UpdateDialog } from "./components/UpdateDialog";
-import type { TabItem } from "./components/TabStrip";
 import { Toolbar } from "./components/Toolbar";
 import { useAppMenu } from "./hooks/useAppMenu";
 import { useComparison } from "./hooks/useComparison";
@@ -59,7 +58,7 @@ import {
   setWindowTitle,
 } from "./lib/platform";
 import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
-import { createPaneId, createStartTab, isFileTab, isModified } from "./lib/tabs";
+import { createPaneId, createStartTab, isFileTab, isModified, tabItemFor } from "./lib/tabs";
 import * as ws from "./lib/workspace";
 import { repoUrl } from "./lib/updates";
 
@@ -127,6 +126,7 @@ export default function App() {
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
   const hasDocument = !!activeSnapshot?.loaded;
   const hasForm = hasDocument && !!activeSnapshot?.hasForm;
+  const isProtected = hasDocument && activeTab.kind === "document" && !!activeTab.protection;
   const markdownSnapshot = activeTab.kind === "markdown" ? markdownSnapshots[activeTab.id] : undefined;
   const hasMarkdown = !!markdownSnapshot;
   const allSnapshots = { ...snapshots, ...markdownSnapshots };
@@ -196,6 +196,7 @@ export default function App() {
     hasDocument,
     hasMarkdown,
     hasForm,
+    isProtected,
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
     canPrint,
@@ -357,6 +358,7 @@ export default function App() {
       darkPages,
       invertImages: darkPagesImages === "invert",
       hasForm,
+      isProtected,
       fieldHighlights: forms.fieldHighlights,
       ...viewMenuState,
     },
@@ -373,21 +375,7 @@ export default function App() {
     }
   });
 
-  const tabItems: Record<string, TabItem> = Object.fromEntries(
-    Object.values(workspace.tabs).map((tab) => [
-      tab.id,
-      tab.kind === "start"
-        ? { id: tab.id, kind: "start", title: "Start", loading: false, modified: false }
-        : {
-            id: tab.id,
-            kind: tab.kind,
-            title: tab.name,
-            tooltip: tab.path ?? tab.name,
-            loading: !allSnapshots[tab.id]?.loaded,
-            modified: isModified(tab, allSnapshots),
-          },
-    ]),
-  );
+  const tabItems = Object.fromEntries(Object.values(workspace.tabs).map((tab) => [tab.id, tabItemFor(tab, allSnapshots)]));
 
   const viewer = activeHandle()?.viewer;
 
@@ -456,10 +444,11 @@ export default function App() {
             onDocumentSidebar: showSidebar,
             requestPassword: passwords.requestPassword,
             onSnapshot: handleSnapshot,
-            onLoaded: (id, source) => {
+            onLoaded: (id, source, protection) => {
               handleLoaded(id);
-              pageEdits.documentLoaded(id, source);
+              pageEdits.documentLoaded(id, source, protection);
             },
+            onOwnerPassword: pageEdits.ownerPasswordUsed,
             onFailed: (id, error, source) => !pageEdits.documentFailed(id, source) && handleFailed(id, error),
             onOpenUrl: openExternal,
             onPageAction: (id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command)),

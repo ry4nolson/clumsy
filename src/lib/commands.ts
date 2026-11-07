@@ -14,6 +14,8 @@ export type CommandId =
   | "exportSelectedPagesAsImages"
   | "print"
   | "printSelectedPages"
+  | "setPassword"
+  | "removePassword"
   | "compareWithFile"
   | "compareSplitPanes"
   | "exportComparison"
@@ -120,6 +122,7 @@ export type Command = {
   needsSplit?: boolean;
   needsComparison?: boolean;
   needsForm?: boolean;
+  needsProtection?: boolean;
   needsPrinting?: boolean;
 };
 
@@ -152,6 +155,8 @@ export const commands: Command[] = [
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
   { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true },
+  { id: "setPassword", label: "Set Password…", menu: "File", combos: [], needsDocument: true },
+  { id: "removePassword", label: "Remove Password", menu: "File", combos: [], needsDocument: true, needsProtection: true },
   { id: "print", label: "Print…", menu: "File", combos: ["mod+p"], needsDocument: true, markdown: true, needsPrinting: true },
 
   { id: "undo", label: "Undo", menu: "Edit", combos: ["mod+z"] },
@@ -251,7 +256,15 @@ export const commands: Command[] = [
 
 export const commandById = new Map(commands.map((command) => [command.id, command]));
 
-export type CommandContext = { hasDocument: boolean; hasMarkdown?: boolean; hasForm?: boolean; split: boolean; comparing: boolean; canPrint?: boolean };
+export type CommandContext = {
+  hasDocument: boolean;
+  hasMarkdown?: boolean;
+  hasForm?: boolean;
+  isProtected?: boolean;
+  split: boolean;
+  comparing: boolean;
+  canPrint?: boolean;
+};
 
 export const platformSupports = (command: Command, { canPrint = false }: Pick<CommandContext, "canPrint">) => !command.needsPrinting || canPrint;
 
@@ -268,6 +281,7 @@ export function commandAvailable(command: Command, context: CommandContext) {
     (context.split || !command.needsSplit) &&
     (context.comparing || !command.needsComparison) &&
     (!!context.hasForm || !command.needsForm) &&
+    (!!context.isProtected || !command.needsProtection) &&
     platformSupports(command, context)
   );
 }

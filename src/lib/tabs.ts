@@ -1,5 +1,6 @@
 import type { ViewState } from "./documentWindows";
 import type { DocumentSource, MarkdownSource, PdfSource } from "./platform";
+import type { Protection } from "./protection";
 
 export type StartTab = { id: string; kind: "start" };
 
@@ -15,6 +16,7 @@ export type DocTab = {
   selection?: number[];
   carriedChanges: boolean;
   stamp: string | null;
+  protection?: Protection;
 };
 
 export type MarkdownMode = "rendered" | "source";
@@ -40,7 +42,7 @@ export type Tab = StartTab | FileTab;
 
 export type AnyViewState = ViewState | MarkdownViewState;
 
-export type OpenOptions = { split?: boolean; view?: AnyViewState; carriedChanges?: boolean; allowDuplicate?: boolean };
+export type OpenOptions = { split?: boolean; view?: AnyViewState; carriedChanges?: boolean; allowDuplicate?: boolean; protection?: Protection };
 
 let tabCounter = 0;
 let paneCounter = 0;
@@ -51,7 +53,7 @@ export const createPaneId = () => `pane-${++paneCounter}`;
 
 export function createFileTab(
   source: DocumentSource,
-  options: Pick<OpenOptions, "view" | "carriedChanges">,
+  options: Pick<OpenOptions, "view" | "carriedChanges" | "protection">,
   replaces: string | null = null,
   returnTo: string | null = null,
 ): FileTab {
@@ -67,7 +69,7 @@ export function createFileTab(
   const { view } = options;
   return "text" in source
     ? { ...common, kind: "markdown", source, view: isMarkdownView(view) ? view : undefined }
-    : { ...common, kind: "document", source, view: isMarkdownView(view) ? undefined : view };
+    : { ...common, kind: "document", source, view: isMarkdownView(view) ? undefined : view, ...(options.protection ? { protection: options.protection } : {}) };
 }
 
 export const isFileTab = (tab: Tab | undefined): tab is FileTab => tab?.kind === "document" || tab?.kind === "markdown";
@@ -76,3 +78,30 @@ export const isMarkdownView = (view: AnyViewState | undefined): view is Markdown
 
 export const isModified = (tab: Tab | undefined, snapshots: Record<string, { modified: boolean } | undefined>) =>
   isFileTab(tab) && (!!snapshots[tab.id]?.modified || tab.carriedChanges);
+
+export type TabItem = {
+  id: string;
+  title: string;
+  kind: "start" | "document" | "markdown";
+  loading: boolean;
+  modified: boolean;
+  locked?: boolean;
+  tooltip?: string;
+};
+
+export function tabItemFor(tab: Tab, snapshots: Record<string, { modified: boolean; loaded?: boolean } | undefined>): TabItem {
+  if (tab.kind === "start") {
+    return { id: tab.id, kind: "start", title: "Start", loading: false, modified: false };
+  }
+  const locked = tab.kind === "document" && !!tab.protection;
+  const location = tab.path ?? tab.name;
+  return {
+    id: tab.id,
+    kind: tab.kind,
+    title: tab.name,
+    tooltip: locked ? `${location}\nPassword protected` : location,
+    loading: !snapshots[tab.id]?.loaded,
+    modified: isModified(tab, snapshots),
+    locked,
+  };
+}

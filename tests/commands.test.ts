@@ -81,6 +81,15 @@ describe("commandAvailable", () => {
     expect(commandById.get("printSelectedPages")?.menu).toBe("Pages");
   });
 
+  it("offers Set Password for any PDF and Remove Password only for protected ones", () => {
+    expect(available("setPassword", pdfTab)).toBe(true);
+    expect(available("setPassword", markdownTab)).toBe(false);
+    expect(available("removePassword", pdfTab)).toBe(false);
+    expect(available("removePassword", { ...pdfTab, isProtected: true })).toBe(true);
+    expect(available("removePassword", { ...markdownTab, isProtected: true })).toBe(false);
+    expect(commandById.get("setPassword")?.menu).toBe("File");
+  });
+
   it("offers file commands for Markdown tabs and keeps PDF-only ones off", () => {
     for (const id of ["save", "saveAs", "find", "findNext", "toggleSidebar", "showOutline", "zoomIn", "firstPage", "toggleMarkdownSource"] as const) {
       expect(available(id, markdownTab), id).toBe(true);

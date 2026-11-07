@@ -92,11 +92,23 @@ describe("writeStickyNotes", () => {
     expect((await annotations(saved)).length).toBe(2);
   });
 
-  it("explains password-protected files", async () => {
+  it("writes notes into password-protected files as a plain rewrite", async () => {
     const doc = await PDFDocument.create();
     doc.addPage();
     doc.encrypt({ userPassword: "secret", ownerPassword: "owner" });
     const locked = await doc.save();
-    await expect(writeStickyNotes(locked, [note({})])).rejects.toThrow(/password-protected/);
+    await expect(writeStickyNotes(locked, [note({})])).rejects.toThrow(/password didn't work/);
+    const saved = await writeStickyNotes(locked, [note({ text: "Inside (a) \\ secret ✓" })], "secret");
+    const [added] = await annotations(saved);
+    expect(text(added.dict, "Contents")).toBe("Inside (a) \\ secret ✓");
+    expect((await PDFDocument.load(saved)).isEncrypted).toBe(false);
+  });
+
+  it("writes notes into owner-only files", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage();
+    doc.encrypt({ ownerPassword: "owner", permissions: { printing: false } });
+    const [added] = await annotations(await writeStickyNotes(await doc.save(), [note({})]));
+    expect(text(added.dict, "Contents")).toBe("New note ✓");
   });
 });
