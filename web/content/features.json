@@ -15,15 +15,15 @@
         "Highlights, text, freehand drawing, images, and signatures.",
         "Comments on any markup or text, plus sticky notes anywhere on a page.",
         "Fill in forms with Tab, reset them, or flatten them. Paper forms get checkmarks and dates.",
-        "Everything saves straight back into the PDF."
+        "Print with your markup and form values on the page, or save it all straight back into the PDF."
       ]
     },
     {
       "title": "Changing pages",
       "items": [
         "Reorder by dragging thumbnails. Rotate, delete, or extract.",
-        "Insert pages from other PDFs or images, or combine several files.",
-        "Make a new PDF from photos.",
+        "Insert pages from other PDFs or images, combine files, or make a new PDF from photos.",
+        "Set a password, change it, or remove it.",
         "Every page change can be undone."
       ]
     },
