@@ -31,7 +31,13 @@ export function useToolbarTools(
     onSign: () => runCommand("sign"),
     onMark: (kind) => runCommand(markCommands[kind]),
     onNewSignature: () => runCommand("newSignature"),
-    onPlaceSignature: (uuid) => activeViewer()?.editorUi?.placeSignature(uuid),
+    onPlaceSignature: async (uuid) => {
+      const viewer = activeViewer();
+      if (tool !== "signature") {
+        await viewer?.sign();
+      }
+      viewer?.editorUi?.placeSignature(uuid);
+    },
     onForgetSignature: (uuid) => activeViewer()?.editorUi?.forgetSignature(uuid),
   };
 }

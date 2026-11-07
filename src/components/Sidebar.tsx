@@ -29,7 +29,7 @@ export function Sidebar(props: SidebarProps) {
   const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes, comments } = props;
   const tab = (props.tab === "changes" && !changes) || (props.tab === "comments" && !comments) ? "thumbnails" : props.tab;
   return (
-    <aside className="sidebar">
+    <aside className="app-sidebar">
       <div className="sidebar-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === "thumbnails"} onClick={() => onTab("thumbnails")}>
           Pages

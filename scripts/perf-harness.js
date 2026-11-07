@@ -18,7 +18,7 @@ window.__h = (() => {
         continue;
       }
       const bytes = canvas.width * canvas.height * 4;
-      const area = canvas.closest(".document-map") ? "map" : canvas.closest(".sidebar") ? "sidebar" : canvas.closest(".viewer-container") ? "viewer" : "other";
+      const area = canvas.closest(".document-map") ? "map" : canvas.closest(".app-sidebar") ? "sidebar" : canvas.closest(".viewer-container") ? "viewer" : "other";
       areas[area][0] += 1;
       areas[area][1] += bytes;
     }

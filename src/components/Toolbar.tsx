@@ -4,8 +4,10 @@ import { shortcutFor, type CommandId } from "../lib/commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { isMac } from "../lib/platform";
 import type { MarkdownMode } from "../lib/tabs";
+import { useToolbarOverflow } from "../hooks/useToolbarOverflow";
 import { IconButton } from "./IconButton";
-import { ToolsGroup, type ToolsProps } from "./ToolsGroup";
+import { ToolbarOverflow } from "./ToolbarOverflow";
+import { toolEntries, type ToolsProps } from "./ToolsGroup";
 
 const zoomPresets = [
   { value: "auto", label: "Automatic" },
@@ -63,9 +65,49 @@ export function Toolbar(props: ToolbarProps) {
   useEffect(() => setPageInput(pageText), [pageText]);
 
   const isPreset = zoomPresets.some((preset) => preset.value === scaleValue);
+  const showImagesChoice = hasDocument && props.darkPages;
+  const tools = hasDocument ? toolEntries(props.tools) : [];
+  const order = [...(showImagesChoice ? ["darkImages"] : []), ...tools.map((tool) => tool.key).reverse(), ...(hasDocument ? ["zoom"] : [])];
+  const { toolbar, hidden } = useToolbarOverflow(order);
+  const shownTools = tools.filter((tool) => !hidden.has(tool.key));
+  const hiddenTools = tools.filter((tool) => hidden.has(tool.key));
+
+  const zoomControls = (
+    <>
+      <IconButton title="Zoom out (⌘−)" onClick={() => props.onZoom(-1)}>
+        <Minus size={16} />
+      </IconButton>
+      <select aria-label="Zoom" value={isPreset ? scaleValue : "custom"} onChange={(event) => props.onZoomValue(event.target.value)}>
+        {!isPreset && <option value="custom">{Math.round(scale * 100)}%</option>}
+        {zoomPresets.map((preset) => (
+          <option key={preset.value} value={preset.value}>
+            {preset.label}
+          </option>
+        ))}
+      </select>
+      <IconButton title="Zoom in (⌘+)" onClick={() => props.onZoom(1)}>
+        <Plus size={16} />
+      </IconButton>
+      <IconButton title={withShortcut("Rotate", "rotateRight")} onClick={props.onRotate}>
+        <RotateCw size={16} />
+      </IconButton>
+    </>
+  );
+
+  const imagesChoice = (
+    <select
+      aria-label="Images in dark pages"
+      title="How images look on dark pages"
+      value={props.darkPagesImages}
+      onChange={(event) => props.onDarkPagesImages(event.target.value as "keep" | "invert")}
+    >
+      <option value="keep">Keep images</option>
+      <option value="invert">Invert images</option>
+    </select>
+  );
 
   return (
-    <header className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
+    <header ref={toolbar} className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
       <div className="toolbar-group" data-tauri-drag-region>
         <IconButton title={withShortcut("Toggle sidebar", "toggleSidebar")} active={props.sidebarOpen} disabled={!hasFile} onClick={props.onToggleSidebar}>
           <PanelLeft size={18} />
@@ -105,27 +147,21 @@ export function Toolbar(props: ToolbarProps) {
             </form>
           </div>
 
-          <div className="toolbar-group" data-tauri-drag-region>
-            <IconButton title="Zoom out (⌘−)" onClick={() => props.onZoom(-1)}>
-              <Minus size={16} />
-            </IconButton>
-            <select aria-label="Zoom" value={isPreset ? scaleValue : "custom"} onChange={(event) => props.onZoomValue(event.target.value)}>
-              {!isPreset && <option value="custom">{Math.round(scale * 100)}%</option>}
-              {zoomPresets.map((preset) => (
-                <option key={preset.value} value={preset.value}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
-            <IconButton title="Zoom in (⌘+)" onClick={() => props.onZoom(1)}>
-              <Plus size={16} />
-            </IconButton>
-            <IconButton title={withShortcut("Rotate", "rotateRight")} onClick={props.onRotate}>
-              <RotateCw size={16} />
-            </IconButton>
-          </div>
+          {!hidden.has("zoom") && (
+            <div className="toolbar-group" data-tauri-drag-region data-overflow-key="zoom">
+              {zoomControls}
+            </div>
+          )}
 
-          <ToolsGroup {...props.tools} />
+          {shownTools.length > 0 && (
+            <div className="toolbar-group tools" data-tauri-drag-region onPointerDownCapture={props.tools.onEndDrawing}>
+              {shownTools.map((tool) => (
+                <div key={tool.key} className="toolbar-item" data-tauri-drag-region data-overflow-key={tool.key}>
+                  {tool.node}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -135,16 +171,25 @@ export function Toolbar(props: ToolbarProps) {
             <Code size={18} />
           </IconButton>
         )}
-        {hasDocument && props.darkPages && (
-          <select
-            aria-label="Images in dark pages"
-            title="How images look on dark pages"
-            value={props.darkPagesImages}
-            onChange={(event) => props.onDarkPagesImages(event.target.value as "keep" | "invert")}
-          >
-            <option value="keep">Keep images</option>
-            <option value="invert">Invert images</option>
-          </select>
+        {hidden.size > 0 && (
+          <ToolbarOverflow active={hidden.has(props.tools.tool)}>
+            {hidden.has("zoom") && <div className="overflow-row">{zoomControls}</div>}
+            {hiddenTools.length > 0 && (
+              <div className="overflow-row overflow-tools" onPointerDownCapture={props.tools.onEndDrawing}>
+                {hiddenTools.map((tool) => (
+                  <div key={tool.key} className="toolbar-item">
+                    {tool.node}
+                  </div>
+                ))}
+              </div>
+            )}
+            {hidden.has("darkImages") && <div className="overflow-row">{imagesChoice}</div>}
+          </ToolbarOverflow>
+        )}
+        {showImagesChoice && !hidden.has("darkImages") && (
+          <div className="toolbar-item" data-overflow-key="darkImages">
+            {imagesChoice}
+          </div>
         )}
         <IconButton title={props.darkPages ? "Light pages" : "Dark pages"} active={props.darkPages} disabled={!hasDocument} onClick={props.onToggleDarkPages}>
           {props.darkPages ? <Sun size={18} /> : <Moon size={18} />}

@@ -30,7 +30,7 @@ src/
     DocumentTab.tsx          one open PDF: its own pdf.js viewer, sidebar, find bar
     TabStrip.tsx             tab bar (start tabs + document tabs)
     Welcome.tsx              start screen with recent files
-    Toolbar.tsx              title-bar toolbar (lives in the macOS overlay title bar)
+    Toolbar.tsx              title-bar toolbar (lives in the macOS overlay title bar); one row that never wraps: useToolbarOverflow measures it and moves the dark-pages image choice, then tools from the right, then the zoom group into the More menu (ToolbarOverflow.tsx); adjustHidden in src/lib/toolbarOverflow.ts only brings an item back with a margin to spare, so it can't flip back and forth
     AboutDialog.tsx          About / What's New / Licenses sheet
     ShortcutsDialog.tsx      Keyboard Shortcuts sheet
     QuickPick.tsx            Command Palette and Go to File overlay (styles in QuickPick.css)
@@ -44,7 +44,7 @@ src/
     ChangesList.tsx          the Changes sidebar tab: every change with its snippets, filterable by kind
     UpdateDialog.tsx         the Update sheet: release notes, Install Update with download progress, Restart Now
     EditorSheets.tsx         the pdf.js editor dialogs per tab (AltTextDialog, SignatureDialog, CommentDialog) and the undo bar
-    ToolsGroup.tsx           the toolbar's tool buttons, colors, sliders, highlight visibility, and saved signatures
+    ToolsGroup.tsx           the toolbar's tool buttons (toolEntries, placed by Toolbar in the bar or the More menu); Highlight, Text, Draw, Sign, and Fill In carry a dropdown (ToolMenu.tsx, a popover="auto" split button) with their colors, sliders, highlight visibility, saved signatures, or marks
     CommentsList.tsx         the Comments sidebar tab
     ChangelogList.tsx, LicensesView.tsx, PasswordDialog.tsx, PasswordSetDialog.tsx, PageLabelsDialog.tsx, ...
   hooks/
@@ -205,6 +205,7 @@ Check legibility at 32px before committing. Keep icon sources out of `public/`, 
 - Keep source files under 500 lines. When one grows past that, split it along a real seam (a hook, a component, a pure helper in `src/lib`) rather than arbitrarily.
 - Global form-control resets use `:where(:is(button, input, select):not(.pdfViewer *))` on purpose: zero specificity so component classes win, and pdf.js's own controls (whose layers set huge font sizes) are left alone.
 - `pdfjs-dist` is pinned to an exact version. Upgrade it only by following `docs/pdfjs-upgrade.md`: Clumsy depends on pdf.js internals (manager methods, private fields, event names, Firefox-only CSS variables, worker fallbacks) that types don't cover, `tests/pdfjsContract.test.ts` checks them against the installed sources, and the doc lists what only a built app shows. When you add a new dependency on a pdf.js internal, add it to the doc's inventory and, where it can be read from the source, to the contract test.
+- `pdf_viewer.css` is global and styles some bare class names for Firefox's own UI (`.sidebar` gets a radius, border, shadow, and padding), so don't give app elements generic names it may use; the document sidebar is `.app-sidebar` for that reason.
 - pdf.js 6 API notes: `PDFDocumentProxy.destroy()` is gone (use `loadingTask.destroy()`); `page.render({ canvas, viewport })`; editor modes are set with `viewer.annotationEditorMode = { mode }`; default colors go through the `switchannotationeditorparams` event.
 - WebKit forgets the abort of a signal made by `AbortSignal.any` once that signal is garbage collected, so a listener added with it stays attached after the abort. pdf.js removes its keyboard shortcuts (Backspace deletes the selected editors) and other listeners that way, which left Backspace in a sheet's text area deleting markup. `src/lib/polyfills.ts` replaces `AbortSignal.any` with one built from plain `AbortController`s (`installAbortSignalAny`); Chromium doesn't show the bug, so check it in a built app.
 - The webview is the system WebKit, so the oldest Safari engine on a supported macOS sets which JavaScript built-ins exist. macOS 15.4 ships Safari 18.4, which has everything pdf.js 6.4.299 calls (the global `Iterator` and its helpers, `Promise.try`, `Uint8Array` base64/hex, `RegExp.escape`) except `Map`/`WeakMap` `getOrInsert`/`getOrInsertComputed` and `Math.sumPrecise` (Safari 26.2), which `src/lib/polyfills.ts` installs when missing. Raising pdf.js or using a newer built-in means checking it against Safari 18.4 (MDN's browser-compat-data) and either polyfilling it there or raising `minimumSystemVersion` to the macOS that ships the needed Safari. Lowering the floor below 15.4 needs the global `Iterator` before `pdf.mjs` loads, which reads it at module load.

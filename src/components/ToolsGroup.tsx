@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
-import { CalendarDays, Check, Dot, Eye, EyeOff, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Type, X } from "lucide-react";
+import { CalendarDays, Check, Dot, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Type, X } from "lucide-react";
 import { inkColors, toolOptions } from "../hooks/useEditorOptions";
 import { highlightColors, type EditorParams, type EditorTool } from "../hooks/usePdfViewer";
 import { defaultContextTools, readContextTools, withContextTool, writeContextTools } from "../lib/contextTools";
@@ -8,6 +8,7 @@ import type { MarkKind } from "../lib/marks";
 import { showContextMenu } from "../lib/platform";
 import { IconButton } from "./IconButton";
 import { SignaturePath } from "./SignatureDialog";
+import { closeToolMenu, ToolMenu } from "./ToolMenu";
 
 export type ToolsProps = {
   tool: EditorTool;
@@ -29,6 +30,8 @@ export type ToolsProps = {
   onForgetSignature: (uuid: string) => void;
 };
 
+type StyledTool = "highlight" | "text" | "draw";
+
 const marks: Array<{ kind: MarkKind; label: string; icon: ReactNode }> = [
   { kind: "check", label: "Checkmark", icon: <Check size={16} /> },
   { kind: "cross", label: "Cross", icon: <X size={16} /> },
@@ -49,105 +52,153 @@ function toolMenu(tool: EditorTool) {
   };
 }
 
-export function ToolsGroup(props: ToolsProps) {
-  const { tool, toolColor } = props;
-  const inkTool = tool === "text" || tool === "draw";
-  const swatches = tool === "highlight" ? Object.values(highlightColors) : inkTool ? inkColors : [];
+function ToolSettings({ props, tool }: { props: ToolsProps; tool: StyledTool }) {
+  const inkTool = tool !== "highlight";
+  const swatches = inkTool ? inkColors : Object.values(highlightColors);
+  const toolColor = props.tool === tool ? props.toolColor : "";
   const hexColor = /^#[0-9a-f]{6}$/i.test(toolColor) ? toolColor.toLowerCase() : "";
   const otherColor = inkTool && hexColor !== "" && !swatches.some((color) => color.toLowerCase() === hexColor);
   return (
-    <div className="toolbar-group tools" data-tauri-drag-region onPointerDownCapture={props.onEndDrawing}>
-      <IconButton title="Select (V)" active={tool === "select"} onContextMenu={toolMenu("select")} onClick={() => props.onTool("select")}>
-        <MousePointer2 size={18} />
-      </IconButton>
-      <IconButton title="Hand (hold Space)" active={tool === "hand"} onContextMenu={toolMenu("hand")} onClick={() => props.onTool("hand")}>
-        <Hand size={18} />
-      </IconButton>
-      <IconButton title="Highlight (H)" active={tool === "highlight"} onContextMenu={toolMenu("highlight")} onClick={() => props.onTool("highlight")}>
-        <Highlighter size={18} />
-      </IconButton>
-      <IconButton title="Text note (T)" active={tool === "text"} onContextMenu={toolMenu("text")} onClick={() => props.onTool("text")}>
-        <Type size={18} />
-      </IconButton>
-      <IconButton title="Draw (D)" active={tool === "draw"} onContextMenu={toolMenu("draw")} onClick={() => props.onTool("draw")}>
-        <PenLine size={18} />
-      </IconButton>
-      <IconButton title="Comments (C)" active={tool === "comment"} onContextMenu={toolMenu("comment")} onClick={() => props.onTool("comment")}>
-        <MessageSquare size={18} />
-      </IconButton>
-      <IconButton title="Add image" active={tool === "image"} onContextMenu={toolMenu("image")} onClick={props.onImage}>
-        <ImagePlus size={18} />
-      </IconButton>
-      <IconButton title="Sign" active={tool === "signature"} onContextMenu={toolMenu("signature")} onClick={props.onSign}>
-        <Signature size={18} />
-      </IconButton>
-      <IconButton title="Fill in: click to place a checkmark, cross, dot, or date" active={tool === "mark"} onContextMenu={toolMenu("mark")} onClick={() => props.onMark(props.mark ?? "check")}>
-        <SquareCheck size={18} />
-      </IconButton>
-      {swatches.length > 0 && (
-        <div className="swatches" role="radiogroup" aria-label="Color" data-tauri-drag-region>
-          {swatches.map((color) => (
-            <button
-              key={color}
-              type="button"
-              role="radio"
-              aria-checked={color.toLowerCase() === toolColor.toLowerCase()}
-              aria-label={color}
-              className="swatch"
-              style={{ background: color }}
-              onClick={() => props.onToolColor(color)}
-            />
-          ))}
-          {inkTool && (
-            <label
-              className="swatch other-color"
-              title="Other color…"
-              data-chosen={otherColor || undefined}
-              style={otherColor ? ({ "--chosen-color": hexColor } as CSSProperties) : undefined}
-            >
-              <input type="color" aria-label="Other color" value={hexColor || inkColors[0]} onChange={(event) => props.onToolColor(event.target.value)} />
-            </label>
-          )}
-        </div>
-      )}
+    <>
+      <div className="swatches" role="radiogroup" aria-label="Color">
+        {swatches.map((color) => (
+          <button
+            key={color}
+            type="button"
+            role="radio"
+            aria-checked={color.toLowerCase() === toolColor.toLowerCase()}
+            aria-label={color}
+            className="swatch"
+            style={{ background: color }}
+            onClick={() => props.onToolColor(color)}
+          />
+        ))}
+        {inkTool && (
+          <label
+            className="swatch other-color"
+            title="Other color…"
+            data-chosen={otherColor || undefined}
+            style={otherColor ? ({ "--chosen-color": hexColor } as CSSProperties) : undefined}
+          >
+            <input type="color" aria-label="Other color" value={hexColor || inkColors[0]} onChange={(event) => props.onToolColor(event.target.value)} />
+          </label>
+        )}
+      </div>
       {toolOptions[tool]?.map((option) => {
         const value = Number(props.editorParams[option.type] ?? option.min);
         return (
-          <label key={option.type} className="tool-option" title={`${option.label}: ${option.format(value)}`} data-tauri-drag-region>
+          <label key={option.type} className="tool-option">
+            <span className="tool-option-label">{option.label}</span>
+            <span className="tool-option-value">{option.format(value)}</span>
             <input
               type="range"
-              aria-label={option.label}
               min={option.min}
               max={option.max}
               step={option.step}
               value={value}
               onChange={(event) => props.onEditorParam(option.type, Number(event.target.value))}
             />
-            <span className="tool-option-value" aria-hidden="true">
-              {option.format(value)}
-            </span>
           </label>
         );
       })}
       {tool === "highlight" && (
-        <IconButton title={props.highlightsShown ? "Hide highlights" : "Show highlights"} active={!props.highlightsShown} onClick={props.onToggleHighlights}>
-          {props.highlightsShown ? <Eye size={16} /> : <EyeOff size={16} />}
+        <label className="tool-menu-check">
+          <input type="checkbox" checked={props.highlightsShown} onChange={props.onToggleHighlights} />
+          Show highlights
+        </label>
+      )}
+    </>
+  );
+}
+
+function StyledToolButton({ props, tool, title, label, icon }: { props: ToolsProps; tool: StyledTool; title: string; label: string; icon: ReactNode }) {
+  const active = props.tool === tool;
+  return (
+    <ToolMenu
+      label={label}
+      active={active}
+      button={
+        <IconButton title={title} active={active} onContextMenu={toolMenu(tool)} onClick={() => props.onTool(tool)}>
+          {icon}
         </IconButton>
-      )}
-      {tool === "mark" && (
-        <div className="mark-choices" data-tauri-drag-region>
-          {marks.map(({ kind, label, icon }) => (
-            <IconButton key={kind} title={label} active={props.mark === kind} onClick={() => props.onMark(kind)}>
-              {icon}
-            </IconButton>
-          ))}
-        </div>
-      )}
-      {tool === "signature" && (
-        <div className="signature-chips" data-tauri-drag-region>
+      }
+      onOpen={() => !active && props.onTool(tool)}
+    >
+      <ToolSettings props={props} tool={tool} />
+    </ToolMenu>
+  );
+}
+
+export type ToolEntry = { key: EditorTool; node: ReactNode };
+
+export function toolEntries(props: ToolsProps): ToolEntry[] {
+  const { tool } = props;
+  return [
+    {
+      key: "select",
+      node: (
+        <IconButton title="Select (V)" active={tool === "select"} onContextMenu={toolMenu("select")} onClick={() => props.onTool("select")}>
+          <MousePointer2 size={18} />
+        </IconButton>
+      ),
+    },
+    {
+      key: "hand",
+      node: (
+        <IconButton title="Hand (hold Space)" active={tool === "hand"} onContextMenu={toolMenu("hand")} onClick={() => props.onTool("hand")}>
+          <Hand size={18} />
+        </IconButton>
+      ),
+    },
+    { key: "highlight", node: <StyledToolButton props={props} tool="highlight" title="Highlight (H)" label="Highlight options" icon={<Highlighter size={18} />} /> },
+    { key: "text", node: <StyledToolButton props={props} tool="text" title="Text note (T)" label="Text options" icon={<Type size={18} />} /> },
+    { key: "draw", node: <StyledToolButton props={props} tool="draw" title="Draw (D)" label="Draw options" icon={<PenLine size={18} />} /> },
+    {
+      key: "comment",
+      node: (
+        <IconButton title="Comments (C)" active={tool === "comment"} onContextMenu={toolMenu("comment")} onClick={() => props.onTool("comment")}>
+          <MessageSquare size={18} />
+        </IconButton>
+      ),
+    },
+    {
+      key: "image",
+      node: (
+        <IconButton title="Add image" active={tool === "image"} onContextMenu={toolMenu("image")} onClick={props.onImage}>
+          <ImagePlus size={18} />
+        </IconButton>
+      ),
+    },
+    { key: "signature", node: <SignatureTool props={props} /> },
+    { key: "mark", node: <MarkTool props={props} /> },
+  ];
+}
+
+function SignatureTool({ props }: { props: ToolsProps }) {
+  const active = props.tool === "signature";
+  return (
+    <ToolMenu
+      label="Signatures"
+      active={active}
+      keepOpenWhenInactive
+      button={
+        <IconButton title="Sign" active={active} onContextMenu={toolMenu("signature")} onClick={props.onSign}>
+          <Signature size={18} />
+        </IconButton>
+      }
+    >
+      {props.signatures.length > 0 && (
+        <div className="signature-chips">
           {props.signatures.map((signature) => (
             <div key={signature.uuid} className="signature-chip">
-              <button type="button" title={`Place “${signature.description || "Signature"}”`} onClick={() => props.onPlaceSignature(signature.uuid)}>
+              <button
+                type="button"
+                title={`Place “${signature.description || "Signature"}”`}
+                onClick={(event) => {
+                  closeToolMenu(event.currentTarget);
+                  props.onPlaceSignature(signature.uuid);
+                }}
+              >
                 <SignaturePath preview={signature} />
               </button>
               <button type="button" className="forget" title="Remove saved signature" aria-label="Remove saved signature" onClick={() => props.onForgetSignature(signature.uuid)}>
@@ -155,11 +206,51 @@ export function ToolsGroup(props: ToolsProps) {
               </button>
             </div>
           ))}
-          <IconButton title="New signature…" onClick={props.onNewSignature}>
-            <Plus size={16} />
-          </IconButton>
         </div>
       )}
-    </div>
+      <button
+        type="button"
+        className="tool-menu-item"
+        onClick={(event) => {
+          closeToolMenu(event.currentTarget);
+          props.onNewSignature();
+        }}
+      >
+        <Plus size={16} />
+        New Signature…
+      </button>
+    </ToolMenu>
+  );
+}
+
+function MarkTool({ props }: { props: ToolsProps }) {
+  const active = props.tool === "mark";
+  return (
+    <ToolMenu
+      label="Fill-in marks"
+      active={active}
+      keepOpenWhenInactive
+      button={
+        <IconButton title="Fill in: click to place a checkmark, cross, dot, or date" active={active} onContextMenu={toolMenu("mark")} onClick={() => props.onMark(props.mark ?? "check")}>
+          <SquareCheck size={18} />
+        </IconButton>
+      }
+    >
+      {marks.map(({ kind, label, icon }) => (
+        <button
+          key={kind}
+          type="button"
+          className="tool-menu-item"
+          aria-pressed={active && props.mark === kind}
+          onClick={(event) => {
+            closeToolMenu(event.currentTarget);
+            props.onMark(kind);
+          }}
+        >
+          {icon}
+          {label}
+        </button>
+      ))}
+    </ToolMenu>
   );
 }

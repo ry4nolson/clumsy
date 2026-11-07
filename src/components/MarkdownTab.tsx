@@ -453,7 +453,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
       style={{ gridColumn: column, ["--md-zoom" as string]: zoom }}
     >
       {sidebarOpen && (
-        <aside className="sidebar">
+        <aside className="app-sidebar">
           <div className="sidebar-tabs" role="tablist">
             <button type="button" role="tab" aria-selected>
               Outline
