@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-07
+
 ### Changed
 - Tool settings live in dropdowns: the arrow next to Highlight, Text, Draw, Sign, and Fill In opens that tool's colors, sizes, saved signatures, or marks, so picking a tool no longer widens the toolbar
 - The toolbar stays on one row. In a narrow window, the controls that don't fit move into a **More** (…) menu next to dark pages and Find
