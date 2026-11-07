@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-07
+
 ### Added
 - **Set Password** and **Remove Password** in the File menu. A password-protected PDF asks for its password before it opens, in Clumsy and in any other app; Clumsy writes it with AES-256. Setting, changing, and removing a password can be undone like a page edit, and nothing touches the file until you save. A lock on the tab shows which documents will be saved with a password
 
