@@ -6,7 +6,8 @@ export type PageEdit =
   | { kind: "rotate"; pages: number[]; by: 90 | -90 }
   | { kind: "insert"; data: Uint8Array; at: number }
   | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null }
-  | { kind: "flatten" };
+  | { kind: "flatten" }
+  | { kind: "protect"; password: string | null };
 
 export class PageEditError extends Error {}
 
@@ -47,6 +48,7 @@ export function pageAfterEdit(edit: PageEdit, page: number, count: number, inser
     case "rotate":
     case "label":
     case "flatten":
+    case "protect":
       return page;
     case "insert":
       return page >= edit.at ? page + insertedCount : page;
@@ -79,6 +81,7 @@ export function selectionAfterEdit(edit: PageEdit, count: number, insertedCount 
     case "delete":
     case "label":
     case "flatten":
+    case "protect":
       return [];
   }
 }
@@ -90,6 +93,7 @@ export function changesDocument(edit: PageEdit, count: number) {
     case "insert":
     case "label":
     case "flatten":
+    case "protect":
       return true;
     default:
       return edit.pages.some((page) => page >= 0 && page < count);

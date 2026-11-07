@@ -1,4 +1,6 @@
-export type Version = { bytes: Uint8Array; page: number; count: number };
+import type { Protection } from "./protection";
+
+export type Version = { bytes: Uint8Array; page: number; count: number; protection?: Protection };
 
 export const HISTORY_LIMIT = 20;
 export const HISTORY_BYTES = 256 * 1024 * 1024;

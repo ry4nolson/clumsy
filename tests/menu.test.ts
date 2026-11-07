@@ -27,12 +27,12 @@ describe("visibleSlots", () => {
   const slotsOf = (name: string) => menuLayout.find(([menu]) => menu === name)![1];
 
   it("shows the print commands where the platform can print", () => {
-    expect(visibleSlots(slotsOf("File"), true).slice(-3)).toEqual(["revealInFinder", "-", "print"]);
+    expect(visibleSlots(slotsOf("File"), true).slice(-6)).toEqual(["revealInFinder", "-", "setPassword", "removePassword", "-", "print"]);
     expect(visibleSlots(slotsOf("Pages"), true)).toContain("printSelectedPages");
   });
 
   it("drops them, and the separators they leave behind, where it can't", () => {
-    expect(visibleSlots(slotsOf("File"), false).slice(-2)).toEqual(["-", "revealInFinder"]);
+    expect(visibleSlots(slotsOf("File"), false).slice(-4)).toEqual(["revealInFinder", "-", "setPassword", "removePassword"]);
     expect(visibleSlots(slotsOf("Pages"), false)).not.toContain("printSelectedPages");
     expect(visibleSlots(["-", "print", "-", "-", "open", "-", "printSelectedPages", "-"], false)).toEqual(["open"]);
   });
@@ -57,6 +57,7 @@ describe("checkedCommands", () => {
     invertImages: false,
     caretBrowsing: false,
     hasForm: false,
+    isProtected: false,
     fieldHighlights: false,
     scrollMode: "wrapped",
     spreadMode: "odd",

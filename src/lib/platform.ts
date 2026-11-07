@@ -229,6 +229,11 @@ export async function confirmOverwrite(name: string) {
   return ask(prompt, { title: "File changed on disk", kind: "warning", okLabel: "Save Anyway", cancelLabel: "Cancel" });
 }
 
+export async function confirmOwnerPassword(name: string) {
+  const prompt = `“${name}” was opened with its owner password, so Clumsy can't keep the password other people use to open it. After saving, only the password you typed will open this PDF.`;
+  return ask(prompt, { title: "Replace the open password?", kind: "warning", okLabel: "Save", cancelLabel: "Cancel" });
+}
+
 export function downloadPdf(name: string, data: Uint8Array) {
   const url = URL.createObjectURL(new Blob([data as BlobPart], { type: "application/pdf" }));
   const link = document.createElement("a");

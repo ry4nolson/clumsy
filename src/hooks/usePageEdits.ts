@@ -9,6 +9,7 @@ import { remapStops } from "../lib/navHistory";
 import { shareBudget, trimHistory, type Version } from "../lib/pageHistory";
 import { applyPageEditOffThread, combinePdfsOffThread, extractPagesOffThread } from "../lib/pageEditWorker";
 import { pickPdfs, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
+import type { Protection } from "../lib/protection";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -24,6 +25,9 @@ type TabEdits = {
 };
 
 class StaleEditError extends Error {}
+
+const protectionAfter = (edit: PageEdit, before: Protection | undefined) =>
+  edit.kind === "protect" ? (edit.password ? { password: edit.password } : undefined) : before;
 
 const baseName = (name: string) => name.replace(/\.pdf$/i, "");
 
@@ -104,8 +108,9 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     if (!handle || !snapshot?.loaded) {
       return null;
     }
+    const protection = docTab(tabId)?.protection;
     const bytes = await handle.viewer.save();
-    return bytes ? { bytes, page: snapshot.pageNumber - 1, count: snapshot.pagesCount } : null;
+    return bytes ? { bytes, page: snapshot.pageNumber - 1, count: snapshot.pagesCount, protection } : null;
   };
 
   const show = (tabId: string, version: Version, selection: number[], baseline: PdfSource | null, pageAt?: (page: number) => number, keepPlace = false) => {
@@ -131,7 +136,15 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     edits.pending = { ...version, bytes: version.bytes.slice() };
     edits.source = source;
     edits.generation += 1;
-    update((current) => ws.replaceTab(current, { ...tab, source, carriedChanges: true, view, selection }));
+    update((current) => ws.replaceTab(current, { ...tab, source, protection: version.protection, carriedChanges: true, view, selection }));
+  };
+
+  const protect = (tabId: string, protection: Protection | undefined, baseline: PdfSource | null) => {
+    const tab = docTab(tabId);
+    if (!tab || tab.source !== baseline) {
+      throw new StaleEditError();
+    }
+    update((current) => ws.replaceTab(current, { ...tab, protection, carriedChanges: true }));
   };
 
   const performEdit = async (tabId: string, edit: PageEdit, generation: number) => {
@@ -144,16 +157,21 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     if (!before || !changesDocument(edit, before.count)) {
       return;
     }
-    const { bytes, original, inserted } = await applyPageEditOffThread(before.bytes, edit);
+    const { bytes, original, inserted, unchanged } = await applyPageEditOffThread(before.bytes, edit, before.protection?.password);
+    const protection = protectionAfter(edit, before.protection);
     const page = pageAfterEdit(edit, before.page, before.count, inserted);
-    show(
-      tabId,
-      { bytes, page, count: countAfterEdit(edit, before.count, inserted) },
-      selectionAfterEdit(edit, before.count, inserted),
-      baseline,
-      (old) => pageAfterEdit(edit, old, before.count, inserted),
-      edit.kind === "rotate",
-    );
+    if (unchanged) {
+      protect(tabId, protection, baseline);
+    } else {
+      show(
+        tabId,
+        { bytes, page, count: countAfterEdit(edit, before.count, inserted), protection },
+        selectionAfterEdit(edit, before.count, inserted),
+        baseline,
+        (old) => pageAfterEdit(edit, old, before.count, inserted),
+        edit.kind === "rotate" || edit.kind === "protect",
+      );
+    }
     edits.undo = trimHistory([...edits.undo, { ...before, bytes: original }]);
     edits.redo = [];
     trimWindow();
@@ -167,7 +185,25 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     [enqueue],
   );
 
-  const documentLoaded = useCallback((tabId: string, source: PdfSource) => {
+  const learnProtection = (tabId: string, source: PdfSource, change: (protection: Protection | undefined) => Protection | undefined) =>
+    update((current) => {
+      const latest = current.tabs[tabId];
+      if (latest?.kind !== "document" || latest.source !== source) {
+        return current;
+      }
+      const protection = change(latest.protection);
+      const same = protection?.password === latest.protection?.password && !!protection?.ownerPassword === !!latest.protection?.ownerPassword;
+      return same ? current : ws.replaceTab(current, { ...latest, protection });
+    });
+
+  const ownerPasswordUsed = useCallback((tabId: string, source: PdfSource) => {
+    learnProtection(tabId, source, (protection) => protection && { ...protection, ownerPassword: true });
+  }, []);
+
+  const documentLoaded = useCallback((tabId: string, source: PdfSource, protection?: Protection) => {
+    if (protection) {
+      learnProtection(tabId, source, () => protection);
+    }
     const edits = tabs.current.get(tabId);
     if (edits && edits.source === source) {
       edits.pending = null;
@@ -314,6 +350,8 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         rotatePagesRight: () => editPages(tab.id, { kind: "rotate", pages, by: 90 }),
         deletePages: () => editPages(tab.id, { kind: "delete", pages }),
         flattenForm: () => editPages(tab.id, { kind: "flatten" }),
+        setPassword: () => handle.editPassword(),
+        removePassword: () => tab.protection && editPages(tab.id, { kind: "protect", password: null }),
         pageLabels: () => handle.editPageLabels(explicit?.length ? explicit : undefined),
         insertPages: () => insertFiles(tab.id, pickImages(true), Math.max(...pages) + 1),
         extractPages: () =>
@@ -323,9 +361,9 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
             }
             const current = await currentVersion(tab.id);
             if (current) {
-              const data = await extractPagesOffThread(current.bytes, pages);
+              const data = await extractPagesOffThread(current.bytes, pages, current.protection?.password);
               const name = `${baseName(tab.name)} (${pages.length === 1 ? "page" : "pages"} ${pageRanges(pages)}).pdf`;
-              await openSource({ name, path: null, data }, { carriedChanges: true });
+              await openSource({ name, path: null, data }, { carriedChanges: true, protection: current.protection });
             }
           }),
       };
@@ -344,6 +382,8 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         runCommand("deletePages");
       } else if (action.kind === "label") {
         editPages(tabId, { kind: "label", from: action.from, to: action.to, numbering: action.numbering });
+      } else if (action.kind === "protect") {
+        editPages(tabId, { kind: "protect", password: action.password });
       }
     },
     [editPages],
@@ -367,7 +407,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     [insertFiles, openSource],
   );
 
-  return { runPageCommand, pageAction, stepHistory, undoIn, documentLoaded, documentFailed, dropFiles, settled };
+  return { runPageCommand, pageAction, stepHistory, undoIn, documentLoaded, ownerPasswordUsed, documentFailed, dropFiles, settled };
 }
 
 export type PageEditsApi = ReturnType<typeof usePageEdits>;

@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react";
 import {
   CHANGED_ON_DISK,
   confirmOverwrite,
+  confirmOwnerPassword,
   downloadMarkdown,
   downloadPdf,
   fileNameFromPath,
@@ -14,6 +15,8 @@ import {
   writeMarkdown,
   writePdf,
 } from "../lib/platform";
+import { encryptPdfOffThread } from "../lib/pageEditWorker";
+import { bytesForDisk, hasEncryptEntry } from "../lib/protection";
 import { isFileTab, type MarkdownDocTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
@@ -91,10 +94,21 @@ export function useSaveDocument({ workspaceRef, handles, markdownHandles, update
       if (tab?.kind !== "document" || !handle) {
         return;
       }
-      const bytes = await handle.viewer.save();
-      if (!bytes) {
+      const saved = await handle.viewer.save();
+      if (!saved) {
         return;
       }
+      if (tab.protection?.ownerPassword && hasEncryptEntry(saved) !== true) {
+        if (!(await confirmOwnerPassword(tab.name))) {
+          return;
+        }
+        const password = tab.protection.password;
+        update((current) => {
+          const latest = current.tabs[tab.id];
+          return latest?.kind === "document" && latest.protection?.password === password ? ws.replaceTab(current, { ...latest, protection: { password } }) : current;
+        });
+      }
+      const bytes = await bytesForDisk(saved, tab.protection, encryptPdfOffThread);
       if (!isDesktop) {
         downloadPdf(tab.name, bytes);
         handle.viewer.markSaved();

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { MAX_PANES, type Pane } from "../lib/workspace";
-import { TabStrip, type TabItem } from "./TabStrip";
+import type { TabItem } from "../lib/tabs";
+import { TabStrip } from "./TabStrip";
 
 export type TabDropTarget = { kind: "pane"; paneId: string; index: number } | { kind: "newPane"; afterPaneId: string };
 

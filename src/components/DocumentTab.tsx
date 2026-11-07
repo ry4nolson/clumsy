@@ -9,10 +9,13 @@ import { useScrolling } from "../hooks/useScrolling";
 import type { CommandId } from "../lib/commands";
 import type { ViewState } from "../lib/documentWindows";
 import type { SignaturePreview } from "../lib/editorManagers";
-import { PasswordCancelledError, loadPdf } from "../lib/pdfjs";
+import { PasswordCancelledError, loadPdf, passwordOf } from "../lib/pdfjs";
+import { passwordAnswers } from "../lib/passwordAnswers";
+import { passwordRoleOffThread } from "../lib/pageEditWorker";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
 import { isExternalUrl } from "../lib/markdownLinks";
 import { getRecentFiles, readPdfFromPath, type PdfSource } from "../lib/platform";
+import type { Protection } from "../lib/protection";
 import { runEnd, type LabelNumbering } from "../lib/pageLabels";
 import { documentView, scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
 import { ChangesList } from "./ChangesList";
@@ -22,6 +25,7 @@ import { DocumentMap } from "./DocumentMap";
 import { EditorSheets, EditorUndoBar } from "./EditorSheets";
 import { FindBar } from "./FindBar";
 import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
+import { PasswordSetDialog } from "./PasswordSetDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 import "./Forms.css";
 
@@ -50,7 +54,8 @@ export type TabSnapshot = {
 export type PageAction =
   | { kind: "move"; pages: number[]; slot: number }
   | { kind: "delete" }
-  | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null };
+  | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null }
+  | { kind: "protect"; password: string };
 
 export type DocumentHandle = {
   viewer: PdfViewerApi;
@@ -60,6 +65,7 @@ export type DocumentHandle = {
   closeFind: () => void;
   findAgain: (previous: boolean) => void;
   editPageLabels: (pages?: number[]) => void;
+  editPassword: () => void;
 };
 
 export type DocumentTabProps = {
@@ -67,6 +73,7 @@ export type DocumentTabProps = {
   paneId: string;
   column: number;
   source: PdfSource;
+  protection?: Protection;
   initialView?: ViewState;
   initialSelection?: number[];
   active: boolean;
@@ -82,7 +89,8 @@ export type DocumentTabProps = {
   onDocumentSidebar: (sidebar: DocumentSidebar) => void;
   requestPassword: (fileName: string, incorrect: boolean) => Promise<string | null>;
   onSnapshot: (id: string, snapshot: TabSnapshot) => void;
-  onLoaded: (id: string, source: PdfSource) => void;
+  onLoaded: (id: string, source: PdfSource, protection?: Protection) => void;
+  onOwnerPassword: (id: string, source: PdfSource) => void;
   onFailed: (id: string, error: unknown, source: PdfSource) => void;
   onOpenUrl: (url: string) => void;
   onPageAction: (id: string, action: PageAction) => void;
@@ -118,6 +126,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     paneId,
     column,
     source,
+    protection,
     initialView,
     initialSelection,
     active,
@@ -134,6 +143,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     requestPassword,
     onSnapshot,
     onLoaded,
+    onOwnerPassword,
     onFailed,
     onOpenUrl,
     onPageAction,
@@ -153,21 +163,27 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const lastQuery = useRef<FindQuery | null>(null);
   const [selection, setSelection] = useState<PageSelection>(emptySelection);
   const [labelsRequest, setLabelsRequest] = useState<PageLabelsRequest | null>(null);
+  const [passwordRequest, setPasswordRequest] = useState<{ changing: boolean } | null>(null);
+  const lastProtection = useRef<Protection | undefined>(undefined);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
   const loaded = !!viewer.pdfDocument;
 
   const findRecorded = useRef(false);
-  const callbacks = useRef({ requestPassword, onLoaded, onFailed, onDocumentSidebar, initialView, initialSelection, defaultModes });
-  callbacks.current = { requestPassword, onLoaded, onFailed, onDocumentSidebar, initialView, initialSelection, defaultModes };
+  const callbacks = useRef({ requestPassword, onLoaded, onFailed, onOwnerPassword, onDocumentSidebar, initialView, initialSelection, defaultModes, protection });
+  callbacks.current = { requestPassword, onLoaded, onFailed, onOwnerPassword, onDocumentSidebar, initialView, initialSelection, defaultModes, protection };
+  if (protection) {
+    lastProtection.current = protection;
+  }
 
   useEffect(() => {
     let cancelled = false;
     let loadedDocument: Awaited<ReturnType<typeof loadPdf>> | null = null;
     const reread = !source.data.byteLength && source.path;
     const bytes = reread ? readPdfFromPath(reread).then((fresh) => fresh.data) : Promise.resolve(source.data);
+    const answers = passwordAnswers([callbacks.current.protection, lastProtection.current], (incorrect) => callbacks.current.requestPassword(source.name, incorrect));
     bytes
-      .then((data) => loadPdf(data, (incorrect) => callbacks.current.requestPassword(source.name, incorrect)))
+      .then((data) => loadPdf(data, answers.ask))
       .then(async (doc) => {
         loadedDocument = doc;
         if (cancelled) {
@@ -184,7 +200,21 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         if (sidebar) {
           callbacks.current.onDocumentSidebar(sidebar);
         }
-        callbacks.current.onLoaded(id, source);
+        const { protection: used, typed } = answers.accepted(passwordOf(doc));
+        if (used) {
+          lastProtection.current = used;
+        }
+        callbacks.current.onLoaded(id, source, used);
+        if (used && typed) {
+          const role = await doc
+            .getData()
+            .then((data) => passwordRoleOffThread(data, used.password))
+            .catch(() => null);
+          if (role === "owner" && !cancelled) {
+            lastProtection.current = { ...used, ownerPassword: true };
+            callbacks.current.onOwnerPassword(id, source);
+          }
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -319,6 +349,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         const range = pages.length > 1 ? [Math.min(...pages), Math.max(...pages)] : [current, runEnd(viewer.pageLabels, current, viewer.pagesCount)];
         setLabelsRequest({ pagesCount: viewer.pagesCount, labels: viewer.pageLabels, from: range[0], to: range[1] });
       },
+      editPassword: () => setPasswordRequest({ changing: !!callbacks.current.protection }),
     }),
     [viewer, closeFind, runFind],
   );
@@ -419,6 +450,14 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           onPageAction(id, { kind: "label", from, to, numbering });
         }}
         onClose={() => setLabelsRequest(null)}
+      />
+      <PasswordSetDialog
+        request={passwordRequest}
+        onSet={(password) => {
+          setPasswordRequest(null);
+          onPageAction(id, { kind: "protect", password });
+        }}
+        onClose={() => setPasswordRequest(null)}
       />
     </div>
   );

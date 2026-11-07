@@ -54,7 +54,6 @@ function noteIcon() {
 export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkService: PDFLinkService, hooks: NoteHooks) {
   const container = viewer.container as HTMLDivElement;
   let doc: PDFDocumentProxy | null = null;
-  let readOnly = false;
   let fileNotes = new Map<number, StickyNote[]>();
   let loading = new Set<number>();
   let allLoaded: Promise<void> | null = null;
@@ -150,7 +149,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     button.dataset.note = id;
     button.ariaHasPopup = "dialog";
     button.append(noteIcon());
-    button.addEventListener("pointerenter", () => hooks.toggle(target(id), false, true, !readOnly));
+    button.addEventListener("pointerenter", () => hooks.toggle(target(id), false, true, true));
     button.addEventListener("pointerleave", () => hooks.toggle(target(id), false, false));
     button.addEventListener("pointerdown", (event) => startDrag(id, button, event));
     button.addEventListener("pointermove", dragTo);
@@ -159,7 +158,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     button.addEventListener("lostpointercapture", endDrag);
     button.addEventListener("click", () => {
       if (!dropped) {
-        hooks.toggle(target(id), true, undefined, !readOnly);
+        hooks.toggle(target(id), true, undefined, true);
       }
     });
     return button;
@@ -207,7 +206,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     if (revealing && notes.some((note) => note.id === revealing)) {
       const id = revealing;
       revealing = null;
-      hooks.toggle(target(id), true, true, !readOnly);
+      hooks.toggle(target(id), true, true, true);
     }
   };
 
@@ -215,7 +214,6 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
 
   const reset = () => {
     doc = viewer.pdfDocument ?? null;
-    readOnly = false;
     fileNotes = new Map();
     loading = new Set();
     allLoaded = null;
@@ -223,15 +221,6 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     targets = new Map();
     drafts = new Map();
     revealing = null;
-    const owner = doc;
-    owner
-      ?.getMetadata()
-      .then(({ info }) => {
-        if (doc === owner) {
-          readOnly = !!(info as { EncryptFilterName?: string | null }).EncryptFilterName;
-        }
-      })
-      .catch(() => undefined);
   };
 
   const loadPage = (pageIndex: number) => {
@@ -300,7 +289,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     const draft = drafts.get(id);
     drafts.delete(id);
     const current = draft ?? findNote(id);
-    if (!current || readOnly) {
+    if (!current) {
       return;
     }
     const after = changedNote(current, text, pdfDate(new Date()));
@@ -319,7 +308,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
   };
 
   const startDrag = (id: string, button: HTMLButtonElement, event: PointerEvent) => {
-    if (readOnly || drag || event.button !== 0) {
+    if (drag || event.button !== 0) {
       return;
     }
     button.setPointerCapture(event.pointerId);
@@ -383,7 +372,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     dismissing = hooks.isPopupPinned() || !!container.querySelector(".annotationEditorLayer .selectedEditor");
   };
 
-  const writable = () => !readOnly && !!doc && (viewer.pdfDocument ?? null) === doc;
+  const writable = () => !!doc && (viewer.pdfDocument ?? null) === doc;
 
   const addAt = (pageDiv: HTMLElement, clientX: number, clientY: number) => {
     const pageIndex = Number(pageDiv.dataset.pageNumber) - 1;
@@ -403,7 +392,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
   const onClick = (event: MouseEvent) => {
     const layer = event.target as HTMLElement | null;
     const pageDiv = layer?.closest<HTMLElement>(".page");
-    if (readOnly || dropped || !pageDiv || !layer?.classList.contains("annotationEditorLayer")) {
+    if (dropped || !pageDiv || !layer?.classList.contains("annotationEditorLayer")) {
       return;
     }
     if ((viewer.annotationEditorMode as unknown as number) !== AnnotationEditorType.POPUP) {

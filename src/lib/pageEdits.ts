@@ -3,18 +3,25 @@ import { buffersOf, failureOf, type PageEditJob, type PageEditResponse, type Pag
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
-import { installDecryptedStrings } from "./pdfDecrypt";
+import { writeStickyNotes } from "./notesPdf";
+import { encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { flattenForm } from "./pdfForm";
 import { collectGarbage, flattenPageTree, importPageRefs, pageLeafRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 installDecryptedStrings();
 
-async function load(bytes: Uint8Array, password?: string) {
+const PASSWORD_FAILED = "This PDF's password didn't work.";
+const INSERTED_LOCKED = "Pages can't be added from a password-protected PDF.";
+
+const passwordRefused = (error: unknown) =>
+  error instanceof EncryptedPDFError || (error instanceof Error && /^(NEEDS PASSWORD|Password incorrect)/.test(error.message));
+
+async function load(bytes: Uint8Array, password = "", refusal = PASSWORD_FAILED) {
   try {
-    return await PDFDocument.load(bytes, { updateMetadata: false, password });
+    return await loadDecrypting(bytes, { updateMetadata: false, password });
   } catch (error) {
-    if (error instanceof EncryptedPDFError) {
-      throw new PageEditError("Pages in password-protected PDFs can't be changed yet.");
+    if (passwordRefused(error)) {
+      throw new PageEditError(refusal);
     }
     throw error;
   }
@@ -26,17 +33,20 @@ async function save(doc: PDFDocument) {
 }
 
 export async function pageCount(bytes: Uint8Array) {
-  return pageLeafRefs(await load(bytes)).length;
+  return pageLeafRefs(await load(bytes, "", INSERTED_LOCKED)).length;
 }
 
 async function importLabeled(target: PDFDocument, bytes: Uint8Array): Promise<LabelSource> {
-  const source = await load(bytes);
+  const source = await load(bytes, "", INSERTED_LOCKED);
   const refs = importPageRefs(target, source);
   return { refs, labels: readPageLabels(source, refs.length) };
 }
 
-export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit) {
-  const doc = await load(bytes);
+export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit, password?: string) {
+  const doc = await load(bytes, password);
+  if (edit.kind === "protect") {
+    return doc.context.isDecrypted ? save(doc) : bytes;
+  }
   const refs = flattenPageTree(doc);
   const pages = doc.getPages();
   const labels = readPageLabels(doc, refs.length);
@@ -87,6 +97,14 @@ export async function decryptPdf(bytes: Uint8Array, password = "") {
   return save(await load(bytes, password));
 }
 
+export async function encryptPdf(bytes: Uint8Array, password: string) {
+  const doc = await load(bytes, password);
+  collectGarbage(doc);
+  doc.encrypt({ userPassword: password, ownerPassword: password });
+  encryptUncompressedStrings(doc);
+  return doc.save({ rewrite: true, useObjectStreams: true, addDefaultPage: false, updateFieldAppearances: false });
+}
+
 export async function extractPages(bytes: Uint8Array, pages: number[], password?: string) {
   const doc = await load(bytes, password);
   const refs = flattenPageTree(doc);
@@ -102,7 +120,7 @@ export async function extractPages(bytes: Uint8Array, pages: number[], password?
 
 export async function combinePdfs(files: Uint8Array[]) {
   const [first, ...rest] = files;
-  const doc = await load(first);
+  const doc = await load(first, "", INSERTED_LOCKED);
   const refs = flattenPageTree(doc);
   const labels = readPageLabels(doc, refs.length);
   const extra: LabelSource[] = [];
@@ -119,12 +137,19 @@ export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> 
   switch (job.op) {
     case "edit": {
       const inserted = job.edit.kind === "insert" ? await pageCount(job.edit.data) : 0;
-      return { bytes: await applyPageEdit(job.bytes, job.edit), original: job.bytes, inserted };
+      const bytes = await applyPageEdit(job.bytes, job.edit, job.password);
+      return { bytes, original: job.bytes, inserted, unchanged: bytes === job.bytes };
     }
     case "extract":
       return { bytes: await extractPages(job.bytes, job.pages, job.password) };
     case "decrypt":
       return { bytes: await decryptPdf(job.bytes, job.password) };
+    case "encrypt":
+      return { bytes: await encryptPdf(job.bytes, job.password) };
+    case "notes":
+      return { bytes: await writeStickyNotes(job.bytes, job.notes, job.password) };
+    case "role":
+      return { bytes: new Uint8Array(), role: await passwordRole(job.bytes, job.password).catch(() => null) };
     case "combine":
       return { bytes: await combinePdfs(job.files) };
   }

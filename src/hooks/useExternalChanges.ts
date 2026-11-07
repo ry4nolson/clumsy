@@ -62,7 +62,7 @@ export function useExternalChanges({ workspaceRef, snapshotsRef, markdownHandles
           return ws.replaceTab(current, { ...target, source: fresh, stamp: stampOf, view: view && "mode" in view ? view : target.view });
         }
         if (target.kind === "document" && !isMarkdownSource(fresh)) {
-          return ws.replaceTab(current, { ...target, source: fresh, stamp: stampOf, view: view && !("mode" in view) ? view : target.view });
+          return ws.replaceTab(current, { ...target, source: fresh, protection: undefined, stamp: stampOf, view: view && !("mode" in view) ? view : target.view });
         }
         return current;
       });

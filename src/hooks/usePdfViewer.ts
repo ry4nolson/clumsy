@@ -11,8 +11,9 @@ import { restoreImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
 import { publishPageCanvas } from "../lib/pageCanvases";
 import { notesIn } from "../lib/notes";
+import { writeStickyNotesOffThread } from "../lib/pageEditWorker";
 import { hasCustomLabels } from "../lib/pageLabels";
-import { assetsUrl } from "../lib/pdfjs";
+import { assetsUrl, passwordOf } from "../lib/pdfjs";
 import { oneAtATime, saveKeepingModified } from "../lib/print";
 import { PatternFindController } from "../lib/patternFindController";
 import { defaultViewModes, type ScrollModeName, type SpreadModeName, type ViewModes } from "../lib/viewModes";
@@ -446,8 +447,7 @@ export function usePdfViewer() {
     if (!notes.length) {
       return bytes;
     }
-    const { writeStickyNotes } = await import("../lib/notesPdf");
-    return writeStickyNotes(bytes, notes);
+    return writeStickyNotesOffThread(bytes, notes, passwordOf(doc));
   }), [commitEdits]);
 
   const markSaved = useCallback(() => {
