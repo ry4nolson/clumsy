@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-07
+
 ### Added
 - **Right-click menu on the page.** A row of tools across the top, then Copy, Highlight, and Comment for selected text, Open and Copy Link for web links, Add Comment Here, Go Back and Forward, a Zoom submenu, and everything the thumbnail menu does for the page you clicked (or the selected pages, if it's one of them), without scrolling to it. Right-click a tool on the toolbar to add it to the menu's row or take it out
 
