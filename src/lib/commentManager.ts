@@ -12,7 +12,7 @@ export type CommentUiManager = {
   addCommands(command: UndoableCommand): void;
 };
 
-export type UndoableCommand = { cmd: () => void; undo: () => void; mustExec: boolean };
+export type UndoableCommand = { cmd: () => void; undo: () => void; mustExec: boolean; type?: string; overwriteIfSameType?: boolean; keepUndo?: boolean };
 
 type CommentEditor = CommentTarget & {
   uid: string;

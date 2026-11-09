@@ -325,3 +325,62 @@ describe("built-ins pdf.js needs from the webview", () => {
     expect(used).toMatchSnapshot();
   });
 });
+
+describe("markup", () => {
+  it("hides an annotation from display renders through a noView entry in the rendering intent's storage", () => {
+    expectIn(methodSource(worker, "Annotation", "mustBeViewed"), /const noView = annotationStorage\?\.get\(this\.data\.id\)\?\.noView;\s*return noView !== undefined \? !noView/);
+    for (const className of ["MarkupAnnotation", "SquareAnnotation", "CircleAnnotation", "LineAnnotation", "UnderlineAnnotation", "StrikeOutAnnotation", "StampAnnotation"]) {
+      expect(classSource(worker, className), className).not.toMatch(/^ {2}mustBeViewed\(/m);
+    }
+    const intent = methodSource(display, "WorkerTransport", "getRenderingIntent");
+    expectIn(intent, /getRenderingIntent\(intent, annotationMode = AnnotationMode\.ENABLE/);
+    expectIn(intent, "annotationStorageSerializable,");
+    expectIn(intent, "cacheKey: cacheKeyBuf.join(\"_\"),");
+    const pump = methodSource(display, "PDFPageProxy", "_pumpOperatorList");
+    expectIn(pump, /const \{\s*map,\s*transfer\s*\} = annotationStorageSerializable;/);
+    expectIn(pump, "annotationStorage: map,");
+    expectIn(methodSource(display, "PDFPageProxy", "render"), "const intentArgs = this._transport.getRenderingIntent(intent, annotationMode, printAnnotationStorage, isEditing);");
+    expectIn(methodSource(display, "PDFPageProxy", "getOperatorList"), "this._transport.getRenderingIntent(intent, annotationMode, printAnnotationStorage, isEditing, true)");
+    expectIn(methodSource(display, "PDFDocumentProxy", "saveDocument"), "this._transport.");
+  });
+
+  it("only saves annotations with their own save method, so noView never reaches a file", () => {
+    expectIn(methodSource(worker, "Annotation", "save"), /async save\(evaluator, task, annotationStorage, changes\) \{\s*return null;/);
+    for (const className of ["MarkupAnnotation", "SquareAnnotation", "CircleAnnotation", "LineAnnotation", "UnderlineAnnotation", "StrikeOutAnnotation", "StampAnnotation"]) {
+      expect(classSource(worker, className), className).not.toMatch(/^ {2}async save\(/m);
+    }
+  });
+
+  it("redraws a page view in place the way editing mode does", () => {
+    expectIn(methodSource(viewer, "PDFPageView", "reset"), /keepAnnotationLayer = false,\s*keepAnnotationEditorLayer = false,\s*keepXfaLayer = false,\s*keepTextLayer = false,\s*keepCanvasWrapper = false,/);
+    expectIn(classMembers(viewer, "PDFViewer"), "update");
+    expectIn(classMembers(viewer, "PDFPageView"), "reset");
+  });
+
+  it("lets the annotation layer find its document and treats stamps as editable only through data.isEditable", () => {
+    expectIn(methodSource(display, "AnnotationLayer", "constructor"), "this.page = page;");
+    expectIn(classSource(display, "AnnotationElement"), /get _isEditable\(\) \{\s*return this\.data\.isEditable;/);
+    expectIn(display, /if \(element\._isEditable\) \{\s*this\.#editableAnnotations\.set\(element\.data\.id, element\);/);
+    expectIn(methodSource(display, "StampAnnotationElement", "constructor"), "this.annotationEditorType = AnnotationEditorType.STAMP;");
+    const stamp = classSource(worker, "StampAnnotation");
+    expectIn(stamp, "this.data.isEditable = !this.data.noHTML;");
+    expectIn(stamp, /this\.#savedHasOwnCanvas \?\?= this\.data\.hasOwnCanvas;\s*this\.data\.hasOwnCanvas = true;/);
+    expectIn(methodSource(display, "AnnotationLayer", "#setAnnotationCanvasMap"), "layer.querySelector(`[data-annotation-id=\"${id}\"]`)");
+  });
+
+  it("gives text layer spans their angle in unrotated page space as --rotate", () => {
+    expectIn(display, "this.#transform = [1, 0, 0, -1, -pageX, pageY + pageHeight];");
+    expectIn(display, "textDivProperties.angle = angle * (180 / Math.PI);");
+    expectIn(display, 'style.setProperty("--rotate", `${properties.angle}deg`);');
+    expectIn(app.read("src/lib/markupSelection.ts"), 'getPropertyValue("--rotate")');
+  });
+
+  it("knows the annotation types Clumsy claims", () => {
+    expectIn(display, /LINE: 4,\s*SQUARE: 5,\s*CIRCLE: 6,[\s\S]{0,80}UNDERLINE: 10,\s*SQUIGGLY: 11,\s*STRIKEOUT: 12,\s*STAMP: 13,/);
+    const markup = app.read("src/lib/markup.ts");
+    for (const line of ["const LINE = 4;", "const SQUARE = 5;", "const CIRCLE = 6;", "const UNDERLINE = 10;", "const STRIKEOUT = 12;", "const STAMP = 13;"]) {
+      expectIn(markup, line);
+    }
+    expectIn(worker, /data\.quadPoints = getQuadPoints\(dict, null\)/);
+  });
+});

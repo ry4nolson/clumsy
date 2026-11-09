@@ -1,6 +1,8 @@
 import type { EditorTool } from "../hooks/useViewerTools";
 import type { CommandId } from "./commands";
 import { cleanContextTools, toolbarTools, toolCommand } from "./contextTools";
+import type { ShapeKind } from "./markup";
+import type { TextMode } from "./markupParams";
 import type { MarkKind } from "./marks";
 import { pageLabelOf } from "./pageLabels";
 
@@ -29,6 +31,7 @@ export type MenuContext = {
   link: { kind: "external" | "internal"; href: string } | null;
   activeTool: EditorTool;
   mark: MarkKind | null;
+  markupChoice?: MarkupChoice;
   contextTools: unknown;
   canGoBack: boolean;
   canGoForward: boolean;
@@ -64,11 +67,21 @@ export function pageSection(pages: number[], pagesCount: number, pageLabels: str
   };
 }
 
-export function toolPalette(activeTool: EditorTool, mark: MarkKind | null, contextTools: unknown): DocumentMenuSpec["palette"] {
+export type MarkupChoice = { shape: ShapeKind; textMode: TextMode };
+
+const textModeCommands: Record<TextMode, CommandId> = { highlight: "toolHighlight", underline: "toolUnderline", strikeout: "toolStrikeout" };
+const isTextTool = (tool: EditorTool) => tool === "highlight" || tool === "underline" || tool === "strikeout";
+
+export function toolPalette(activeTool: EditorTool, mark: MarkKind | null, contextTools: unknown, markup: MarkupChoice = { shape: "rectangle", textMode: "highlight" }): DocumentMenuSpec["palette"] {
   const chosen = new Set(cleanContextTools(contextTools));
   const items = toolbarTools
     .filter((info) => chosen.has(info.tool))
-    .map((info) => ({ id: toolCommand(info.tool, mark), label: info.label, symbol: info.symbol, checked: info.tool === activeTool }));
+    .map((info) => ({
+      id: info.tool === "highlight" ? textModeCommands[markup.textMode] : toolCommand(info.tool, mark, markup.shape),
+      label: info.label,
+      symbol: info.symbol,
+      checked: info.tool === "highlight" ? isTextTool(activeTool) : info.tool === activeTool,
+    }));
   return items.length ? { label: "Tools", items } : null;
 }
 
@@ -81,6 +94,8 @@ export function documentMenu(context: MenuContext): { spec: DocumentMenuSpec; pa
       items: [
         { kind: "copy", label: "Copy" },
         item("highlightSelection", "Highlight Selected Text"),
+        item("underlineSelection", "Underline Selected Text"),
+        item("strikeoutSelection", "Strike Through Selected Text"),
         item("commentSelection", "Comment on Selected Text"),
         item("useSelectionForFind", "Use Selection for Find"),
       ],
@@ -114,7 +129,7 @@ export function documentMenu(context: MenuContext): { spec: DocumentMenuSpec; pa
   if (onPage) {
     sections.push(pageSection(pages, context.pagesCount, context.pageLabels, context.canPrint));
   }
-  return { spec: { palette: toolPalette(context.activeTool, context.mark, context.contextTools), sections }, pages };
+  return { spec: { palette: toolPalette(context.activeTool, context.mark, context.contextTools, context.markupChoice), sections }, pages };
 }
 
 export type FlatEntry = Exclude<MenuEntry, { kind: "submenu" }> | { kind: "header"; label: string } | { kind: "submenu"; label: string; items: FlatEntry[] };

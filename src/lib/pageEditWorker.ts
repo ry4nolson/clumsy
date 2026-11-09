@@ -1,4 +1,5 @@
 import { errorFrom, jobBuffers, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
+import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
 import type { PageEdit } from "./pageEditPlan";
 
@@ -43,8 +44,10 @@ export const decryptPdfOffThread = async (bytes: Uint8Array, password?: string) 
 
 export const encryptPdfOffThread = async (bytes: Uint8Array, password: string) => (await runInWorker(spawn, { op: "encrypt", bytes, password })).bytes;
 
-export const writeStickyNotesOffThread = async (bytes: Uint8Array, notes: StickyNote[], password?: string) =>
-  (await runInWorker(spawn, { op: "notes", bytes, notes, password })).bytes;
+export const writeAnnotationsOffThread = async (bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password?: string) =>
+  (await runInWorker(spawn, { op: "annotations", bytes, notes, markup, password })).bytes;
+
+export const readMarkupOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "readMarkup", bytes, password })).markup ?? [];
 
 export const passwordRoleOffThread = async (bytes: Uint8Array, password: string) => (await runInWorker(spawn, { op: "role", bytes, password })).role ?? null;
 

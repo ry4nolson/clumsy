@@ -1,7 +1,13 @@
 import { AnnotationEditorParamsType, SignatureExtractor } from "pdfjs-dist";
-import type { EventBus, PDFLinkService } from "pdfjs-dist/web/pdf_viewer.mjs";
+import type { EventBus, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { createCommentManager, type CommentState } from "./commentManager";
 import { removedMessage } from "./comments";
+import type { Markup } from "./markup";
+import { attachMarkup, type MarkupLayer } from "./markupLayer";
+import { readMarkupParams, styleOf } from "./markupParams";
+import { dateLabel } from "./marks";
+import { readMarkupOffThread } from "./pageEditWorker";
+import { passwordOf } from "./pdfjs";
 import { MAX_SAVED_SIGNATURES, SIGNATURES_KEY, clearLegacySignature, readLegacySignature, readSignatures, withSignature, withoutSignature, writeSignatures, type SavedSignature } from "./signatures";
 
 export const SIGNATURE_HEIGHT_IN_PAGE = 40;
@@ -56,6 +62,7 @@ export type EditorUiState = CommentState & {
   signature: SignatureRequest | null;
   description: DescriptionRequest | null;
   signatures: SignaturePreview[];
+  markupSelection: Markup | null;
 };
 
 export const idleEditorUi: EditorUiState = {
@@ -67,6 +74,7 @@ export const idleEditorUi: EditorUiState = {
   comments: null,
   selectedComment: null,
   signatures: [],
+  markupSelection: null,
 };
 
 export function shapePreview(lines: SignatureLines | null): ShapePreview | null {
@@ -156,6 +164,19 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
   };
 
   const comments = createCommentManager(eventBus, linkService, { set, selected: () => state.selectedComment, undoBar: editorUndoBar });
+  let markup: MarkupLayer | null = null;
+
+  const attachViewer = (viewer: PDFViewer) => {
+    comments.attachViewer(viewer);
+    markup = attachMarkup(viewer, eventBus, {
+      addCommands: comments.addCommands,
+      style: () => styleOf(readMarkupParams()),
+      readFile: async (doc) => readMarkupOffThread(await doc.getData(), passwordOf(doc)),
+      stampDate: () => dateLabel(new Date()),
+      selected: (markupSelection) => set({ markupSelection }),
+      removed: () => editorUndoBar.show(() => {}, "markup"),
+    });
+  };
 
   const altTextManager = {
     editAltText(manager: UiManager, editor: AltTextEditor) {
@@ -300,7 +321,10 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
 
   return {
     viewerOptions: { editorUndoBar, altTextManager, signatureManager, commentManager: comments.commentManager },
-    attachViewer: comments.attachViewer,
+    attachViewer,
+    get markup() {
+      return markup;
+    },
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -320,6 +344,7 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
     addNoteAt: comments.addNoteAt,
     dispose() {
       window.removeEventListener("storage", onStorage);
+      markup?.dispose();
       comments.dispose();
     },
   };

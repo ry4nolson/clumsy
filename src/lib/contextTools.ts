@@ -1,5 +1,6 @@
 import type { EditorTool } from "../hooks/useViewerTools";
 import type { CommandId } from "./commands";
+import type { ShapeKind } from "./markup";
 import type { MarkKind } from "./marks";
 
 export const CONTEXT_TOOLS_KEY = "clumsy.contextTools";
@@ -16,12 +17,25 @@ export const toolbarTools: ToolInfo[] = [
   { tool: "image", label: "Add Image", symbol: "photo.badge.plus", command: "addImage" },
   { tool: "signature", label: "Sign", symbol: "signature", command: "sign" },
   { tool: "mark", label: "Fill In", symbol: "checkmark.square", command: "markCheck" },
+  { tool: "shape", label: "Shapes", symbol: "square.on.circle", command: "shapeRectangle" },
+  { tool: "stamp", label: "Stamps", symbol: "seal", command: "toolStamp" },
 ];
 
 export const markCommands: Record<MarkKind, CommandId> = { check: "markCheck", cross: "markCross", dot: "markDot", date: "markDate" };
 
-export const toolCommand = (tool: EditorTool, mark: MarkKind | null = null) =>
-  tool === "mark" ? markCommands[mark ?? "check"] : (toolbarTools.find((info) => info.tool === tool)?.command ?? "toolSelect");
+export const shapeCommands: Record<ShapeKind, CommandId> = { rectangle: "shapeRectangle", ellipse: "shapeEllipse", cloud: "shapeCloud", line: "shapeLine", arrow: "shapeArrow" };
+
+const textToolCommands: Partial<Record<EditorTool, CommandId>> = { underline: "toolUnderline", strikeout: "toolStrikeout" };
+
+export function toolCommand(tool: EditorTool, mark: MarkKind | null = null, shape: ShapeKind = "rectangle"): CommandId {
+  if (tool === "mark") {
+    return markCommands[mark ?? "check"];
+  }
+  if (tool === "shape") {
+    return shapeCommands[shape];
+  }
+  return textToolCommands[tool] ?? toolbarTools.find((info) => info.tool === tool)?.command ?? "toolSelect";
+}
 
 export const defaultContextTools: EditorTool[] = ["select", "highlight", "text", "draw", "comment", "signature"];
 

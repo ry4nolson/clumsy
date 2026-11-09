@@ -1,3 +1,4 @@
+import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
 import { PageEditError, type PageEdit } from "./pageEditPlan";
 import type { PasswordRole } from "./pdfDecrypt";
@@ -7,11 +8,12 @@ export type PageEditJob =
   | { op: "extract"; bytes: Uint8Array; pages: number[]; password?: string }
   | { op: "decrypt"; bytes: Uint8Array; password?: string }
   | { op: "encrypt"; bytes: Uint8Array; password: string }
-  | { op: "notes"; bytes: Uint8Array; notes: StickyNote[]; password?: string }
+  | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string }
+  | { op: "readMarkup"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
   | { op: "combine"; files: Uint8Array[] };
 
-export type PageEditResult = { bytes: Uint8Array; original?: Uint8Array; inserted?: number; unchanged?: boolean; role?: PasswordRole | null };
+export type PageEditResult = { bytes: Uint8Array; original?: Uint8Array; inserted?: number; unchanged?: boolean; role?: PasswordRole | null; markup?: Markup[] };
 
 export type PageEditFailure = { message: string; pageEdit: boolean };
 
@@ -28,7 +30,8 @@ export function jobBuffers(job: PageEditJob) {
     case "extract":
     case "decrypt":
     case "encrypt":
-    case "notes":
+    case "annotations":
+    case "readMarkup":
     case "role":
       return buffersOf([job.bytes]);
     case "combine":
