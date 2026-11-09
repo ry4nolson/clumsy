@@ -1,8 +1,8 @@
 # Clumsy
 
-A lightweight PDF viewer built on Tauri that also opens Markdown files. Releases are macOS-only today (15.4 or later, `bundle.macOS.minimumSystemVersion`); Windows and Linux are planned, so keep platform-specific code behind `platform.ts` / `cfg(target_os)` and wording platform-neutral. Tagline: "No tricks, no acrobatics." Avoid naming other companies' products (for example Adobe Acrobat) in the app, README, or store listings. Tauri 2 (Rust) shell, React 19 + TypeScript UI, pdf.js 6 for rendering and markup, markdown-it and CodeMirror 6 for Markdown. Sponsored by Texas Beard Company, the same branding used in TheAnnex and DutiHEHE.
+A lightweight PDF viewer built on Tauri that also opens Markdown files. Releases are macOS-only today (15.4 or later, `bundle.macOS.minimumSystemVersion`); Windows and Linux are planned, so keep platform-specific code behind `platform.ts` / `cfg(target_os)` and wording platform-neutral. Tagline: "No tricks, no acrobatics." Avoid naming other companies' products (for example Adobe Acrobat) in the app, README, or store listings. Tauri 2 (Rust) shell, React 19 + TypeScript UI, pdf.js 6 for rendering and markup, markdown-it and CodeMirror 6 for Markdown. Sponsored by Texas Beard Company (the same branding used in TheAnnex and DutiHEHE) and Facility Solutions Group (FSG), whose logo in the About sheet is drawn from the vector mark in `src/components/FsgLogo.tsx`.
 
-Repo: https://github.com/ry4nolson/clumsy (public, MIT License). The local folder is still named `pdf-viewer`. The license covers code only: the Clumsy name and icon and the Texas Beard Company name and logos are excluded (see README).
+Repo: https://github.com/ry4nolson/clumsy (public, MIT License). The local folder is still named `pdf-viewer`. The license covers code only: the Clumsy name and icon and the Texas Beard Company and Facility Solutions Group names and logos are excluded (see README).
 
 ## Commands
 

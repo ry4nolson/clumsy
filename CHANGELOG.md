@@ -14,6 +14,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - Click any shape, line, stamp, underline, or strikethrough to select it: drag to move it, drag a corner or end to resize it, use the arrow keys to nudge it, press Delete to remove it, or change its color and thickness from the toolbar. Every change can be undone. This works on the same kinds of markup made in other apps, which keep their author and comment
 - Everything saves into the PDF as standard annotations with their own appearance, so it looks the same in other PDF apps and browsers, which can still select and move it
 
+### Changed
+- About now lists Facility Solutions Group as a sponsor alongside Texas Beard Company
+
 ### Fixed
 - Export Pages as Images, and printing a file that can only print as images, now include unsaved sticky notes
 
