@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-09
+
 ### Added
 - **Shapes**: rectangles, ellipses, revision clouds, lines, and arrows from the new Shapes button. Drag to draw; hold Shift for squares, circles, and 45° lines. Pick a stroke color, fill, thickness, and opacity from its dropdown
 - **Stamps**: Approved, Rejected, Reviewed, For Review, Draft, Confidential, and Void with today's date, a set of icons, and about 40 electrical plan symbols. Click the page to place one, or drag to size it
