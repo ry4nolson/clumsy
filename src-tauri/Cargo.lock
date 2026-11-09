@@ -483,6 +483,7 @@ name = "clumsy"
 version = "0.14.0"
 dependencies = [
  "core-foundation 0.10.1",
+ "libc",
  "objc2",
  "objc2-app-kit",
  "objc2-core-graphics",

@@ -61,6 +61,7 @@ export function slugify(title: string) {
 function sourceLines(state: StateCore) {
   const headings: Heading[] = [];
   const used = new Map<string, number>();
+  const taken = new Set<string>();
   state.tokens.forEach((token, index) => {
     if (!token.map || token.nesting === -1 || token.type === "inline") {
       return;
@@ -70,9 +71,14 @@ function sourceLines(state: StateCore) {
     if (token.type === "heading_open") {
       const title = plainText(state.tokens[index + 1]);
       const base = slugify(title) || "section";
-      const count = used.get(base) ?? 0;
+      let count = used.get(base) ?? 0;
+      let id = count ? `${base}-${count}` : base;
+      while (taken.has(id)) {
+        count += 1;
+        id = `${base}-${count}`;
+      }
       used.set(base, count + 1);
-      const id = count ? `${base}-${count}` : base;
+      taken.add(id);
       token.attrSet("id", id);
       headings.push({ title: title || "Untitled", level: Number(token.tag.slice(1)), line: token.map[0], id });
     }

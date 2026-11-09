@@ -1,5 +1,19 @@
 export type Protection = { password: string; ownerPassword?: boolean };
 
+export const serializeProtection = (protection: Protection) => JSON.stringify(protection);
+
+export function parseProtection(text: string): Protection | undefined {
+  try {
+    const value: unknown = JSON.parse(text);
+    if (typeof value === "object" && value !== null && "password" in value && typeof value.password === "string") {
+      return "ownerPassword" in value && value.ownerPassword === true ? { password: value.password, ownerPassword: true } : { password: value.password };
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
+
 const latin1 = new TextDecoder("latin1");
 
 const TAIL = 2048;

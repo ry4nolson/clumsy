@@ -102,8 +102,25 @@ fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     if fs::symlink_metadata(path).is_ok() {
         fs::remove_file(path)?;
     }
-    OpenOptions::new().write(true).create_new(true).open(path)?.write_all(bytes)
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()
 }
+
+#[cfg(target_os = "macos")]
+fn copy_attributes(from: &Path, to: &Path) {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+    let (Ok(from), Ok(to)) = (CString::new(from.as_os_str().as_bytes()), CString::new(to.as_os_str().as_bytes())) else {
+        return;
+    };
+    unsafe {
+        libc::copyfile(from.as_ptr(), to.as_ptr(), std::ptr::null_mut(), libc::COPYFILE_XATTR | libc::COPYFILE_ACL);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn copy_attributes(_from: &Path, _to: &Path) {}
 
 #[derive(Default)]
 pub struct AllowedPaths(Mutex<HashSet<PathBuf>>);
@@ -196,6 +213,7 @@ pub fn write_atomically(path: &Path, bytes: &[u8], expected_stamp: Option<&str>)
     let permissions = fs::metadata(&target).ok().map(|metadata| metadata.permissions());
     let tmp = saving_path(&target);
     let result = write_new(&tmp, bytes)
+        .map(|_| copy_attributes(&target, &tmp))
         .and_then(|_| permissions.map_or(Ok(()), |permissions| fs::set_permissions(&tmp, permissions)))
         .and_then(|_| fs::rename(&tmp, &target));
     if let Err(err) = result {
@@ -449,5 +467,25 @@ mod tests {
         assert!(fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
         assert_eq!(fs::read(&real).unwrap(), b"new");
         assert_eq!(fs::metadata(&real).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn saving_keeps_extended_attributes() {
+        use std::ffi::CString;
+        use std::os::unix::ffi::OsStrExt;
+        let dir = scratch("xattr");
+        let file = dir.join("tagged.pdf");
+        fs::write(&file, b"old").unwrap();
+        let path = CString::new(file.as_os_str().as_bytes()).unwrap();
+        let name = CString::new("com.clumsy.test").unwrap();
+        let value = b"kept";
+        let set = unsafe { libc::setxattr(path.as_ptr(), name.as_ptr(), value.as_ptr().cast(), value.len(), 0, 0) };
+        assert_eq!(set, 0);
+        write_atomically(&file, b"new", None).unwrap();
+        let mut read = [0u8; 16];
+        let size = unsafe { libc::getxattr(path.as_ptr(), name.as_ptr(), read.as_mut_ptr().cast(), read.len(), 0, 0) };
+        assert_eq!(fs::read(&file).unwrap(), b"new");
+        assert_eq!(&read[..size.max(0) as usize], value);
     }
 }

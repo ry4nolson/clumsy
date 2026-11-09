@@ -80,3 +80,24 @@ describe("markup model", () => {
     expect(colorFromHex("nope")).toEqual(colorFromHex("#e5484d"));
   });
 });
+
+describe("restyling markup from another app", () => {
+  const cover = { ...make({ id: "12R" }), fresh: false, color: [0, 0, 0], fill: [1, 1, 1], fillAlpha: 1 };
+
+  it("keeps a fill that differs from the stroke when opacity or thickness changes", () => {
+    expect(restyledMarkup(cover, { opacity: 0.5 }, date)).toMatchObject({ color: [0, 0, 0], fill: [1, 1, 1], opacity: 0.5 });
+    expect(restyledMarkup(cover, { width: 4 }, date)).toMatchObject({ fill: [1, 1, 1], width: 4 });
+    expect(restyledMarkup(cover, { color: [1, 0, 0] }, date)).toMatchObject({ color: [1, 0, 0], fill: [1, 1, 1] });
+  });
+
+  it("still removes the fill when asked", () => {
+    expect(restyledMarkup(cover, { fill: false }, date).fill).toBeNull();
+  });
+
+  it("treats styles a kind can't take as no change", () => {
+    const stamp = make({ id: "s", kind: "stamp", stamp: "approved" });
+    expect(sameStyle(stamp, { width: stamp.width + 3 })).toBe(true);
+    expect(sameStyle(make({ id: "l", kind: "line" }), { fill: true })).toBe(true);
+    expect(sameStyle(make({ id: "r" }), { fill: true })).toBe(false);
+  });
+});

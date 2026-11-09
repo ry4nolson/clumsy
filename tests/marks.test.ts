@@ -32,4 +32,8 @@ describe("dateLabel", () => {
   it("falls back to an ISO date when the format has no plain digits", () => {
     expect(dateLabel(date, "ar-EG")).toBe("2026-11-02");
   });
+
+  it("falls back to an ISO date when letters would be dropped from the format", () => {
+    expect(dateLabel(date, "bg-BG")).toBe("2026-11-02");
+  });
 });

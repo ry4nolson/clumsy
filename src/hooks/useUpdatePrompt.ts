@@ -4,6 +4,8 @@ import { isDesktop, openExternal } from "../lib/platform";
 import { usePersistentState } from "../lib/preferences";
 import {
   UPDATE_CHECK_INTERVAL_MS,
+  UPDATE_RETRY_MS,
+  UPDATE_TICK_MS,
   UPDATE_SNOOZE_MS,
   checkForUpdates,
   shouldAutoCheck,
@@ -63,6 +65,9 @@ export function useUpdatePrompt() {
       writeLastCheckAt(now);
       try {
         const status = await checkForUpdates();
+        if (status.state === "error") {
+          writeLastCheckAt(now - UPDATE_CHECK_INTERVAL_MS + UPDATE_RETRY_MS);
+        }
         if (disposed || status.state !== "available") {
           return;
         }
@@ -81,11 +86,13 @@ export function useUpdatePrompt() {
     const timer = window.setTimeout(() => {
       void run(true);
     }, 2000);
+    const tick = window.setInterval(onFocus, UPDATE_TICK_MS);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     return () => {
       disposed = true;
       window.clearTimeout(timer);
+      window.clearInterval(tick);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };

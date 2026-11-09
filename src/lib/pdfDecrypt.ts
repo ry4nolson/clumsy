@@ -10,9 +10,11 @@ import {
   PDFPageLeaf,
   PDFPageTree,
   PDFParser,
+  PDFRawStream,
   PDFRef,
   PDFStream,
   PDFString,
+  decodePDFRawStream,
   type LoadOptions,
   type PDFContext,
   type PDFObject,
@@ -152,5 +154,36 @@ export function encryptUncompressedStrings(doc: PDFDocument) {
     } else if (writtenOutsideObjectStreams(ref, object)) {
       encryptStrings(object, encrypt(), isSignature(object) ? PDFName.of("Contents") : undefined);
     }
+  }
+}
+
+const PDFA_ELEMENT = /<pdfaid:(\w+)\b[^>]*>[^<]*<\/pdfaid:\1>\s*/g;
+const PDFA_ATTRIBUTE = /\s+pdfaid:\w+\s*=\s*("[^"]*"|'[^']*')/g;
+
+export const withoutPdfAClaim = (xmp: string) => xmp.replace(PDFA_ELEMENT, "").replace(PDFA_ATTRIBUTE, "");
+
+export function dropPdfAClaim(doc: PDFDocument) {
+  const name = PDFName.of("Metadata");
+  const ref = doc.catalog.get(name);
+  const metadata = doc.catalog.lookup(name);
+  if (!(metadata instanceof PDFRawStream)) {
+    return;
+  }
+  let xmp: string;
+  try {
+    xmp = new TextDecoder().decode(decodePDFRawStream(metadata).decode());
+  } catch {
+    doc.catalog.delete(name);
+    return;
+  }
+  const stripped = withoutPdfAClaim(xmp);
+  if (stripped === xmp) {
+    return;
+  }
+  const stream = doc.context.stream(new TextEncoder().encode(stripped), { Type: "Metadata", Subtype: "XML" });
+  if (ref instanceof PDFRef) {
+    doc.context.assign(ref, stream);
+  } else {
+    doc.catalog.set(name, doc.context.register(stream));
   }
 }

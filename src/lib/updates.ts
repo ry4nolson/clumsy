@@ -6,6 +6,8 @@ export const appVersion = __APP_VERSION__;
 export const releasesApiUrl = `${repoUrl.replace("https://github.com", "https://api.github.com/repos")}/releases?per_page=30`;
 
 export const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export const UPDATE_RETRY_MS = 15 * 60 * 1000;
+export const UPDATE_TICK_MS = 60 * 60 * 1000;
 export const UPDATE_SNOOZE_MS = 24 * 60 * 60 * 1000;
 
 export type GitHubRelease = {

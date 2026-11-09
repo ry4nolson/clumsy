@@ -114,13 +114,14 @@ impl RecentFiles {
         let Some(store) = lock(&self.store).clone() else {
             return;
         };
-        let Ok(json) = serde_json::to_string_pretty(&*lock(&self.list)) else {
+        let list = lock(&self.list);
+        let Ok(json) = serde_json::to_string_pretty(&*list) else {
             return;
         };
         if let Some(dir) = store.parent() {
             let _ = fs::create_dir_all(dir);
         }
-        let _ = fs::write(store, json);
+        let _ = crate::files::write_file(&store, json.as_bytes(), true);
     }
 }
 

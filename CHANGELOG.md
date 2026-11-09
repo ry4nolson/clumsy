@@ -7,6 +7,36 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Saving keeps a file's Finder tags, comments, and other extended attributes
+- Clumsy checks for updates on its own every few hours while it stays open, and tries again sooner after a check that failed
+
+### Fixed
+- A document stays marked as edited when Save is cancelled or fails, when pages are extracted from it, and when moving it to another window fails. Before, it could read as saved and then close without asking or reload from disk and lose the changes
+- Deleting a comment, shape, stamp, underline, or strikethrough after saving now marks the document as edited, so the deletion is saved
+- Page edits no longer drop a page from PDFs whose pages are missing their type entry
+- Setting a password on a PDF/A file no longer stops it from saving. The saved file is no longer marked as PDF/A, which doesn't allow passwords
+- Pages inserted into a PDF no longer pick up a rotation or crop from the document they're added to
+- A PDF opened with its owner password still asks before saving after its tab moves to another window
+- Changing the opacity or thickness of a filled shape from another app no longer replaces its fill color
+- Page Labels from a right-clicked page or thumbnail starts on that page, not the current one
+- Opening a recent file from a drive that was connected after Clumsy started
+- Find in a Markdown file with a regular expression that matches line breaks
+- Markdown headings with the same text as a numbered duplicate get their own link
+- Links in Markdown files that hide a phone or message link behind stray characters are removed, and middle-clicking a link no longer follows it
+- The comment box no longer dims the page behind it
+- Shortcuts without a modifier, like H for the Hand tool, no longer act on the document while a sheet is open
+- A new window that finishes opening in the background no longer takes over the menu bar
+- The password prompt starts empty for each file when several protected files open at once
+- Holding Space to pan no longer stays on after a document reloads mid-press
+- Underline and Strikethrough across two columns no longer draw one line over the gap, and right-clicking no longer marks text
+- Deleting a comment also removes its replies
+- Today's Date in languages whose dates include letters
+- Dark pages keep their images while zooming
+- The find bar keeps what you typed after a page edit or a reload, where it used to go back to an earlier search
+- Compare Split Panes works again after a comparison fails
+- Deleting pages no longer expands collapsed bookmarks
+
 ## [0.14.0] - 2026-11-09
 
 ### Added

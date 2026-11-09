@@ -479,7 +479,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
           tabIndex={-1}
           inert={mode !== "rendered"}
         >
-          <article ref={contentRef} className="markdown-body" onClick={onContentClick} />
+          <article ref={contentRef} className="markdown-body" onClick={onContentClick} onAuxClick={(event) => (event.target as Element).closest("a, area") && event.preventDefault()} />
         </div>
       </main>
       {documentMap && (

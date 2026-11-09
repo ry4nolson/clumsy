@@ -19,20 +19,25 @@ export function PasswordDialog({ request, onSubmit }: PasswordDialogProps) {
     }
   }, [request]);
 
+  const submit = (value: string | null) => {
+    setPassword("");
+    onSubmit(value);
+  };
+
   return (
     <dialog
       ref={dialogRef}
       className="dialog sheet"
       onCancel={(event) => {
         event.preventDefault();
-        onSubmit(null);
+        submit(null);
       }}
     >
       <form
         method="dialog"
         onSubmit={(event) => {
           event.preventDefault();
-          onSubmit(password);
+          submit(password);
         }}
       >
         <h2>Password required</h2>
@@ -48,7 +53,7 @@ export function PasswordDialog({ request, onSubmit }: PasswordDialogProps) {
         />
         <div className="dialog-actions">
           <span className="spacer" />
-          <button type="button" className="button" onClick={() => onSubmit(null)}>
+          <button type="button" className="button" onClick={() => submit(null)}>
             Cancel
           </button>
           <button type="submit" className="button primary">

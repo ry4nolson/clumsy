@@ -256,7 +256,11 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   const holdHand = useCallback(
     (held: boolean) => {
       const parts = partsRef.current;
-      if (!parts?.viewer.pdfDocument || handRef.current.held === held) {
+      if (handRef.current.held === held) {
+        return false;
+      }
+      if (!parts?.viewer.pdfDocument) {
+        handRef.current.held = false;
         return false;
       }
       const moved = parts.hand.moved();

@@ -20,14 +20,11 @@ export function setCargoTomlVersion(content, version) {
 }
 
 export function setCargoLockVersion(content, version) {
-  const next = content.replace(
-    /(^name = "clumsy"\n)version = "[^"]+"/m,
-    `$1version = "${version}"`,
-  );
-  if (next === content) {
+  const local = /(^name = "clumsy"\n)version = "[^"]+"/m;
+  if (!local.test(content)) {
     throw new Error('Cargo.lock has no local "clumsy" package version');
   }
-  return next;
+  return content.replace(local, `$1version = "${version}"`);
 }
 
 export function setVersionFiles(files, version) {

@@ -10,7 +10,12 @@ const openable = /\.(md|markdown|pdf)$/i;
 
 export const isExternalUrl = (url: string) => external.test(url.trim());
 
-export const opensElsewhere = (href: string) => scheme.test(href.trim()) && !isExternalUrl(href);
+const ignoredByUrlParser = /[\u0000-\u0020]+/g;
+
+export function opensElsewhere(href: string) {
+  const compact = href.replace(ignoredByUrlParser, "");
+  return scheme.test(compact) && !external.test(compact);
+}
 
 function decode(text: string) {
   try {

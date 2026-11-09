@@ -196,7 +196,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
   const start = useCallback((left: string, right: string) => {
     const latest = stateRef.current;
     onStartRef.current();
-    if (latest?.tabs.left === left && latest.tabs.right === right) {
+    if (latest?.tabs.left === left && latest.tabs.right === right && latest.status !== "failed") {
       return;
     }
     expected.current = { left: null, right: null };

@@ -7,10 +7,11 @@ import { paintDiffPage, paintDiffPages, type DiffViewer } from "../lib/diffLayer
 import { createEditorManagers, type EditorManagers } from "../lib/editorManagers";
 import type { ViewState } from "../lib/documentWindows";
 import { attachHandTool, type HandTool } from "../lib/handTool";
-import { restoreImages, type RenderedPageView } from "../lib/imageRestore";
+import { restoreImages, restoreRenderedImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
 import { publishPageCanvas } from "../lib/pageCanvases";
 import { markupIn } from "../lib/markup";
+import { trackModified, type ModifiedStorage } from "../lib/modifiedState";
 import { notesIn } from "../lib/notes";
 import { writeAnnotationsOffThread } from "../lib/pageEditWorker";
 import { hasCustomLabels } from "../lib/pageLabels";
@@ -86,6 +87,7 @@ export function usePdfViewer() {
   const [scaleValue, setScaleValue] = useState("page-width");
   const [pagesRotation, setPagesRotation] = useState(0);
   const [modified, setModifiedState] = useState(false);
+  const markSavedRef = useRef<(() => void) | null>(null);
   const [modes, setModes] = useState<ViewModes>(defaultViewModes);
   const [pageLabels, setPageLabelsState] = useState<string[] | null>(null);
   const [caretBrowsing, setCaretBrowsingState] = useState(false);
@@ -211,6 +213,7 @@ export function usePdfViewer() {
       setScale(scale);
       setScaleValue(presetValue ?? String(scale));
       paintAllDiffs();
+      restoreRenderedImages(viewer, restoreRef.current);
     });
     eventBus.on("scrollmodechanged", ({ mode }: { mode: number }) => {
       const scrollMode = nameOf(scrollModeValues, mode);
@@ -314,6 +317,7 @@ export function usePdfViewer() {
       diffRef.current = { overlays: null, current: -1 };
       stops.reset(start?.view?.history);
       resetTools();
+      markSavedRef.current = null;
       setModified(false);
       setPageNumber(1);
       setPagesCount(doc?.numPages ?? 0);
@@ -322,10 +326,7 @@ export function usePdfViewer() {
       applyLabels(null);
       loadFields(doc);
       if (doc) {
-        Object.assign(doc.annotationStorage, {
-          onSetModified: () => setModified(true),
-          onResetModified: () => setModified(false),
-        });
+        markSavedRef.current = trackModified(doc.annotationStorage as unknown as ModifiedStorage, setModified);
         doc
           .getPageLabels()
           .then((labels) => {
@@ -437,22 +438,21 @@ export function usePdfViewer() {
     };
   }, [stops]);
 
-  const save = useMemo(() => oneAtATime(async (keepModified = false) => {
+  const save = useMemo(() => oneAtATime(async () => {
     const doc = partsRef.current?.viewer.pdfDocument;
     if (!doc) {
       return null;
     }
     commitEdits();
-    const bytes = await (keepModified ? saveKeepingModified(doc) : doc.saveDocument());
+    const bytes = await saveKeepingModified(doc);
     const notes = notesIn(doc.annotationStorage);
     const markup = markupIn(doc.annotationStorage);
     return notes.length || markup.length ? writeAnnotationsOffThread(bytes, notes, markup, passwordOf(doc)) : bytes;
   }), [commitEdits]);
 
   const markSaved = useCallback(() => {
-    partsRef.current?.viewer.pdfDocument?.annotationStorage.resetModified();
-    setModified(false);
-  }, [setModified]);
+    markSavedRef.current?.();
+  }, []);
 
   return {
     containerRef,

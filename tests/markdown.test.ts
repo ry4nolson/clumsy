@@ -77,3 +77,11 @@ describe("headingTree", () => {
     expect(headingAt(headings, 6)?.title).toBe("B");
   });
 });
+
+describe("heading ids", () => {
+  it("stay unique when a numbered duplicate meets a heading with that slug", () => {
+    const ids = renderMarkdown("# Foo\n\n# Foo\n\n# Foo 1\n\n# Foo\n").headings.map((heading) => heading.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.slice(0, 2)).toEqual(["foo", "foo-1"]);
+  });
+});

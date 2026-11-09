@@ -236,6 +236,8 @@ export function orientedQuads(quads: number[], rotation = 0) {
   return oriented;
 }
 
+const COLUMN_GAP = 1.5;
+
 export function quadsFromRects(rects: Rect[], rotation = 0) {
   const turns = quarterTurns(rotation);
   const sorted = rects
@@ -247,7 +249,9 @@ export function quadsFromRects(rects: Rect[], rotation = 0) {
     const height = rect.top - rect.bottom;
     const line = lines.find((candidate) => {
       const overlap = Math.min(candidate.top, rect.top) - Math.max(candidate.bottom, rect.bottom);
-      return overlap > Math.min(height, candidate.top - candidate.bottom) / 2;
+      const lineHeight = Math.min(height, candidate.top - candidate.bottom);
+      const gap = Math.max(rect.left - candidate.right, candidate.left - rect.right);
+      return overlap > lineHeight / 2 && gap <= lineHeight * COLUMN_GAP;
     });
     if (line) {
       line.left = Math.min(line.left, rect.left);

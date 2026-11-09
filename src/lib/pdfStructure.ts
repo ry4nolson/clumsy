@@ -9,6 +9,7 @@ import {
   PDFObject,
   PDFObjectCopier,
   PDFPageLeaf,
+  PDFPageTree,
   PDFRef,
   PDFStream,
   PDFString,
@@ -47,6 +48,9 @@ export function pageLeafRefs(doc: PDFDocument) {
     const node = doc.context.lookup(ref);
     if (node instanceof PDFPageLeaf) {
       refs.push(ref);
+    } else if (node instanceof PDFDict && !(node instanceof PDFPageTree) && !node.has(key("Kids"))) {
+      doc.context.assign(ref, typedPage(doc, node));
+      refs.push(ref);
     } else if (node instanceof PDFDict) {
       const kids = node.lookup(key("Kids"));
       if (kids instanceof PDFArray) {
@@ -55,6 +59,12 @@ export function pageLeafRefs(doc: PDFDocument) {
     }
   }
   return refs;
+}
+
+function typedPage(doc: PDFDocument, node: PDFDict) {
+  const page = PDFPageLeaf.fromMapWithContext(new Map(node.entries()), doc.context);
+  page.set(key("Type"), key("Page"));
+  return page;
 }
 
 function inheritedValue(page: PDFDict, name: PDFName) {
@@ -83,6 +93,10 @@ export function flattenPageTree(doc: PDFDocument) {
     }
   }
   setPageRefs(doc, refs);
+  const root = doc.catalog.Pages();
+  for (const name of PDFPageLeaf.InheritableEntries) {
+    root.delete(key(name));
+  }
   return refs;
 }
 
@@ -289,7 +303,7 @@ function pruneLinks(doc: PDFDocument, pageRefs: PDFRef[], resolveName: ResolveNa
 
 function pruneOutline(doc: PDFDocument, resolveName: ResolveName) {
   const seen = new Set<PDFDict>();
-  const prune = (parent: PDFDict): number => {
+  const prune = (parent: PDFDict, root = false): number => {
     const kept: Array<{ ref: PDFObject; item: PDFDict; visible: number }> = [];
     let ref = parent.get(key("First"));
     while (ref) {
@@ -337,7 +351,7 @@ function pruneOutline(doc: PDFDocument, resolveName: ResolveName) {
       return sum + 1 + (open ? visible : 0);
     }, 0);
     const count = parent.lookup(key("Count"));
-    const closed = count instanceof PDFNumber && count.asNumber() < 0;
+    const closed = !root && (!(count instanceof PDFNumber) || count.asNumber() < 0);
     if (kept.length) {
       parent.set(key("Count"), PDFNumber.of(closed ? -total : total));
     } else {
@@ -347,7 +361,7 @@ function pruneOutline(doc: PDFDocument, resolveName: ResolveName) {
   };
   const outlines = doc.catalog.lookup(key("Outlines"));
   if (outlines instanceof PDFDict) {
-    prune(outlines);
+    prune(outlines, true);
   }
 }
 

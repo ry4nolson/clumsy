@@ -206,9 +206,12 @@ describe("viewer internals", () => {
 describe("annotation storage", () => {
   it("lets sticky notes and form resets keep their own entries", () => {
     const storage = classMembers(display, "AnnotationStorage");
-    for (const name of ["getRawValue", "setValue", "remove", "print", "serializable"]) {
+    for (const name of ["getRawValue", "setValue", "remove", "has", "resetModified", "onSetModified", "onResetModified", "print", "serializable"]) {
       expect(storage, `AnnotationStorage.${name}`).toContain(name);
     }
+    const remove = methodSource(display, "AnnotationStorage", "remove");
+    expectIn(remove, /if \(this\.#storage\.size === 0\) \{\s*this\.resetModified\(\);/);
+    expect(remove).not.toContain("#setModified");
     expectIn(functionSource(worker, "getNewAnnotationsMap"), "if (!key.startsWith(AnnotationEditorPrefix)) {\n      continue;");
     expectIn(worker, 'const AnnotationEditorPrefix = "pdfjs_internal_editor_";');
     expectIn(app.read("src/lib/notes.ts"), 'export const NOTE_KEY_PREFIX = "clumsy-note:";');

@@ -255,6 +255,7 @@ type MenuCallbacks = {
   onOpenRecent: (entry: RecentEntry) => void;
   onClearRecent: () => void;
   canPrint: boolean;
+  ownsAppMenu: () => Promise<boolean>;
 };
 
 export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu> {
@@ -321,7 +322,9 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     submenus.push(await Submenu.new({ text: name, items }));
   }
   const menu = await Menu.new({ items: submenus });
-  await menu.setAsAppMenu();
+  if (await callbacks.ownsAppMenu()) {
+    await menu.setAsAppMenu();
+  }
 
   return {
     async activate() {
