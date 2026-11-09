@@ -1,12 +1,15 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
-import { CalendarDays, Check, Dot, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Type, X } from "lucide-react";
+import { CalendarDays, Check, Dot, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Strikethrough, Type, Underline, X } from "lucide-react";
 import { inkColors, toolOptions } from "../hooks/useEditorOptions";
 import { highlightColors, type EditorParams, type EditorTool } from "../hooks/usePdfViewer";
 import { defaultContextTools, readContextTools, withContextTool, writeContextTools } from "../lib/contextTools";
 import type { SignaturePreview } from "../lib/editorManagers";
+import type { ShapeKind } from "../lib/markup";
+import type { MarkupParams, TextMode } from "../lib/markupParams";
 import type { MarkKind } from "../lib/marks";
 import { showContextMenu } from "../lib/platform";
 import { IconButton } from "./IconButton";
+import { ShapesTool, StampTool, TextMarkupSettings, TextModeChoice } from "./MarkupTools";
 import { SignaturePath } from "./SignatureDialog";
 import { closeToolMenu, ToolMenu } from "./ToolMenu";
 
@@ -28,7 +31,14 @@ export type ToolsProps = {
   onNewSignature: () => void;
   onPlaceSignature: (uuid: string) => void;
   onForgetSignature: (uuid: string) => void;
+  markup: MarkupParams;
+  onShape: (kind: ShapeKind) => void;
+  onMarkupParams: (patch: Partial<MarkupParams>) => void;
+  onTextMode: (mode: TextMode) => void;
+  onStamps: () => void;
 };
+
+export type ContextMenuFor = (tool: EditorTool) => (event: MouseEvent<HTMLButtonElement>) => void;
 
 type StyledTool = "highlight" | "text" | "draw";
 
@@ -39,7 +49,7 @@ const marks: Array<{ kind: MarkKind; label: string; icon: ReactNode }> = [
   { kind: "date", label: "Today's date", icon: <CalendarDays size={16} /> },
 ];
 
-function toolMenu(tool: EditorTool) {
+const toolMenu: ContextMenuFor = (tool) => {
   return (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     const tools = readContextTools();
@@ -50,7 +60,7 @@ function toolMenu(tool: EditorTool) {
       { label: "Reset Context Menu Tools", enabled: tools.join() !== defaultContextTools.join(), run: () => writeContextTools(null) },
     ]);
   };
-}
+};
 
 function ToolSettings({ props, tool }: { props: ToolsProps; tool: StyledTool }) {
   const inkTool = tool !== "highlight";
@@ -129,6 +139,27 @@ function StyledToolButton({ props, tool, title, label, icon }: { props: ToolsPro
   );
 }
 
+function HighlightTool({ props }: { props: ToolsProps }) {
+  const active = props.tool === "highlight" || props.tool === "underline" || props.tool === "strikeout";
+  const mode = active ? props.tool : props.markup.textMode;
+  const title = mode === "underline" ? "Underline" : mode === "strikeout" ? "Strikethrough" : "Highlight (H)";
+  return (
+    <ToolMenu
+      label="Highlight options"
+      active={active}
+      button={
+        <IconButton title={title} active={active} onContextMenu={toolMenu("highlight")} onClick={() => props.onTextMode(props.markup.textMode)}>
+          {mode === "underline" ? <Underline size={18} /> : mode === "strikeout" ? <Strikethrough size={18} /> : <Highlighter size={18} />}
+        </IconButton>
+      }
+      onOpen={() => !active && props.onTextMode(props.markup.textMode)}
+    >
+      <TextModeChoice props={props} />
+      {mode === "highlight" ? <ToolSettings props={props} tool="highlight" /> : <TextMarkupSettings props={props} />}
+    </ToolMenu>
+  );
+}
+
 export type ToolEntry = { key: EditorTool; node: ReactNode };
 
 export function toolEntries(props: ToolsProps): ToolEntry[] {
@@ -150,9 +181,10 @@ export function toolEntries(props: ToolsProps): ToolEntry[] {
         </IconButton>
       ),
     },
-    { key: "highlight", node: <StyledToolButton props={props} tool="highlight" title="Highlight (H)" label="Highlight options" icon={<Highlighter size={18} />} /> },
+    { key: "highlight", node: <HighlightTool props={props} /> },
     { key: "text", node: <StyledToolButton props={props} tool="text" title="Text note (T)" label="Text options" icon={<Type size={18} />} /> },
     { key: "draw", node: <StyledToolButton props={props} tool="draw" title="Draw (D)" label="Draw options" icon={<PenLine size={18} />} /> },
+    { key: "shape", node: <ShapesTool props={props} onContextMenu={toolMenu} /> },
     {
       key: "comment",
       node: (
@@ -170,6 +202,7 @@ export function toolEntries(props: ToolsProps): ToolEntry[] {
       ),
     },
     { key: "signature", node: <SignatureTool props={props} /> },
+    { key: "stamp", node: <StampTool props={props} onContextMenu={toolMenu} /> },
     { key: "mark", node: <MarkTool props={props} /> },
   ];
 }

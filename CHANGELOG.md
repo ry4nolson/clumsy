@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Shapes**: rectangles, ellipses, revision clouds, lines, and arrows from the new Shapes button. Drag to draw; hold Shift for squares, circles, and 45° lines. Pick a stroke color, fill, thickness, and opacity from its dropdown
+- **Stamps**: Approved, Rejected, Reviewed, For Review, Draft, Confidential, and Void with today's date, a set of icons, and about 40 electrical plan symbols. Click the page to place one, or drag to size it
+- **Underline** and **Strikethrough**: pick them from the Highlight dropdown so selecting text marks it, or use Underline Selected Text and Strike Through Selected Text in the Tools menu and the right-click menu
+- Click any shape, line, stamp, underline, or strikethrough to select it: drag to move it, drag a corner or end to resize it, use the arrow keys to nudge it, press Delete to remove it, or change its color and thickness from the toolbar. Every change can be undone. This works on the same kinds of markup made in other apps, which keep their author and comment
+- Everything saves into the PDF as standard annotations with their own appearance, so it looks the same in other PDF apps and browsers, which can still select and move it
+
+### Changed
+- About now lists Facility Solutions Group as a sponsor alongside Texas Beard Company
+
+### Fixed
+- Export Pages as Images, and printing a file that can only print as images, now include unsaved sticky notes
+
 ## [0.13.1] - 2026-11-07
 
 ### Changed

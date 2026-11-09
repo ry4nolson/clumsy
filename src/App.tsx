@@ -6,6 +6,7 @@ import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { QuickPick } from "./components/QuickPick";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
+import { StampPicker } from "./components/StampPicker";
 import type { SidebarTab } from "./components/Sidebar";
 import { TabContents } from "./components/TabContents";
 import { UpdateDialog } from "./components/UpdateDialog";
@@ -29,6 +30,7 @@ import { useQuickPick } from "./hooks/useQuickPick";
 import { useRecentFiles } from "./hooks/useRecentFiles";
 import { useRestartSession } from "./hooks/useRestartSession";
 import { useTabTransfer } from "./hooks/useTabTransfer";
+import { useMarkupControls } from "./hooks/useMarkupControls";
 import { useToolbarTools } from "./hooks/useToolbarTools";
 import { useViewControls } from "./hooks/useViewControls";
 import { useWorkspace } from "./hooks/useWorkspace";
@@ -137,7 +139,8 @@ export default function App() {
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
-  const tools = useToolbarTools(activeViewer, activeSnapshot, editorOptions, (id) => runCommandRef.current(id));
+  const markupControls = useMarkupControls(activeViewer, activeSnapshot);
+  const tools = useToolbarTools(activeViewer, activeSnapshot, editorOptions, markupControls, (id) => runCommandRef.current(id));
 
   const toggleFind = () => {
     const handle = hasMarkdown ? activeMarkdown() : hasDocument ? activeHandle() : undefined;
@@ -240,7 +243,7 @@ export default function App() {
     if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
-    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || imageExport.runExportCommand(id, pages) || printing.runPrintCommand(id, pages)) {
+    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || markupControls.runMarkupCommand(id) || imageExport.runExportCommand(id, pages) || printing.runPrintCommand(id, pages)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -268,9 +271,9 @@ export default function App() {
       newWindow: () => openDocumentWindow(null),
       moveTabToNewWindow: () => moveTabToWindow(ws.focusedTab(workspaceRef.current).id, {}),
       open: () => openSource(pickDocument()),
-      closeTab: () => (infoSheet ? setInfoSheet(null) : closeTab(ws.focusedTab(workspaceRef.current).id)),
+      closeTab: () => (infoSheet ? setInfoSheet(null) : markupControls.picker.open ? markupControls.picker.onClose() : closeTab(ws.focusedTab(workspaceRef.current).id)),
       quit: () => quitApp(false),
-      closeWindow: () => (infoSheet ? setInfoSheet(null) : closeWindow()),
+      closeWindow: () => (infoSheet ? setInfoSheet(null) : markupControls.picker.open ? markupControls.picker.onClose() : closeWindow()),
       save: () => save(false),
       saveAs: () => save(true),
       saveAll: () => saveAll(),
@@ -307,7 +310,6 @@ export default function App() {
       quickOpen: () => quickPick.toggle("quickOpen"),
       commandPalette: () => quickPick.toggle("palette"),
       toolSelect: () => viewer?.setTool("select"),
-      toolHighlight: () => viewer?.setTool("highlight"),
       toolText: () => viewer?.setTool("text"),
       toolDraw: () => viewer?.setTool("draw"),
       addImage: () => {
@@ -480,6 +482,7 @@ export default function App() {
         onClose={() => setInfoSheet(null)}
       />
       <ShortcutsDialog open={infoSheet?.kind === "shortcuts"} isMac={isMac} onClose={() => setInfoSheet(null)} />
+      <StampPicker {...markupControls.picker} />
       <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>
   );

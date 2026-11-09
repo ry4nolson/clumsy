@@ -1,4 +1,6 @@
 import { EncryptedPDFError, PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext } from "@cantoo/pdf-lib";
+import type { Markup } from "./markup";
+import { applyMarkup, refFromId } from "./markupPdf";
 import type { StickyNote } from "./notes";
 import { installDecryptedStrings, loadDecrypting } from "./pdfDecrypt";
 import { collectGarbage, pageLeafRefs } from "./pdfStructure";
@@ -11,11 +13,6 @@ const POPUP_HEIGHT = 100;
 const NOTE_FLAGS = 28;
 
 export class NoteSaveError extends Error {}
-
-const refFromId = (id: string) => {
-  const match = /^(\d+)R(\d*)$/.exec(id);
-  return match ? PDFRef.of(Number(match[1]), Number(match[2] || 0)) : null;
-};
 
 const annotsOf = (context: PDFContext, page: PDFDict) => {
   const annots = page.lookupMaybe(PDFName.of("Annots"), PDFArray);
@@ -108,7 +105,7 @@ async function loadForUpdate(bytes: Uint8Array, forIncrementalUpdate: boolean, p
     return await loadDecrypting(bytes, { forIncrementalUpdate, updateMetadata: false, password });
   } catch (error) {
     if (error instanceof EncryptedPDFError || (error instanceof Error && /^(NEEDS PASSWORD|Password incorrect)/.test(error.message))) {
-      throw new NoteSaveError("Comments couldn't be saved because this PDF's password didn't work.");
+      throw new NoteSaveError("Comments and markup couldn't be saved because this PDF's password didn't work.");
     }
     throw error;
   }
@@ -136,8 +133,8 @@ export function hasXrefAt(bytes: Uint8Array, offset: number) {
   return offset > 0 && offset < bytes.length && /^\s*(xref|\d+\s+\d+\s+obj\b)/.test(latin1.decode(bytes.subarray(offset, offset + 40)));
 }
 
-export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[], password = "") {
-  if (!notes.length) {
+export async function writeAnnotations(bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password = "") {
+  if (!notes.length && !markup.length) {
     return bytes;
   }
   const loaded = await loadForNotes(bytes, password);
@@ -168,6 +165,7 @@ export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[], p
       updateNote(context, existing, note);
     }
   }
+  applyMarkup(doc, markup, pages);
   if (incremental) {
     return doc.commit();
   }
@@ -176,3 +174,5 @@ export async function writeStickyNotes(bytes: Uint8Array, notes: StickyNote[], p
   }
   return doc.save({ addDefaultPage: false, updateFieldAppearances: false });
 }
+
+export const writeStickyNotes = (bytes: Uint8Array, notes: StickyNote[], password = "") => writeAnnotations(bytes, notes, [], password);

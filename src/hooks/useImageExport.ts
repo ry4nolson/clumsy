@@ -3,7 +3,10 @@ import type { Progress } from "../components/ProgressView";
 import type { CommandId } from "../lib/commands";
 import { confirmReplace, downloadImage, offerToShowExport, pickFolder, pickImageSavePath, writeImage, writeImageInFolder } from "../lib/imageFiles";
 import { defaultExportOptions, exportSummary, mimeTypeFor, normalizeExportOptions, pageImageNames, type ExportOptions } from "../lib/imageExport";
+import { hasOwnedChanges } from "../lib/markup";
+import { NOTE_KEY_PREFIX } from "../lib/notes";
 import { ExportCancelledError, renderPageImage } from "../lib/pageImages";
+import { loadPdf, passwordOf } from "../lib/pdfjs";
 import { isDesktop, showError } from "../lib/platform";
 import { usePersistentState } from "../lib/preferences";
 import * as ws from "../lib/workspace";
@@ -85,17 +88,25 @@ export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled:
         return;
       }
       viewer.commitEdits();
-      const storage = doc.annotationStorage.print;
-      for (const [index, page] of pages.entries()) {
-        if (controller.signal.aborted || page >= doc.numPages) {
-          break;
+      const saved = hasOwnedChanges(doc.annotationStorage, NOTE_KEY_PREFIX) ? await viewer.save(true) : null;
+      const source = saved ? await loadPdf(saved, async () => passwordOf(doc) ?? null) : doc;
+      try {
+        const storage = source.annotationStorage.print;
+        for (const [index, page] of pages.entries()) {
+          if (controller.signal.aborted || page >= source.numPages) {
+            break;
+          }
+          if (pages.length > 1) {
+            setProgress({ done: index, total: pages.length });
+          }
+          const path = await write(names[index], await renderPageImage(source, storage, page, options, controller.signal));
+          written += 1;
+          firstPath ??= path || null;
         }
-        if (pages.length > 1) {
-          setProgress({ done: index, total: pages.length });
+      } finally {
+        if (source !== doc) {
+          source.loadingTask.destroy();
         }
-        const path = await write(names[index], await renderPageImage(doc, storage, page, options, controller.signal));
-        written += 1;
-        firstPath ??= path || null;
       }
     } catch (error) {
       if (!(error instanceof ExportCancelledError)) {

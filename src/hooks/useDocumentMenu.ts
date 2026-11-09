@@ -3,6 +3,7 @@ import type { CommandId } from "../lib/commands";
 import { readContextTools } from "../lib/contextTools";
 import { documentMenu, pageSection, targetPages, type DocumentMenuId, type DocumentMenuSpec, type MenuContext } from "../lib/documentMenu";
 import { isExternalUrl } from "../lib/markdownLinks";
+import { readMarkupParams } from "../lib/markupParams";
 import { stepNav, type NavDirection } from "../lib/navHistory";
 import { canPrint, isDesktop, showDocumentMenu } from "../lib/platform";
 import type { PdfViewerApi } from "./usePdfViewer";
@@ -93,6 +94,7 @@ export function useDocumentMenu(
         link: link && { kind: link.kind, href: link.href },
         activeTool: viewer.tool,
         mark: viewer.mark,
+        markupChoice: readMarkupParams(),
         contextTools: readContextTools(),
         canGoBack: canStep(viewer, "back"),
         canGoForward: canStep(viewer, "forward"),

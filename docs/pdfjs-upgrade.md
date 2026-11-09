@@ -80,6 +80,18 @@ Each row is something pdf.js could change without a type error. "Test" names the
 | `src/lib/stickyNotes.ts:70`, `src/hooks/useViewerControls.ts:50`, `src/lib/diffLayer.ts:60` | `PDFPageView` `div`, `viewport`, `pdfPage`, `canvas`, `renderingState`, `destroy()`; `reset()` removing unknown children (why layers re-attach on `pagerendered`/`scalechanging`/`rotationchanging`) | Diff highlights and notes vanish after zoom; hidden tabs keep their pages | viewer internals, manual |
 | `src/hooks/usePdfViewer.ts:139` `imageResourcesPath` | `annotation-*.svg` file names copied by `vite.config.ts` | Note reply and attachment icons are blank | manual |
 
+### Markup
+
+| Clumsy | pdf.js internal | If it changes | Test |
+| --- | --- | --- | --- |
+| `src/lib/hiddenAnnotations.ts` `hideAnnotations` | `pdfDocument._transport.getRenderingIntent(intent, annotationMode, printAnnotationStorage, isEditing, isOpList)` returning `{ cacheKey, annotationStorageSerializable: { map, hash, transfer } }`, called by `PDFPageProxy.render` and `getOperatorList` through `this._transport`; `_pumpOperatorList` sends `map` to the worker as `annotationStorage` | Moved or edited shapes from the file show twice (pdf.js's canvas copy stays) | markup |
+| `src/lib/hiddenAnnotations.ts` `{ noView: true }` | Worker `Annotation.mustBeViewed` reads `annotationStorage.get(id).noView` before the flags, and none of Square, Circle, Line, Underline, StrikeOut, Stamp, or MarkupAnnotation override it | Same as above | markup |
+| `src/lib/markupLayer.ts` `syncHidden` | `PDFPageView.reset({ keepAnnotationLayer, keepAnnotationEditorLayer, keepXfaLayer, keepTextLayer, keepCanvasWrapper })` followed by `PDFViewer.update()` redraws one page, as `toggleEditingMode` does | The old copy stays until the page is scrolled away and back | markup |
+| `src/lib/pdfjs.ts` annotation layer wrapper | Claimed shapes (`AnnotationType` LINE 4, SQUARE 5, CIRCLE 6, UNDERLINE 10, STRIKEOUT 12) dropped from the layer; Clumsy stamps (STAMP 13) kept with `isEditable: false`, found through `AnnotationLayer.page._transport` (`this.page = page`). pdf.js only turns layer elements whose `_isEditable` (`data.isEditable`) is true into editors, and in editing modes draws an editable stamp on its own canvas that `#setAnnotationCanvasMap` puts in the element with its `data-annotation-id` | A Clumsy stamp becomes a `StampEditor` and is rewritten as an image on Save, or disappears while an editing tool is on | markup |
+| `src/lib/markupSelection.ts` `spanTurns` | `TextLayer` sets `--rotate` on a span to the text's angle in degrees from `atan2` over `[1, 0, 0, -1, -pageX, pageY + pageHeight]` times the item transform (unrotated page space; the layer itself is turned with `data-main-rotation`) | Underline and Strike Through on vertical or upside-down text merge lines across each other and draw on the wrong side | markup |
+| `src/lib/markupPdf.ts` | Base `Annotation.save` returns `null` and none of the claimed classes have their own `save`, so a `noView` entry or Clumsy's own storage keys never write anything | Saving writes stray changes for hidden annotations | markup |
+| `src/lib/markup.ts` `MARKUP_KEY_PREFIX` | Same `getNewAnnotationsMap` rule as sticky notes | Save throws or writes garbage annotations for `clumsy-markup:` entries | annotation storage |
+
 ### Rendering and dark pages
 
 | Clumsy | pdf.js internal | If it changes | Test |
@@ -125,7 +137,8 @@ Back up `~/Library/Application Support/com.ry4nolson.clumsy/recent-files.json` f
 - **Find**: regex search, Match Diacritics, Whole Words. Marks show in the Document Map.
 - **Forms**: Tab through fields across pages, Reset Form, Undo the reset, Save.
 - **Dark pages**: with Keep Images on, photos keep their colors in the page, thumbnails, and the Document Map, at 100% and 400% zoom and after rotating.
-- **Export Pages as Images** with unsaved markup: the markup is in the images.
+- **Export Pages as Images** with unsaved markup: the markup is in the images, including Clumsy's shapes, stamps, and sticky notes.
+- **Markup**: draw each shape, a strikethrough, an underline, and stamps. Move and restyle a rectangle another app made: the canvas copy disappears as soon as the page redraws. Pick Draw, Highlight, and Comments with a Clumsy stamp on the page: it stays visible and never turns into an image editor. Save and reopen: everything draws from its appearance stream.
 - **Sheets**: select a drawing, open the comment sheet, press Backspace in its text field. The drawing stays.
 - **Scroll fast** through a 1,000-page text PDF: pages keep rendering (the `DecompressionStream` deadlock).
 - **Back/Forward**: follow a link and an outline entry, then Go Back twice.

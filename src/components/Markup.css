@@ -1,0 +1,182 @@
+.pdfViewer .page .markup-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.markup-surface {
+  fill: transparent;
+  pointer-events: none;
+}
+
+.markup-drawing .markup-surface {
+  pointer-events: all;
+  cursor: crosshair;
+}
+
+.markup-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: none;
+}
+
+.markup-hit.filled {
+  fill: transparent;
+}
+
+.markup-select .markup-hit {
+  pointer-events: stroke;
+  cursor: move;
+}
+
+.markup-select .markup-hit.filled {
+  pointer-events: all;
+}
+
+.markup-outline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+.markup-handle {
+  fill: #ffffff;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  cursor: crosshair;
+}
+
+.markup-select .markup-handle {
+  pointer-events: all;
+}
+
+.markup-handle[data-cursor="nwse"] {
+  cursor: nwse-resize;
+}
+
+.markup-handle[data-cursor="nesw"] {
+  cursor: nesw-resize;
+}
+
+.dark-pages.keep-images .pdfViewer .page .markup-content {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+.dark-pages:not(.keep-images) .pdfViewer .page .markup-selection {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.tool-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -6px -6px 0;
+}
+
+.segmented {
+  display: flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--hover);
+}
+
+.segmented button {
+  flex: 1;
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmented button[aria-checked="true"] {
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+}
+
+.stamp-picker {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.stamp-picker .info-sheet-header {
+  justify-content: flex-start;
+}
+
+.stamp-search {
+  flex: 1;
+  height: 28px;
+}
+
+.stamp-body {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 14px 14px;
+  overflow-y: auto;
+}
+
+.stamp-section h3 {
+  margin: 12px 0 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stamp-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stamp-choice {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.stamp-choice.review {
+  width: 118px;
+}
+
+.stamp-choice:hover {
+  border-color: var(--accent);
+}
+
+.stamp-choice:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.stamp-choice svg {
+  width: 100%;
+  height: 100%;
+}
+
+.stamp-empty,
+.stamp-hint {
+  margin: 12px 14px;
+  color: var(--text-muted);
+}
+
+.stamp-hint {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}

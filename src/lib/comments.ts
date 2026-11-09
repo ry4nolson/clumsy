@@ -41,6 +41,7 @@ const removedMessages: Record<string, string> = {
   stamp: "Image removed",
   signature: "Signature removed",
   comment: "Comment removed",
+  markup: "Markup removed",
 };
 
 export function removedMessage(removed: string | number) {

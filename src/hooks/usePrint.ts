@@ -3,10 +3,12 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { Progress } from "../components/ProgressView";
 import type { MarkdownHandle } from "../components/MarkdownTab";
 import type { CommandId } from "../lib/commands";
+import { hasOwnedChanges } from "../lib/markup";
 import { printArticle } from "../lib/markdownPrint";
+import { NOTE_KEY_PREFIX } from "../lib/notes";
 import { ExportCancelledError } from "../lib/pageImages";
 import { decryptPdfOffThread, extractPagesOffThread } from "../lib/pageEditWorker";
-import { passwordOf } from "../lib/pdfjs";
+import { loadPdf, passwordOf } from "../lib/pdfjs";
 import { canPrint, printPdf, printWebview, showError } from "../lib/platform";
 import { pagesToPrint, printCommands, printJobName, printWithFallback } from "../lib/print";
 import * as ws from "../lib/workspace";
@@ -34,7 +36,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
     }
   };
 
-  const asImages = async (tabId: string, doc: PDFDocumentProxy, pages: number[]) => {
+  const asImages = async (tabId: string, doc: PDFDocumentProxy, resave: () => Promise<Uint8Array | null>, pages: number[]) => {
     const controller = new AbortController();
     rendering.current = controller;
     setProgress({ done: 0, total: pages.length });
@@ -43,9 +45,18 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
         throw new Error("The document changed while it was being prepared for printing.");
       }
     };
+    let source = doc;
     try {
       const { pdfFromRenderedPages } = await import("../lib/rasterPrint");
-      const bytes = await pdfFromRenderedPages(doc, doc.annotationStorage.print, pages, controller.signal, (done) => {
+      if (hasOwnedChanges(doc.annotationStorage, NOTE_KEY_PREFIX)) {
+        const fresh = await resave();
+        stillCurrent();
+        if (!fresh) {
+          return null;
+        }
+        source = await loadPdf(fresh, async () => passwordOf(doc) ?? null);
+      }
+      const bytes = await pdfFromRenderedPages(source, source.annotationStorage.print, pages, controller.signal, (done) => {
         stillCurrent();
         setProgress({ done, total: pages.length });
       });
@@ -57,6 +68,9 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
       }
       throw error;
     } finally {
+      if (source !== doc) {
+        source.loadingTask.destroy();
+      }
       rendering.current = null;
       setProgress(null);
     }
@@ -83,7 +97,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
     const outcome = await printWithFallback(saved, pages, await decryptionPassword(doc), {
       ...printOps,
       send: (bytes) => printPdf(name, bytes),
-      asImages: () => asImages(tabId, doc, pages ?? allPages(doc.numPages)),
+      asImages: () => asImages(tabId, doc, () => viewer.save(true), pages ?? allPages(doc.numPages)),
     });
     if (outcome === "unreadable") {
       await showError(unreadable(name));

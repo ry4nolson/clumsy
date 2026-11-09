@@ -64,6 +64,6 @@ Architecture, release process, and conventions are documented in [AGENTS.md](AGE
 
 Clumsy's source code is released under the [MIT License](LICENSE).
 
-The Clumsy name and app icon, and the Texas Beard Company name and logos, are not covered by the license. Forks are welcome; please ship them under a different name and icon.
+The Clumsy name and app icon, the Texas Beard Company name and logos, and the Facility Solutions Group name and logos, are not covered by the license. Forks are welcome; please ship them under a different name and icon.
 
-Sponsored by [Texas Beard Company](https://www.texasbeardcompany.com).
+Sponsored by [Texas Beard Company](https://www.texasbeardcompany.com) and [Facility Solutions Group](https://www.fsg.com).

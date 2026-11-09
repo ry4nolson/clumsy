@@ -76,8 +76,18 @@ export type CommandId =
   | "toolText"
   | "toolDraw"
   | "toolComment"
+  | "toolUnderline"
+  | "toolStrikeout"
   | "highlightSelection"
+  | "underlineSelection"
+  | "strikeoutSelection"
   | "commentSelection"
+  | "shapeRectangle"
+  | "shapeEllipse"
+  | "shapeCloud"
+  | "shapeLine"
+  | "shapeArrow"
+  | "toolStamp"
   | "addImage"
   | "sign"
   | "newSignature"
@@ -213,11 +223,21 @@ export const commands: Command[] = [
   { id: "toolSelect", label: "Select", menu: "Tools", combos: ["v"], needsDocument: true },
   { id: "toolHand", label: "Hand", menu: "Tools", combos: [], needsDocument: true },
   { id: "toolHighlight", label: "Highlight", menu: "Tools", combos: ["ctrl+mod+h", "h"], needsDocument: true },
+  { id: "toolUnderline", label: "Underline", menu: "Tools", combos: [], needsDocument: true },
+  { id: "toolStrikeout", label: "Strikethrough", menu: "Tools", combos: [], needsDocument: true },
   { id: "toolText", label: "Text Note", menu: "Tools", combos: ["ctrl+mod+t", "t"], needsDocument: true },
   { id: "toolDraw", label: "Draw", menu: "Tools", combos: ["ctrl+mod+p", "d"], needsDocument: true },
   { id: "toolComment", label: "Comments", menu: "Tools", combos: ["ctrl+mod+m", "c"], needsDocument: true },
   { id: "highlightSelection", label: "Highlight Selected Text", menu: "Tools", combos: [], needsDocument: true },
+  { id: "underlineSelection", label: "Underline Selected Text", menu: "Tools", combos: [], needsDocument: true },
+  { id: "strikeoutSelection", label: "Strike Through Selected Text", menu: "Tools", combos: [], needsDocument: true },
   { id: "commentSelection", label: "Comment on Selected Text", menu: "Tools", combos: ["alt+mod+m"], needsDocument: true },
+  { id: "shapeRectangle", label: "Rectangle", menu: "Tools", combos: [], needsDocument: true },
+  { id: "shapeEllipse", label: "Ellipse", menu: "Tools", combos: [], needsDocument: true },
+  { id: "shapeCloud", label: "Cloud", menu: "Tools", combos: [], needsDocument: true },
+  { id: "shapeLine", label: "Line", menu: "Tools", combos: [], needsDocument: true },
+  { id: "shapeArrow", label: "Arrow", menu: "Tools", combos: [], needsDocument: true },
+  { id: "toolStamp", label: "Stamps…", menu: "Tools", combos: [], needsDocument: true },
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
   { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },

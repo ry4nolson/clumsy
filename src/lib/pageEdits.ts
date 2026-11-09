@@ -3,7 +3,8 @@ import { buffersOf, failureOf, type PageEditJob, type PageEditResponse, type Pag
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
-import { writeStickyNotes } from "./notesPdf";
+import { readMarkup } from "./markupPdf";
+import { writeAnnotations } from "./notesPdf";
 import { encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { flattenForm } from "./pdfForm";
 import { collectGarbage, flattenPageTree, importPageRefs, pageLeafRefs, removePageRefs, setPageRefs } from "./pdfStructure";
@@ -146,8 +147,10 @@ export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> 
       return { bytes: await decryptPdf(job.bytes, job.password) };
     case "encrypt":
       return { bytes: await encryptPdf(job.bytes, job.password) };
-    case "notes":
-      return { bytes: await writeStickyNotes(job.bytes, job.notes, job.password) };
+    case "annotations":
+      return { bytes: await writeAnnotations(job.bytes, job.notes, job.markup, job.password) };
+    case "readMarkup":
+      return { bytes: new Uint8Array(), markup: readMarkup(await load(job.bytes, job.password)) };
     case "role":
       return { bytes: new Uint8Array(), role: await passwordRole(job.bytes, job.password).catch(() => null) };
     case "combine":

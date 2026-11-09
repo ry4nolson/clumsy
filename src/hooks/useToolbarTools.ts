@@ -4,12 +4,14 @@ import type { ToolsProps } from "../components/ToolsGroup";
 import type { CommandId } from "../lib/commands";
 import { markCommands, toolCommand } from "../lib/contextTools";
 import { colorParams, type useEditorOptions } from "./useEditorOptions";
+import type { MarkupControls } from "./useMarkupControls";
 import type { PdfViewerApi } from "./usePdfViewer";
 
 export function useToolbarTools(
   activeViewer: () => PdfViewerApi | undefined,
   snapshot: TabSnapshot | undefined,
   editorOptions: ReturnType<typeof useEditorOptions>,
+  markupControls: MarkupControls,
   runCommand: (id: CommandId) => void,
 ): ToolsProps {
   const tool = snapshot?.tool ?? "select";
@@ -22,7 +24,7 @@ export function useToolbarTools(
     editorParams: editorOptions.shown,
     highlightsShown,
     signatures: snapshot?.signatures ?? [],
-    onTool: (next) => runCommand(toolCommand(next)),
+    onTool: (next) => runCommand(toolCommand(next, snapshot?.mark ?? null, markupControls.params.shape)),
     onEndDrawing: () => activeViewer()?.endDrawing(),
     onToolColor: (color) => colorParam !== undefined && editorOptions.change(colorParam, color),
     onEditorParam: editorOptions.change,
@@ -39,5 +41,10 @@ export function useToolbarTools(
       viewer?.editorUi?.placeSignature(uuid);
     },
     onForgetSignature: (uuid) => activeViewer()?.editorUi?.forgetSignature(uuid),
+    markup: markupControls.params,
+    onShape: markupControls.chooseShape,
+    onMarkupParams: markupControls.change,
+    onTextMode: markupControls.chooseTextMode,
+    onStamps: () => runCommand("toolStamp"),
   };
 }

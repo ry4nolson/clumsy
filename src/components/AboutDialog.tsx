@@ -13,6 +13,7 @@ import licenseSource from "../../LICENSE?raw";
 import appIcon from "../../src-tauri/icons/128x128@2x.png";
 import sponsorLogo from "../assets/brand/HorizontalLogo.png";
 import sponsorLogoWhite from "../assets/brand/HorizontalLogoWhite.png";
+import { FsgLogo } from "./FsgLogo";
 import { parseChangelog } from "../lib/changelog";
 import type { DefaultAppStatus } from "../lib/defaultApp";
 import { promptForDefaultApp } from "../lib/defaultAppPrompt";
@@ -277,12 +278,17 @@ export function AboutDialog({ request, updateInstall, onRestart, onClose }: Abou
 
           <div className="about-sponsor">
             <span>Sponsored by</span>
-            <button type="button" className="sponsor-logo" onClick={() => onOpenUrl("https://www.texasbeardcompany.com")} aria-label="Texas Beard Company">
-              <picture>
-                <source srcSet={sponsorLogoWhite} media="(prefers-color-scheme: dark)" />
-                <img src={sponsorLogo} alt="Texas Beard Company" height={30} />
-              </picture>
-            </button>
+            <div className="sponsor-logos">
+              <button type="button" className="sponsor-logo" onClick={() => onOpenUrl("https://www.texasbeardcompany.com")} aria-label="Texas Beard Company">
+                <picture>
+                  <source srcSet={sponsorLogoWhite} media="(prefers-color-scheme: dark)" />
+                  <img src={sponsorLogo} alt="Texas Beard Company" height={30} />
+                </picture>
+              </button>
+              <button type="button" className="sponsor-logo" onClick={() => onOpenUrl("https://www.fsg.com")} aria-label="Facility Solutions Group">
+                <FsgLogo />
+              </button>
+            </div>
           </div>
 
           <p className="about-footer">Built because opening a PDF shouldn’t require an update first.</p>

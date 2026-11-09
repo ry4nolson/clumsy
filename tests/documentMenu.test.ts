@@ -101,7 +101,7 @@ describe("documentMenu", () => {
   });
 
   it("adds the text section only for a selection on a page", () => {
-    expect(ids(menu({ textSelected: true }).spec.sections).slice(0, 4)).toEqual(["copy", "highlightSelection", "commentSelection", "useSelectionForFind"]);
+    expect(ids(menu({ textSelected: true }).spec.sections).slice(0, 6)).toEqual(["copy", "highlightSelection", "underlineSelection", "strikeoutSelection", "commentSelection", "useSelectionForFind"]);
     expect(ids(menu({ textSelected: true, page: null }).spec.sections)).not.toContain("copy");
     expect(ids(menu().spec.sections)).not.toContain("copy");
   });
@@ -143,6 +143,14 @@ describe("documentMenu", () => {
     expect(palette?.items.every((tool) => tool.symbol.length > 0)).toBe(true);
     expect(menu({ contextTools: [] }).spec.palette).toBeNull();
     expect(menu().spec.palette?.items.map((tool) => tool.label)).toEqual(["Select", "Highlight", "Text Note", "Draw", "Comments", "Sign"]);
+  });
+
+  it("uses the remembered shape and text mode, and checks Highlight for underline and strikethrough", () => {
+    const palette = menu({ contextTools: ["highlight", "shape"], activeTool: "strikeout", markupChoice: { shape: "arrow", textMode: "underline" } }).spec.palette;
+    expect(palette?.items.map((tool) => [tool.id, tool.checked])).toEqual([
+      ["toolUnderline", true],
+      ["shapeArrow", false],
+    ]);
   });
 
   it("places the last-used mark from Fill In", () => {

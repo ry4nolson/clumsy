@@ -16,6 +16,8 @@ const SYMBOLS: &[&str] = &[
     "photo.badge.plus",
     "signature",
     "checkmark.square",
+    "square.on.circle",
+    "seal",
 ];
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]

@@ -10,8 +10,9 @@ import { attachHandTool, type HandTool } from "../lib/handTool";
 import { restoreImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
 import { publishPageCanvas } from "../lib/pageCanvases";
+import { markupIn } from "../lib/markup";
 import { notesIn } from "../lib/notes";
-import { writeStickyNotesOffThread } from "../lib/pageEditWorker";
+import { writeAnnotationsOffThread } from "../lib/pageEditWorker";
 import { hasCustomLabels } from "../lib/pageLabels";
 import { assetsUrl, passwordOf } from "../lib/pdfjs";
 import { oneAtATime, saveKeepingModified } from "../lib/print";
@@ -444,10 +445,8 @@ export function usePdfViewer() {
     commitEdits();
     const bytes = await (keepModified ? saveKeepingModified(doc) : doc.saveDocument());
     const notes = notesIn(doc.annotationStorage);
-    if (!notes.length) {
-      return bytes;
-    }
-    return writeStickyNotesOffThread(bytes, notes, passwordOf(doc));
+    const markup = markupIn(doc.annotationStorage);
+    return notes.length || markup.length ? writeAnnotationsOffThread(bytes, notes, markup, passwordOf(doc)) : bytes;
   }), [commitEdits]);
 
   const markSaved = useCallback(() => {

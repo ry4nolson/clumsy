@@ -4,13 +4,18 @@ import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { EditorManagers } from "../lib/editorManagers";
 import type { HandTool } from "../lib/handTool";
 import { attachMarkPlacement, type MarkPlacement } from "../lib/markPlacement";
+import type { MarkupTool } from "../lib/markupLayer";
 import type { MarkKind } from "../lib/marks";
 
-export type EditorTool = "select" | "hand" | "highlight" | "text" | "draw" | "image" | "signature" | "comment" | "mark";
+export type EditorTool = "select" | "hand" | "highlight" | "text" | "draw" | "image" | "signature" | "comment" | "mark" | "shape" | "stamp" | "underline" | "strikeout";
+
+type PdfTool = Exclude<EditorTool, "hand" | "mark" | "shape" | "stamp" | "underline" | "strikeout">;
+
+const markupToolName = (tool: NonNullable<MarkupTool>): EditorTool => (tool.kind === "text" ? tool.text : tool.kind);
 
 export type EditorParams = Record<number, unknown>;
 
-const toolModes: Record<Exclude<EditorTool, "hand" | "mark">, number> = {
+const toolModes: Record<PdfTool, number> = {
   select: AnnotationEditorType.NONE,
   highlight: AnnotationEditorType.HIGHLIGHT,
   text: AnnotationEditorType.FREETEXT,
@@ -49,6 +54,8 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   const selectedRef = useRef(false);
   const layersRef = useRef({ ready: false, waiting: [] as Array<() => void> });
   const markRef = useRef<{ kind: MarkKind | null; placement: MarkPlacement | null }>({ kind: null, placement: null });
+  const markupToolRef = useRef<MarkupTool>(null);
+  const [markupTool, setMarkupToolState] = useState<MarkupTool>(null);
   const [editorTool, setEditorTool] = useState<EditorTool>("select");
   const [mark, setMarkState] = useState<MarkKind | null>(null);
   const [handTool, setHandTool] = useState(false);
@@ -61,6 +68,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       return;
     }
     const { eventBus, hand, viewer } = parts;
+    parts.editorUi.markup?.setInteractive(true);
     const placement = attachMarkPlacement(viewer.container, viewer);
     markRef.current.placement = placement;
     const onPointerDown = ({ target, isPrimary, button }: PointerEvent) => {
@@ -82,6 +90,12 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     const onMode = ({ mode }: { mode: number }) => {
       const match = (Object.keys(toolModes) as Array<keyof typeof toolModes>).find((key) => toolModes[key] === mode);
       setEditorTool(match ?? "select");
+      if (mode !== AnnotationEditorType.NONE && markupToolRef.current) {
+        markupToolRef.current = null;
+        setMarkupToolState(null);
+        parts.editorUi.markup?.setTool(null);
+      }
+      parts.editorUi.markup?.setInteractive(mode === AnnotationEditorType.NONE && !handRef.current.tool);
       const { kind } = markRef.current;
       if (kind && markMode(kind) !== mode) {
         markRef.current.kind = null;
@@ -135,8 +149,18 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     setMarkState(kind);
   }, []);
 
+  const showMarkupTool = useCallback(
+    (tool: MarkupTool) => {
+      markupToolRef.current = tool;
+      setMarkupToolState(tool);
+      partsRef.current?.editorUi.markup?.setTool(tool);
+    },
+    [partsRef],
+  );
+
   const resetTools = useCallback(() => {
     handRef.current.tool = false;
+    showMarkupTool(null);
     selectedRef.current = false;
     layersRef.current.ready = false;
     showMark(null);
@@ -145,7 +169,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     setHandTool(false);
     setSelectedEditor(false);
     setEditorParams({});
-  }, [partsRef, showMark]);
+  }, [partsRef, showMark, showMarkupTool]);
 
   const editorLayerReady = useCallback(() => {
     const layers = layersRef.current;
@@ -178,16 +202,34 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   const setTool = useCallback(
     async (next: EditorTool) => {
       const parts = partsRef.current;
-      if (!parts?.viewer.pdfDocument || next === "mark") {
+      if (!parts?.viewer.pdfDocument || !(next === "hand" || next in toolModes)) {
         return;
       }
       showMark(null);
-      await setEditorMode(next === "hand" ? AnnotationEditorType.NONE : toolModes[next]);
+      showMarkupTool(null);
+      await setEditorMode(next === "hand" ? AnnotationEditorType.NONE : toolModes[next as PdfTool]);
       handRef.current.tool = next === "hand";
       setHandTool(next === "hand");
       parts.hand.setActive(handRef.current.tool || handRef.current.held);
+      parts.editorUi.markup?.setInteractive(next === "select");
     },
-    [partsRef, setEditorMode, showMark],
+    [partsRef, setEditorMode, showMark, showMarkupTool],
+  );
+
+  const setMarkupTool = useCallback(
+    async (tool: NonNullable<MarkupTool>) => {
+      const parts = partsRef.current;
+      if (!parts?.viewer.pdfDocument) {
+        return;
+      }
+      showMark(null);
+      await setEditorMode(AnnotationEditorType.NONE);
+      handRef.current.tool = false;
+      setHandTool(false);
+      parts.hand.setActive(handRef.current.held);
+      showMarkupTool(tool);
+    },
+    [partsRef, setEditorMode, showMark, showMarkupTool],
   );
 
   const setMark = useCallback(
@@ -197,6 +239,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
         return;
       }
       showMark(kind);
+      showMarkupTool(null);
       markRef.current.placement?.setMark(null);
       await setEditorMode(markMode(kind));
       if (markRef.current.kind !== kind) {
@@ -207,7 +250,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       setHandTool(false);
       parts.hand.setActive(handRef.current.held);
     },
-    [partsRef, setEditorMode, showMark],
+    [partsRef, setEditorMode, showMark, showMarkupTool],
   );
 
   const holdHand = useCallback(
@@ -276,8 +319,10 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   );
 
   return {
-    tool: handTool ? ("hand" as const) : mark ? ("mark" as const) : editorTool,
+    tool: handTool ? ("hand" as const) : mark ? ("mark" as const) : markupTool ? markupToolName(markupTool) : editorTool,
     mark,
+    markupTool,
+    setMarkupTool,
     editorParams,
     selectedEditor,
     resetTools,

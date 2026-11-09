@@ -50,4 +50,16 @@ describe("context tools", () => {
     expect(toolCommand("signature")).toBe("sign");
     expect(toolCommand("comment")).toBe("toolComment");
   });
+
+  it("maps Shapes to the last-used shape and the text markup modes to their tools", () => {
+    expect(toolCommand("shape")).toBe("shapeRectangle");
+    expect(toolCommand("shape", null, "cloud")).toBe("shapeCloud");
+    expect(toolCommand("stamp")).toBe("toolStamp");
+    expect(toolCommand("underline")).toBe("toolUnderline");
+    expect(toolCommand("strikeout")).toBe("toolStrikeout");
+  });
+
+  it("keeps Shapes and Stamps as context tools and drops unknown ones", () => {
+    expect(cleanContextTools(["stamp", "nonsense", "shape"])).toEqual(["shape", "stamp"]);
+  });
 });

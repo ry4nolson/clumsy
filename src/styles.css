@@ -2076,6 +2076,42 @@ body {
   width: auto;
 }
 
+.sponsor-logos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.fsg-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  color: #133865;
+}
+
+.fsg-logo svg {
+  display: block;
+  width: auto;
+}
+
+.fsg-wordmark {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fsg-logo {
+    color: #fff;
+  }
+}
+
 .about-footer {
   margin: 0;
   font-size: 12px;

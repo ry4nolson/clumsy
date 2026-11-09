@@ -9,6 +9,7 @@ import { useScrolling } from "../hooks/useScrolling";
 import type { CommandId } from "../lib/commands";
 import type { ViewState } from "../lib/documentWindows";
 import type { SignaturePreview } from "../lib/editorManagers";
+import type { Markup } from "../lib/markup";
 import { PasswordCancelledError, loadPdf, passwordOf } from "../lib/pdfjs";
 import { passwordAnswers } from "../lib/passwordAnswers";
 import { passwordRoleOffThread } from "../lib/pageEditWorker";
@@ -28,6 +29,7 @@ import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
 import { PasswordSetDialog } from "./PasswordSetDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 import "./Forms.css";
+import "./Markup.css";
 
 const HIDDEN_RELEASE_MS = 30_000;
 
@@ -49,6 +51,8 @@ export type TabSnapshot = {
   sheetOpen: boolean;
   hasForm: boolean;
   mark: PdfViewerApi["mark"];
+  markupTool: PdfViewerApi["markupTool"];
+  markupSelection: Markup | null;
 };
 
 export type PageAction =
@@ -247,6 +251,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       sheetOpen,
       hasForm: viewer.hasForm,
       mark: viewer.mark,
+      markupTool: viewer.markupTool,
+      markupSelection: editorState.markupSelection,
     });
   }, [
     id,
@@ -268,6 +274,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     sheetOpen,
     viewer.hasForm,
     viewer.mark,
+    viewer.markupTool,
+    editorState.markupSelection,
   ]);
 
   useEffect(() => {
