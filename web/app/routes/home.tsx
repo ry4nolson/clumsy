@@ -181,7 +181,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="section__header">
             <p className="section__label">Tour</p>
             <h2 id="tour-title" className="section__title">
-              What&apos;s new in 0.9, in a minute.
+              Clumsy, in a minute.
             </h2>
           </div>
           <div className="tour">
@@ -190,11 +190,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               controls
               playsInline
               preload="none"
-              poster="/media/clumsy-0.9-tour.webp"
+              poster="/media/clumsy-infomercial.webp"
               width={1920}
               height={1080}
             >
-              <source src="/media/clumsy-0.9-tour.mp4" type="video/mp4" />
+              <source src="/media/clumsy-infomercial.mp4" type="video/mp4" />
             </video>
           </div>
         </div>
