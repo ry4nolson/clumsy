@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dateLabel, markShape } from "../src/lib/marks";
+import { dateLabel, isMarkDescription, markShape } from "../src/lib/marks";
 
 describe("markShape", () => {
   it("draws each mark as one closed outline inside its box", () => {
@@ -35,5 +35,19 @@ describe("dateLabel", () => {
 
   it("falls back to an ISO date when letters would be dropped from the format", () => {
     expect(dateLabel(date, "bg-BG")).toBe("2026-11-02");
+  });
+});
+
+describe("isMarkDescription", () => {
+  it("recognizes the descriptions fill-in marks are saved with", () => {
+    expect(isMarkDescription(markShape("check").description)).toBe(true);
+    expect(isMarkDescription(markShape("cross").description)).toBe(true);
+    expect(isMarkDescription(markShape("dot").description)).toBe(true);
+  });
+
+  it("leaves signatures alone", () => {
+    expect(isMarkDescription("Ryan Olson")).toBe(false);
+    expect(isMarkDescription("")).toBe(false);
+    expect(isMarkDescription(null)).toBe(false);
   });
 });

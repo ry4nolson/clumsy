@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Typed signatures offer sixteen handwriting fonts to pick from, shown with your name in each. Clumsy remembers the last one you used
+
+### Fixed
+- Clicking Sign with saved signatures opens the list of them, and the list is filled in right away instead of showing only New Signature the first time
+- Checkmarks, crosses, and dots no longer offer Edit description
+
 ## [0.14.1] - 2026-11-12
 
 ### Changed

@@ -70,6 +70,12 @@ export function markShape(kind: Exclude<MarkKind, "date">): MarkShape {
   };
 }
 
+const markDescriptions = new Set(Object.values(shapes).map((shape) => shape.description));
+
+export function isMarkDescription(description: string | null | undefined) {
+  return !!description && markDescriptions.has(description);
+}
+
 const pad = (value: number, length = 2) => String(value).padStart(length, "0");
 
 const NOT_WIN_ANSI = /[^\x20-\x7e\xa0-\xff]/g;

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { pickImage } from "../lib/imageFiles";
+import { usePersistentState } from "../lib/preferences";
+import { SIGNATURE_FONT_KEY, signatureFont, signatureFonts } from "../lib/signatureFonts";
+import { SignatureFontPicker } from "./SignatureFontPicker";
 import { shapePreview, type DescriptionRequest, type DrawnCurves, type ShapePreview, type SignatureLines, type SignatureRequest } from "../lib/editorManagers";
 
 type SignatureTab = "type" | "draw" | "image";
@@ -104,6 +107,8 @@ export function SignatureDialog({ request, onDone }: SignatureDialogProps) {
   const typeRef = useRef<HTMLInputElement>(null);
   const [tab, setTab] = useState<SignatureTab>("type");
   const [typed, setTyped] = useState("");
+  const [fontId, setFontId] = usePersistentState(SIGNATURE_FONT_KEY, signatureFonts[0].id);
+  const font = signatureFont(fontId);
   const [curves, setCurves] = useState<DrawnCurves | null>(null);
   const [thickness, setThickness] = useState(2);
   const [image, setImage] = useState<{ lines: SignatureLines | null; name: string } | null>(null);
@@ -163,14 +168,18 @@ export function SignatureDialog({ request, onDone }: SignatureDialogProps) {
   const ready = tab === "type" ? !!typed.trim() : tab === "draw" ? !!curves?.curves.length : !!image?.lines;
   const imagePreview = shapePreview(image?.lines ?? null);
 
-  const add = () => {
+  const add = async () => {
     if (!request || !ready) {
       return;
     }
     let lines: SignatureLines | null = null;
-    if (tab === "type" && typeRef.current) {
-      const { fontFamily, fontStyle, fontWeight } = getComputedStyle(typeRef.current);
-      lines = request.fromText(typed.trim(), { fontFamily, fontStyle, fontWeight });
+    if (tab === "type") {
+      const text = typed.trim();
+      await document.fonts.load(`200px ${font.family}`, text).catch(() => null);
+      if (!dialogRef.current?.open) {
+        return;
+      }
+      lines = request.fromText(text, { fontFamily: font.family, fontStyle: "normal", fontWeight: "normal" });
     } else if (tab === "draw" && curves) {
       lines = request.fromDrawing(curves);
     } else if (tab === "image") {
@@ -196,7 +205,7 @@ export function SignatureDialog({ request, onDone }: SignatureDialogProps) {
         method="dialog"
         onSubmit={(event) => {
           event.preventDefault();
-          add();
+          void add();
         }}
       >
         <div className="signature-header">
@@ -214,6 +223,7 @@ export function SignatureDialog({ request, onDone }: SignatureDialogProps) {
             <input
               ref={typeRef}
               className="signature-type"
+              style={{ fontFamily: font.family, fontSize: `${Math.round(44 * font.scale)}px` }}
               value={typed}
               placeholder="Type your name"
               aria-label="Type your signature"
@@ -246,6 +256,16 @@ export function SignatureDialog({ request, onDone }: SignatureDialogProps) {
             </div>
           )}
         </div>
+        {tab === "type" && (
+          <SignatureFontPicker
+            text={typed}
+            selected={font}
+            onPick={(option) => {
+              setFontId(option.id);
+              typeRef.current?.focus();
+            }}
+          />
+        )}
         <div className="signature-controls">
           {tab === "draw" && (
             <label className="tool-option" title={`Thickness: ${thickness}`}>

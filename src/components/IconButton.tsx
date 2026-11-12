@@ -4,7 +4,7 @@ type IconButtonProps = {
   title: string;
   active?: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   onContextMenu?: (event: MouseEvent<HTMLButtonElement>) => void;
   children: ReactNode;
 };

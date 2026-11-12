@@ -215,7 +215,18 @@ function SignatureTool({ props }: { props: ToolsProps }) {
       active={active}
       keepOpenWhenInactive
       button={
-        <IconButton title="Sign" active={active} onContextMenu={toolMenu("signature")} onClick={props.onSign}>
+        <IconButton
+          title="Sign"
+          active={active}
+          onContextMenu={toolMenu("signature")}
+          onClick={(event) => {
+            props.onSign();
+            const menu = event.currentTarget.closest(".tool-split")?.querySelector<HTMLElement>(".tool-menu");
+            if (props.signatures.length > 0 && menu && !menu.matches(":popover-open")) {
+              menu.showPopover();
+            }
+          }}
+        >
           <Signature size={18} />
         </IconButton>
       }

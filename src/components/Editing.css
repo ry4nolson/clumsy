@@ -178,8 +178,6 @@
   border: none;
   background: transparent;
   color: #111;
-  font-family: "Snell Roundhand", "Apple Chancery", "Segoe Script", "Brush Script MT", cursive;
-  font-size: 44px;
   text-align: center;
   outline: none;
 }
@@ -257,6 +255,43 @@
 
 .signature-preview.framed path {
   color: #111;
+}
+
+.signature-fonts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.signature-fonts button {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+}
+
+.signature-fonts span {
+  width: max-content;
+  padding: 0 0.45em;
+  font-size: var(--size);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.signature-fonts button:hover {
+  border-color: var(--accent);
+}
+
+.signature-fonts button[aria-checked="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .signature-controls {

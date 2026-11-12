@@ -5,7 +5,7 @@ import { removedMessage } from "./comments";
 import type { Markup } from "./markup";
 import { attachMarkup, type MarkupLayer } from "./markupLayer";
 import { readMarkupParams, styleOf } from "./markupParams";
-import { dateLabel } from "./marks";
+import { dateLabel, isMarkDescription } from "./marks";
 import { readMarkupOffThread } from "./pageEditWorker";
 import { passwordOf } from "./pdfjs";
 import { MAX_SAVED_SIGNATURES, SIGNATURES_KEY, clearLegacySignature, readLegacySignature, readSignatures, withSignature, withoutSignature, writeSignatures, type SavedSignature } from "./signatures";
@@ -228,6 +228,9 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       return loading.then(refreshSignatures);
     },
     async renderEditButton(editor: SignatureEditor) {
+      if (isMarkDescription(editor.description)) {
+        return null;
+      }
       const button = document.createElement("button");
       button.classList.add("altText", "editDescription");
       button.tabIndex = 0;
@@ -318,6 +321,8 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       refreshSignatures();
     }
   };
+
+  signatureManager.loadSignatures();
 
   return {
     viewerOptions: { editorUndoBar, altTextManager, signatureManager, commentManager: comments.commentManager },

@@ -23,6 +23,54 @@ dependencies:
   '@codemirror/view':
     specifier: ^6.43.15
     version: 6.43.15
+  '@fontsource/alex-brush':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/allura':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/caveat':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/cedarville-cursive':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/dancing-script':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/great-vibes':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/herr-von-muellerhoff':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/homemade-apple':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/kristi':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/la-belle-aurore':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/monsieur-la-doulaise':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/mrs-saint-delafield':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/nothing-you-could-do':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/parisienne':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/pinyon-script':
+    specifier: ^5.3.0
+    version: 5.3.0
+  '@fontsource/sacramento':
+    specifier: ^5.3.0
+    version: 5.3.0
   '@lezer/highlight':
     specifier: ^1.2.5
     version: 1.2.5
@@ -212,6 +260,70 @@ packages:
       crelt: 1.0.7
       style-mod: 4.1.4
       w3c-keyname: 2.2.8
+    dev: false
+
+  /@fontsource/alex-brush@5.3.0:
+    resolution: {integrity: sha512-n3m2aZxsc8r748fBiYqfiVJ5l5iJe7ui5KPh2oBz07jsbr7zKynZ6F5MgXbR1iV8J0hPetmp6g5OwKYRZCDUcw==}
+    dev: false
+
+  /@fontsource/allura@5.3.0:
+    resolution: {integrity: sha512-UqloNNVxl03+psvtIXCYuo7/v2mD9XmX2HGiczhK6NmDDwbFJJDjrbHZ5tpNuVXKsMEQPc46tZu3hewYN82/YA==}
+    dev: false
+
+  /@fontsource/caveat@5.3.0:
+    resolution: {integrity: sha512-eHTfzQxFSW9ABERRLNruHoNJmKed2J7pqTUc5lp4a4POMgXGKpxmWj3d9Hz10kmAg6iuTTLe6UagbA4bnsmfQw==}
+    dev: false
+
+  /@fontsource/cedarville-cursive@5.3.0:
+    resolution: {integrity: sha512-wHP/LV0JvHoZRpfNAnDa9p9dAjIqB0gaG44MLs4+MsuQhL3i6+zGDTmxvxMx4bRe6r/HkChxIaMxjWOfjfSdGg==}
+    dev: false
+
+  /@fontsource/dancing-script@5.3.0:
+    resolution: {integrity: sha512-/FFbz4ZCNN+eG2a6phkZB41iKmyCC6rq2blA/kG9OFeI3/tpzLNazND1bBdEnogLhpfg7o4NfauTbEEYSpSUGg==}
+    dev: false
+
+  /@fontsource/great-vibes@5.3.0:
+    resolution: {integrity: sha512-1w60cXzXnC9V4y943po8044O1mqRQBiTTK75h7OpZE+1VQtx+KlAAzoIyEE5KNzu05gUpxaCQg7cbL7ITSwegQ==}
+    dev: false
+
+  /@fontsource/herr-von-muellerhoff@5.3.0:
+    resolution: {integrity: sha512-VOE/9IbMILLfTJwei5l73IFNHMI0t551/QvI+3/cxKOGj8EKjCBO48NlbAVOuRDGbZd/EGn7Dkl8Yv+Jh06IJA==}
+    dev: false
+
+  /@fontsource/homemade-apple@5.3.0:
+    resolution: {integrity: sha512-awJSYTbSY3SroC8nirEhDauHvERVvm0LI3FpUHsPZXl9Tht1xrqhiI8ro4yf3ROcvQ7CfFJ/2+DLcOHBOXhJKw==}
+    dev: false
+
+  /@fontsource/kristi@5.3.0:
+    resolution: {integrity: sha512-1QxHxn7Zm4W0Tnhcu4z6buQvDxx2Y1kS7+LT4zezX9eYRS/ZWgannONCdS15svsB/4XcgUqGTzq8B0W2uyXIcQ==}
+    dev: false
+
+  /@fontsource/la-belle-aurore@5.3.0:
+    resolution: {integrity: sha512-EEzeg3+Ym/9ESBw98/8OckEDxlkMMrR0wlwctGNX9oN1X2DyQHHLppB/ErwfwkptiWtkZYRNyNfZPkUcaFn/Ag==}
+    dev: false
+
+  /@fontsource/monsieur-la-doulaise@5.3.0:
+    resolution: {integrity: sha512-BiXcax07rSQX8vtg/GFzjen/nn+3YJqS7YyVNIIz9aFYqjMsxEDxqZmKThnSO6aprmbxYxEFAVgZvR1P8mIG1A==}
+    dev: false
+
+  /@fontsource/mrs-saint-delafield@5.3.0:
+    resolution: {integrity: sha512-OH6pmSgyh8CqpiFmAxthdrlhreJj2jt49kk+NpEZ4UMRrSOcF7qxF1AT0QNxuVVCQWy4h5TOIvep7Hglenrtig==}
+    dev: false
+
+  /@fontsource/nothing-you-could-do@5.3.0:
+    resolution: {integrity: sha512-695oxA7Odedd4rqN9aDhgVUwtyYhfmIJH02y32g/B0yoaVMRwTCZe3TYFt8LodpKeN/8v5w+svcyde0eBBE28g==}
+    dev: false
+
+  /@fontsource/parisienne@5.3.0:
+    resolution: {integrity: sha512-YbfjZDYy7FMTVE0HRgejkGX3T5iFfgagOYtAAAymq9GklviFAZ1GqIdlyviNe23TiR20f2K7zxsL4AECtWnkEQ==}
+    dev: false
+
+  /@fontsource/pinyon-script@5.3.0:
+    resolution: {integrity: sha512-ilhy4l5apzyDkfuKb7PZBUT5Sf6nfxucdXT5TQ0wQDyWtDPlouLy1lQq3lMEPk1lPsHHVrd11EkPnEG8FqDgUA==}
+    dev: false
+
+  /@fontsource/sacramento@5.3.0:
+    resolution: {integrity: sha512-KkqN52aTsJ0pSBva/NREqFljs0M1TwMIpNcqdSQc2EKR/mVU1CvM2dazf9eG19rHMTIssjbia83nGG705SlD1w==}
     dev: false
 
   /@jridgewell/resolve-uri@3.1.2:
