@@ -4,7 +4,7 @@ No tricks, no acrobatics.
 
 Clumsy is a small, fast PDF (and Markdown) viewer. It opens PDFs in tabs and lets you search, highlight, annotate, fill forms, and sign, saving everything straight back into the file. Signed PDFs show whether their digital signatures hold, and you can sign with your own certificate, no signing service required. Dark mode inverts the text while leaving images alone. Markdown files open formatted too, with their source one shortcut away.
 
-[![Watch what's new in Clumsy 0.9 in a minute](docs/media/clumsy-0.9-tour.jpg)](docs/media/clumsy-0.9-tour.mp4)
+[![Watch Clumsy in a minute](docs/media/clumsy-infomercial.jpg)](docs/media/clumsy-infomercial.mp4)
 
 ## Features
 
