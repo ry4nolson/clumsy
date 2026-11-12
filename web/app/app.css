@@ -562,6 +562,162 @@ pre {
   background: var(--gradient);
 }
 
+/* Digital signatures */
+
+.signatures {
+  background:
+    radial-gradient(40rem 24rem at 85% 20%, rgba(74, 222, 128, 0.07), transparent 70%),
+    radial-gradient(36rem 22rem at 10% 90%, rgba(255, 122, 77, 0.08), transparent 70%);
+  border-block: 1px solid var(--border);
+}
+
+.signatures__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4rem);
+  margin-bottom: 2.75rem;
+}
+
+.signatures__lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+}
+
+.sig-demo {
+  font-size: 0.85rem;
+}
+
+.sig-demo__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(74, 222, 128, 0.08);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.sig-demo__check {
+  display: flex;
+  flex: none;
+  color: var(--green);
+}
+
+.sig-demo__text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.sig-demo__button {
+  flex: none;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sig-demo__page {
+  display: grid;
+  gap: 1.1rem;
+  padding: 1.4rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent);
+}
+
+.sig-demo__lines {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sig-demo__lines span {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sig-demo__lines span:nth-child(2) {
+  width: 92%;
+}
+
+.sig-demo__lines span:nth-child(4) {
+  width: 60%;
+}
+
+.sig-demo__details {
+  display: grid;
+  margin: 0;
+  padding: 0.3rem 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+
+.sig-demo__details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0;
+}
+
+.sig-demo__details div + div {
+  border-top: 1px solid var(--border);
+}
+
+.sig-demo__details dt {
+  color: var(--ink-faint);
+}
+
+.sig-demo__details dd {
+  margin: 0;
+  text-align: right;
+}
+
+.sig-demo__stamp {
+  justify-self: end;
+  display: grid;
+  min-width: 14rem;
+  padding: 0.5rem 0.8rem 0.6rem;
+  border: 1px dashed rgba(74, 222, 128, 0.45);
+  border-radius: 8px;
+}
+
+.sig-demo__ink {
+  font-family: "Snell Roundhand", "Brush Script MT", cursive;
+  font-size: 1.7rem;
+  line-height: 1.2;
+  color: var(--sky);
+}
+
+.sig-demo__meta {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 860px) {
+  .signatures__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .sig-demo__details div {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .sig-demo__details dd {
+    text-align: left;
+  }
+
+  .sig-demo__stamp {
+    justify-self: stretch;
+    min-width: 0;
+  }
+}
+
 /* Showcase */
 
 .showcase__tabs {

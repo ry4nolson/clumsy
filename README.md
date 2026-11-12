@@ -2,7 +2,7 @@
 
 No tricks, no acrobatics.
 
-Clumsy is a small, fast PDF (and Markdown) viewer. It opens PDFs in tabs and lets you search, highlight, annotate, fill forms, and sign, saving everything straight back into the file. Dark mode inverts the text while leaving images alone. Markdown files open formatted too, with their source one shortcut away.
+Clumsy is a small, fast PDF (and Markdown) viewer. It opens PDFs in tabs and lets you search, highlight, annotate, fill forms, and sign, saving everything straight back into the file. Signed PDFs show whether their digital signatures hold, and you can sign with your own certificate, no signing service required. Dark mode inverts the text while leaving images alone. Markdown files open formatted too, with their source one shortcut away.
 
 [![Watch what's new in Clumsy 0.9 in a minute](docs/media/clumsy-0.9-tour.jpg)](docs/media/clumsy-0.9-tour.mp4)
 
@@ -22,6 +22,14 @@ Clumsy is a small, fast PDF (and Markdown) viewer. It opens PDFs in tabs and let
 - Comments on any markup or selected text, or as sticky notes anywhere on a page, with a Comments list in the sidebar that also shows the comments already in a file. Alt text for images and signatures.
 - Fill in forms: Tab moves through every field in order, even across pages, Reset Form puts back the defaults, and Flatten Form bakes the answers into the page. On paper forms with no fields, click to drop a checkmark, cross, dot, or today's date.
 - Everything saves straight back into the PDF, and Clumsy asks first if another app changed the file since you opened it.
+
+**Digital signatures**
+- Signed PDFs open with a bar saying who signed them and whether the signature is valid, and the Signatures sidebar tab lists every one. Details shows the certificate, when it was signed and whether a timestamp proves that time, whether the certificate was revoked, and anything wrong with it.
+- Changes made after signing are flagged, while signatures, timestamps, and validation data added later aren't. View Signed Version opens exactly what a signer signed.
+- Trust Signer accepts a signer your Mac can't verify (a self-signed certificate, say), for Clumsy only.
+- Sign Digitally (Tools menu) signs with a certificate you already have, in your Keychain, on a smart card, or on a security key: into an empty signature field, the corner of the page, a box you draw, or invisibly, with your saved signature or just your name. The private key stays where it is, and every signature asks first.
+- Signatures are timestamped and carry their revocation data (PAdES B-LT), so they keep verifying after the certificate expires. Certify Document signs as the author and sets which changes others can make, Add Validation Data fills in revocation data for existing signatures, and Seal with Timestamp covers the whole file for documents that need to stay verifiable for years.
+- Page edits, passwords, and flattening would remove a document's signatures, so Clumsy asks first.
 
 **Changing pages**
 - Reorder pages by dragging thumbnails, and rotate, delete, or extract them.

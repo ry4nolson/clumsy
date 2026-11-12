@@ -24,6 +24,9 @@ export default function SiteNav() {
           <a className="nav__link nav__link--wide" href="/#features">
             Features
           </a>
+          <a className="nav__link nav__link--wide" href="/#signatures">
+            Signatures
+          </a>
           <a className="nav__link nav__link--wide" href="/#tour">
             Tour
           </a>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import type { Route } from "./+types/home";
+import { SignatureSpotlight } from "~/components/SignatureSpotlight";
 import { ThemeSlider } from "~/components/ThemeSlider";
 import { SCREENS, type ScreenId } from "~/lib/content";
 import { loadFeatures } from "~/lib/features.server";
@@ -106,7 +107,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <h1 className="hero__title">No tricks, no acrobatics.</h1>
           <p className="hero__lede">
             A small, fast PDF (and Markdown) viewer. Search, highlight, comment,
-            fill forms, and sign, saved straight back into the file.
+            fill forms, and sign with a real certificate, saved straight back
+            into the file.
           </p>
           <div className="hero__actions">
             <SupportButton />
@@ -141,7 +143,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               Everything you open a PDF for.
             </h2>
             <p className="section__body">
-              Reading, markup, forms, signatures, page edits, and comparisons,
+              Reading, markup, forms, digital signatures, page edits, and comparisons,
               in a viewer that opens before you finish double-clicking.
             </p>
           </div>
@@ -160,6 +162,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       </section>
+
+      <SignatureSpotlight />
 
       <Showcase />
 
