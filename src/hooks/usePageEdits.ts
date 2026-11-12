@@ -7,9 +7,11 @@ import { openedFiles, pickImages, type OpenedFile } from "../lib/imageFiles";
 import { imagesIn, imagesToSource, markdownIn, pagesFrom, pdfsIn } from "../lib/imageImport";
 import { remapStops } from "../lib/navHistory";
 import { shareBudget, trimHistory, type Version } from "../lib/pageHistory";
-import { applyPageEditOffThread, combinePdfsOffThread, extractPagesOffThread } from "../lib/pageEditWorker";
+import { applyPageEditOffThread, combinePdfsOffThread, extractPagesOffThread, scanSignaturesOffThread, signaturesRemovedBy } from "../lib/pageEditWorker";
 import { pickPdfs, showError, type DropPoint, type DroppedFile, type PdfSource } from "../lib/platform";
 import type { Protection } from "../lib/protection";
+import { intactSignatures, mayHaveSignatures, rewriteAction } from "../lib/signatureBytes";
+import { confirmSignatureRemoval } from "../lib/signatureWarning";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -28,6 +30,15 @@ class StaleEditError extends Error {}
 
 const protectionAfter = (edit: PageEdit, before: Protection | undefined) =>
   edit.kind === "protect" ? (edit.password ? { password: edit.password } : undefined) : before;
+
+async function signaturesAtRisk(version: Version) {
+  const tagged = signaturesRemovedBy(version.bytes);
+  if (tagged || !mayHaveSignatures(version.bytes)) {
+    return tagged;
+  }
+  const scan = await scanSignaturesOffThread(version.bytes.slice(), version.protection?.password).catch(() => null);
+  return intactSignatures(scan);
+}
 
 const baseName = (name: string) => name.replace(/\.pdf$/i, "");
 
@@ -155,6 +166,10 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     const baseline = edits.source;
     const before = await currentVersion(tabId);
     if (!before || !changesDocument(edit, before.count)) {
+      return;
+    }
+    const atRisk = await signaturesAtRisk(before);
+    if (atRisk && !(await confirmSignatureRemoval(atRisk, rewriteAction(edit, !!before.protection)))) {
       return;
     }
     const { bytes, original, inserted, unchanged } = await applyPageEditOffThread(before.bytes, edit, before.protection?.password);

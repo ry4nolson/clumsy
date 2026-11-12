@@ -27,19 +27,27 @@ describe("visibleSlots", () => {
   const slotsOf = (name: string) => menuLayout.find(([menu]) => menu === name)![1];
 
   it("shows the print commands where the platform can print", () => {
-    expect(visibleSlots(slotsOf("File"), true).slice(-6)).toEqual(["revealInFinder", "-", "setPassword", "removePassword", "-", "print"]);
-    expect(visibleSlots(slotsOf("Pages"), true)).toContain("printSelectedPages");
+    expect(visibleSlots(slotsOf("File"), { canPrint: true }).slice(-6)).toEqual(["revealInFinder", "-", "setPassword", "removePassword", "-", "print"]);
+    expect(visibleSlots(slotsOf("Pages"), { canPrint: true })).toContain("printSelectedPages");
   });
 
   it("drops them, and the separators they leave behind, where it can't", () => {
-    expect(visibleSlots(slotsOf("File"), false).slice(-4)).toEqual(["revealInFinder", "-", "setPassword", "removePassword"]);
-    expect(visibleSlots(slotsOf("Pages"), false)).not.toContain("printSelectedPages");
-    expect(visibleSlots(["-", "print", "-", "-", "open", "-", "printSelectedPages", "-"], false)).toEqual(["open"]);
+    expect(visibleSlots(slotsOf("File"), {}).slice(-4)).toEqual(["revealInFinder", "-", "setPassword", "removePassword"]);
+    expect(visibleSlots(slotsOf("Pages"), {})).not.toContain("printSelectedPages");
+    expect(visibleSlots(["-", "print", "-", "-", "open", "-", "printSelectedPages", "-"], {})).toEqual(["open"]);
+  });
+
+  it("shows the digital signature commands only where the platform can sign", () => {
+    const signing = ["signDigitally", "certifyDocument", "addValidationData", "sealWithTimestamp"];
+    expect(visibleSlots(slotsOf("Tools"), { canSignDigitally: true })).toEqual(expect.arrayContaining(signing));
+    const without = visibleSlots(slotsOf("Tools"), {});
+    expect(without.filter((slot) => signing.includes(slot as string))).toEqual([]);
+    expect(without.filter((slot, index) => slot === "-" && without[index + 1] === "-")).toEqual([]);
   });
 
   it("leaves every other menu as laid out", () => {
-    for (const [menu, slots] of menuLayout.filter(([name]) => name !== "File" && name !== "Pages")) {
-      expect(visibleSlots(slots, false), menu).toEqual(slots);
+    for (const [menu, slots] of menuLayout.filter(([name]) => !["File", "Pages", "Tools"].includes(name))) {
+      expect(visibleSlots(slots, {}), menu).toEqual(slots);
     }
   });
 });

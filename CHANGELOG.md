@@ -7,6 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Digital signatures.** Signed PDFs show who signed them and whether the signature is valid in a bar over the document, with every signature listed in the new Signatures sidebar tab. Details shows the certificate, when it was signed and whether that time is proven by a timestamp, whether the certificate was revoked, and anything wrong with it
+- View Signed Version opens exactly what a signer signed in a new tab, so you can compare it with what the document says now
+- Trust Signer in Clumsy accepts a signer your system can't verify, for Clumsy only
+- Tools > Sign Digitally signs a PDF with a certificate you already have, on this computer, a smart card, or a security key, in an empty signature field, the corner of the page, a box you draw, or invisibly, with your saved signature or just your name. Signatures are timestamped and carry their revocation data, so they keep verifying after the certificate expires
+- Tools > Certify Document signs a PDF as its author and sets which changes others can make: none, filling in forms, or filling in forms and commenting
+- Tools > Add Validation Data adds revocation data to the signatures in a PDF, and Tools > Seal with Timestamp adds a timestamp over the whole file, for documents that need to stay verifiable for years
+
+### Changed
+- Changing the pages of a digitally signed PDF, setting its password, or flattening its form now asks first, since it removes the signatures
+
 ## [0.14.2] - 2026-11-12
 
 ### Changed

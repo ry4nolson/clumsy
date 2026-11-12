@@ -91,6 +91,10 @@ export type CommandId =
   | "addImage"
   | "sign"
   | "newSignature"
+  | "signDigitally"
+  | "certifyDocument"
+  | "addValidationData"
+  | "sealWithTimestamp"
   | "markCheck"
   | "markCross"
   | "markDot"
@@ -134,6 +138,7 @@ export type Command = {
   needsForm?: boolean;
   needsProtection?: boolean;
   needsPrinting?: boolean;
+  needsDigitalSigning?: boolean;
 };
 
 const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) => ({
@@ -241,6 +246,10 @@ export const commands: Command[] = [
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
   { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },
+  { id: "signDigitally", label: "Sign Digitally…", menu: "Tools", combos: [], needsDocument: true, needsDigitalSigning: true },
+  { id: "certifyDocument", label: "Certify Document…", menu: "Tools", combos: [], needsDocument: true, needsDigitalSigning: true },
+  { id: "addValidationData", label: "Add Validation Data", menu: "Tools", combos: [], needsDocument: true, needsDigitalSigning: true },
+  { id: "sealWithTimestamp", label: "Seal with Timestamp", menu: "Tools", combos: [], needsDocument: true, needsDigitalSigning: true },
   { id: "markCheck", label: "Checkmark", menu: "Tools", combos: [], needsDocument: true },
   { id: "markCross", label: "Cross", menu: "Tools", combos: [], needsDocument: true },
   { id: "markDot", label: "Dot", menu: "Tools", combos: [], needsDocument: true },
@@ -284,9 +293,13 @@ export type CommandContext = {
   split: boolean;
   comparing: boolean;
   canPrint?: boolean;
+  canSignDigitally?: boolean;
 };
 
-export const platformSupports = (command: Command, { canPrint = false }: Pick<CommandContext, "canPrint">) => !command.needsPrinting || canPrint;
+export type PlatformAbilities = Pick<CommandContext, "canPrint" | "canSignDigitally">;
+
+export const platformSupports = (command: Command, { canPrint = false, canSignDigitally = false }: PlatformAbilities) =>
+  (!command.needsPrinting || canPrint) && (!command.needsDigitalSigning || canSignDigitally);
 
 export function documentAvailable(command: Command, { hasDocument, hasMarkdown = false }: Pick<CommandContext, "hasDocument" | "hasMarkdown">) {
   if (command.needsMarkdown) {

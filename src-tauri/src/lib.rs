@@ -7,6 +7,7 @@ mod print;
 mod print_layout;
 mod recent;
 mod session;
+mod signatures;
 mod updates;
 mod windows;
 
@@ -385,6 +386,7 @@ pub fn run() {
         .manage(QuitPrompt::default())
         .manage(Updates::default())
         .manage(RestartSession::default())
+        .manage(signatures::SeenCertificates::default())
         .on_window_event(|window, event| match event {
             WindowEvent::Focused(true) => window.state::<FocusTracker>().focused(window.label()),
             WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => allow_dropped(window.app_handle(), paths),
@@ -439,6 +441,12 @@ pub fn run() {
             session::restored_windows,
             session::take_restored_window,
             updates::install_update,
+            signatures::verify_signatures,
+            signatures::list_signing_identities,
+            signatures::sign_pdf,
+            signatures::fetch_validation_data,
+            signatures::timestamp_pdf,
+            signatures::show_certificate,
             default_app_status,
             make_default_app,
             recent_files,

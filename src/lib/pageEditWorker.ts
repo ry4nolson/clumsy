@@ -2,6 +2,7 @@ import { errorFrom, jobBuffers, type PageEditJob, type PageEditResponse, type Pa
 import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
 import type { PageEdit } from "./pageEditPlan";
+import type { PrepareSignatureOptions, PreparedSignature, SignatureScan, ValidationMaterial } from "./signatureTypes";
 
 const STOPPED = "The page edit stopped unexpectedly.";
 
@@ -44,11 +45,39 @@ export const decryptPdfOffThread = async (bytes: Uint8Array, password?: string) 
 
 export const encryptPdfOffThread = async (bytes: Uint8Array, password: string) => (await runInWorker(spawn, { op: "encrypt", bytes, password })).bytes;
 
-export const writeAnnotationsOffThread = async (bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password?: string) =>
-  (await runInWorker(spawn, { op: "annotations", bytes, notes, markup, password })).bytes;
+const removedBy = new WeakMap<Uint8Array, number>();
+
+export const signaturesRemovedBy = (bytes: Uint8Array) => removedBy.get(bytes) ?? 0;
+
+export async function writeAnnotationsOffThread(bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password?: string) {
+  const result = await runInWorker(spawn, { op: "annotations", bytes, notes, markup, password });
+  if (result.removedSignatures) {
+    removedBy.set(result.bytes, result.removedSignatures);
+  }
+  return result.bytes;
+}
 
 export const readMarkupOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "readMarkup", bytes, password })).markup ?? [];
 
 export const passwordRoleOffThread = async (bytes: Uint8Array, password: string) => (await runInWorker(spawn, { op: "role", bytes, password })).role ?? null;
 
 export const combinePdfsOffThread = async (files: Uint8Array[]) => (await runInWorker(spawn, { op: "combine", files })).bytes;
+
+const EMPTY_SCAN: SignatureScan = { signatures: [], emptyFields: [], dss: null, encrypted: false, certified: null };
+
+export const scanSignaturesOffThread = async (bytes: Uint8Array, password?: string): Promise<SignatureScan> =>
+  (await runInWorker(spawn, { op: "scanSignatures", bytes, password })).scan ?? EMPTY_SCAN;
+
+const preparedFrom = (result: PageEditResult): PreparedSignature => {
+  if (!result.placeholder || result.fieldName === undefined) {
+    throw new Error("The signature couldn't be prepared.");
+  }
+  return { bytes: result.bytes, placeholder: result.placeholder, fieldName: result.fieldName };
+};
+
+export const prepareSignatureOffThread = async (bytes: Uint8Array, options: PrepareSignatureOptions) =>
+  preparedFrom(await runInWorker(spawn, { op: "prepareSignature", bytes, options }));
+
+export const appendDssOffThread = async (bytes: Uint8Array, material: ValidationMaterial) => (await runInWorker(spawn, { op: "appendDss", bytes, material })).bytes;
+
+export const prepareDocTimestampOffThread = async (bytes: Uint8Array) => preparedFrom(await runInWorker(spawn, { op: "prepareDocTimestamp", bytes }));

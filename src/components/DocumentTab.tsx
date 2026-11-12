@@ -6,6 +6,7 @@ import { useEditorUi } from "../hooks/useEditorUi";
 import { useMapMarks } from "../hooks/useMapMarks";
 import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi, type ViewStart } from "../hooks/usePdfViewer";
 import { useScrolling } from "../hooks/useScrolling";
+import { useTabSignatures } from "../hooks/useTabSignatures";
 import type { CommandId } from "../lib/commands";
 import type { ViewState } from "../lib/documentWindows";
 import type { SignaturePreview } from "../lib/editorManagers";
@@ -28,6 +29,9 @@ import { FindBar } from "./FindBar";
 import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
 import { PasswordSetDialog } from "./PasswordSetDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
+import { SignatureBar } from "./SignatureBar";
+import { SignatureDetailsDialog } from "./SignatureDetailsDialog";
+import { SignaturesList } from "./SignaturesList";
 import "./Forms.css";
 import "./Markup.css";
 
@@ -100,6 +104,7 @@ export type DocumentTabProps = {
   onPageAction: (id: string, action: PageAction) => void;
   onMenuCommand: (id: CommandId, pages: number[]) => void;
   onUndoRemoval: (id: string) => void;
+  onOpenSource: (source: PdfSource) => void;
   compare: CompareView | null;
 };
 
@@ -153,6 +158,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     onPageAction,
     onMenuCommand,
     onUndoRemoval,
+    onOpenSource,
     compare,
   },
   ref,
@@ -160,6 +166,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const viewer = usePdfViewer();
   const scrolling = useScrolling(viewer.containerRef);
   const editorState = useEditorUi(viewer.editorUi);
+  const signatures = useTabSignatures(viewer, source.name, active, onOpenSource);
   const sheetOpen = !!(editorState.altText || editorState.signature || editorState.description || editorState.comment);
   const [findOpen, setFindOpen] = useState(false);
   const [findFocusToken, setFindFocusToken] = useState(0);
@@ -415,10 +422,11 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
               <CommentsList comments={editorState.comments} selected={editorState.selectedComment} pageLabels={viewer.pageLabels} onSelect={(comment) => viewer.editorUi?.showComment(comment)} />
             )
           }
+          signatures={signatures.hasPanel && <SignaturesList signatures={signatures} pageLabels={viewer.pageLabels} />}
         />
       )}
-      <main className={`viewer-area${darkPages ? " dark-pages" : ""}${keepImages ? " keep-images" : ""}${compare ? " comparing" : ""}`}>
-        {compare && <CompareBar view={compare} />}
+      <main className={`viewer-area${darkPages ? " dark-pages" : ""}${keepImages ? " keep-images" : ""}${compare ? " comparing" : signatures.bar ? " signed" : ""}`}>
+        {compare ? <CompareBar view={compare} /> : <SignatureBar signatures={signatures} />}
         {findOpen && (
           <FindBar
             status={viewer.findStatus}
@@ -451,6 +459,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         />
       )}
       <EditorSheets editorUi={viewer.editorUi} state={editorState} />
+      <SignatureDetailsDialog signatures={signatures} />
       <PageLabelsDialog
         request={labelsRequest}
         onApply={(from, to, numbering) => {

@@ -1,12 +1,14 @@
 import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
-import { buffersOf, failureOf, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
+import { failureOf, resultBuffers, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
 import { readMarkup } from "./markupPdf";
-import { writeAnnotations } from "./notesPdf";
+import { writeAnnotationsReporting } from "./notesPdf";
 import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { flattenForm } from "./pdfForm";
+import { scanSignatures } from "./pdfSignatures";
+import { appendDss, prepareDocTimestamp, prepareSignature } from "./pdfSignWrite";
 import { collectGarbage, flattenPageTree, importPageRefs, pageLeafRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
 installDecryptedStrings();
@@ -149,20 +151,32 @@ export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> 
     case "encrypt":
       return { bytes: await encryptPdf(job.bytes, job.password) };
     case "annotations":
-      return { bytes: await writeAnnotations(job.bytes, job.notes, job.markup, job.password) };
+      return writeAnnotationsReporting(job.bytes, job.notes, job.markup, job.password);
     case "readMarkup":
       return { bytes: new Uint8Array(), markup: readMarkup(await load(job.bytes, job.password)) };
     case "role":
       return { bytes: new Uint8Array(), role: await passwordRole(job.bytes, job.password).catch(() => null) };
     case "combine":
       return { bytes: await combinePdfs(job.files) };
+    case "scanSignatures":
+      return { bytes: new Uint8Array(), scan: await scanSignatures(job.bytes, job.password) };
+    case "prepareSignature": {
+      const { bytes, placeholder, fieldName } = await prepareSignature(job.bytes, job.options);
+      return { bytes, placeholder, fieldName };
+    }
+    case "appendDss":
+      return { bytes: await appendDss(job.bytes, job.material) };
+    case "prepareDocTimestamp": {
+      const { bytes, placeholder, fieldName } = await prepareDocTimestamp(job.bytes);
+      return { bytes, placeholder, fieldName };
+    }
   }
 }
 
 export async function answerPageEditJob(job: PageEditJob): Promise<[PageEditResponse, ArrayBuffer[]]> {
   try {
     const result = await runPageEditJob(job);
-    return [{ result }, buffersOf([result.bytes, result.original])];
+    return [{ result }, resultBuffers(result)];
   } catch (error) {
     return [{ failure: failureOf(error) }, []];
   }

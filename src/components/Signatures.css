@@ -1,0 +1,279 @@
+.viewer-area.signed .viewer-container {
+  top: 34px;
+}
+
+.viewer-area.signed .findbar {
+  top: 44px;
+}
+
+.signature-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 6px 0 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.signature-bar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.button.compact {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.signature-icon {
+  flex-shrink: 0;
+}
+
+.signature-icon.good {
+  color: var(--diff-added);
+}
+
+.signature-icon.warning {
+  color: var(--diff-modified);
+}
+
+.signature-icon.bad {
+  color: var(--danger);
+}
+
+.signature-icon.neutral {
+  color: var(--text-muted);
+}
+
+.signature-note {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.signature-bar .signature-note {
+  align-self: center;
+}
+
+.signatures-error {
+  margin: 8px 14px 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.signature-signer {
+  font-weight: 600;
+}
+
+.signature-detail {
+  color: var(--text-muted);
+}
+
+.signature-changed {
+  color: var(--diff-modified);
+}
+
+.signatures .changes-more {
+  margin: 0 8px 4px;
+}
+
+.signature-empty-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.signature-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.signature-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.signature-facts div {
+  display: grid;
+  grid-template-columns: 9em 1fr;
+  gap: 12px;
+}
+
+.signature-facts dt {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.signature-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.signature-problems {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--diff-modified);
+}
+
+.signature-chain h3 {
+  margin: 14px 0 4px;
+  font-size: 13px;
+}
+
+.signature-chain ol {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+}
+
+.signature-trust-note,
+.sign-note {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.signature-details .dialog-actions,
+.sign-digitally .dialog-actions {
+  flex-wrap: wrap;
+}
+
+.sign-form {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 12px;
+  align-items: start;
+}
+
+.sign-form > .label-form-name {
+  padding-top: 6px;
+}
+
+.sign-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sign-choices .radio {
+  align-items: flex-start;
+}
+
+.sign-choices input {
+  accent-color: var(--accent);
+}
+
+.sign-choice-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sign-choice-detail {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.sign-choice-detail.problem {
+  color: var(--danger);
+}
+
+.sign-choice-detail.warning {
+  color: var(--diff-modified);
+}
+
+.sign-appearances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sign-appearance {
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 40px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.sign-appearance[aria-checked="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.sign-appearance svg {
+  width: 100%;
+  height: 100%;
+}
+
+.sign-appearance path.lines {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2px;
+}
+
+.sign-appearance path.contours {
+  fill: currentColor;
+}
+
+.sign-advanced {
+  grid-column: 1 / -1;
+}
+
+.sign-advanced summary {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sign-advanced .label-form {
+  margin-top: 10px;
+}
+
+.signature-placing .viewer-container,
+.signature-placing .viewer-container * {
+  cursor: crosshair !important;
+}
+
+.signature-placement {
+  position: absolute;
+  z-index: 30;
+  border: 2px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  pointer-events: none;
+}
+
+.signature-placement-hint {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 31;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  pointer-events: none;
+}

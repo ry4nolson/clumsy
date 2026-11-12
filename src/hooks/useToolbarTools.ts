@@ -3,6 +3,7 @@ import type { TabSnapshot } from "../components/DocumentTab";
 import type { ToolsProps } from "../components/ToolsGroup";
 import type { CommandId } from "../lib/commands";
 import { markCommands, toolCommand } from "../lib/contextTools";
+import { canSignDigitally } from "../lib/platform";
 import { colorParams, type useEditorOptions } from "./useEditorOptions";
 import type { MarkupControls } from "./useMarkupControls";
 import type { PdfViewerApi } from "./usePdfViewer";
@@ -33,6 +34,8 @@ export function useToolbarTools(
     onSign: () => runCommand("sign"),
     onMark: (kind) => runCommand(markCommands[kind]),
     onNewSignature: () => runCommand("newSignature"),
+    canSignDigitally,
+    onSignDigitally: () => runCommand("signDigitally"),
     onPlaceSignature: async (uuid) => {
       const viewer = activeViewer();
       if (tool !== "signature") {

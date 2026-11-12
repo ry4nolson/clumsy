@@ -2,6 +2,7 @@ import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
 import { PageEditError, type PageEdit } from "./pageEditPlan";
 import type { PasswordRole } from "./pdfDecrypt";
+import type { PrepareSignatureOptions, SignaturePlaceholder, SignatureScan, ValidationMaterial } from "./signatureTypes";
 
 export type PageEditJob =
   | { op: "edit"; bytes: Uint8Array; edit: PageEdit; password?: string }
@@ -11,9 +12,24 @@ export type PageEditJob =
   | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string }
   | { op: "readMarkup"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
-  | { op: "combine"; files: Uint8Array[] };
+  | { op: "combine"; files: Uint8Array[] }
+  | { op: "scanSignatures"; bytes: Uint8Array; password?: string }
+  | { op: "prepareSignature"; bytes: Uint8Array; options: PrepareSignatureOptions }
+  | { op: "appendDss"; bytes: Uint8Array; material: ValidationMaterial }
+  | { op: "prepareDocTimestamp"; bytes: Uint8Array };
 
-export type PageEditResult = { bytes: Uint8Array; original?: Uint8Array; inserted?: number; unchanged?: boolean; role?: PasswordRole | null; markup?: Markup[] };
+export type PageEditResult = {
+  bytes: Uint8Array;
+  original?: Uint8Array;
+  inserted?: number;
+  unchanged?: boolean;
+  role?: PasswordRole | null;
+  markup?: Markup[];
+  scan?: SignatureScan;
+  placeholder?: SignaturePlaceholder;
+  fieldName?: string;
+  removedSignatures?: number;
+};
 
 export type PageEditFailure = { message: string; pageEdit: boolean };
 
@@ -33,11 +49,19 @@ export function jobBuffers(job: PageEditJob) {
     case "annotations":
     case "readMarkup":
     case "role":
+    case "scanSignatures":
+    case "prepareSignature":
+    case "prepareDocTimestamp":
       return buffersOf([job.bytes]);
+    case "appendDss":
+      return buffersOf([job.bytes, ...job.material.certs, ...job.material.ocsps, ...job.material.crls]);
     case "combine":
       return buffersOf(job.files);
   }
 }
+
+export const resultBuffers = (result: PageEditResult) =>
+  buffersOf([result.bytes, result.original, ...(result.scan?.dss ? [...result.scan.dss.certs, ...result.scan.dss.ocsps, ...result.scan.dss.crls] : [])]);
 
 export const failureOf = (error: unknown): PageEditFailure => ({
   message: error instanceof Error ? error.message : String(error),

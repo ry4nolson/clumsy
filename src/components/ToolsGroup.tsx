@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent, ReactNode } from "react";
-import { CalendarDays, Check, Dot, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Strikethrough, Type, Underline, X } from "lucide-react";
+import { CalendarDays, Check, Dot, FileSignature, Hand, Highlighter, ImagePlus, MessageSquare, MousePointer2, PenLine, Plus, Signature, SquareCheck, Strikethrough, Type, Underline, X } from "lucide-react";
 import { inkColors, toolOptions } from "../hooks/useEditorOptions";
 import { highlightColors, type EditorParams, type EditorTool } from "../hooks/usePdfViewer";
 import { defaultContextTools, readContextTools, withContextTool, writeContextTools } from "../lib/contextTools";
@@ -29,6 +29,8 @@ export type ToolsProps = {
   onSign: () => void;
   onMark: (kind: MarkKind) => void;
   onNewSignature: () => void;
+  canSignDigitally: boolean;
+  onSignDigitally: () => void;
   onPlaceSignature: (uuid: string) => void;
   onForgetSignature: (uuid: string) => void;
   markup: MarkupParams;
@@ -263,6 +265,19 @@ function SignatureTool({ props }: { props: ToolsProps }) {
         <Plus size={16} />
         New Signature…
       </button>
+      {props.canSignDigitally && (
+        <button
+          type="button"
+          className="tool-menu-item"
+          onClick={(event) => {
+            closeToolMenu(event.currentTarget);
+            props.onSignDigitally();
+          }}
+        >
+          <FileSignature size={16} />
+          Digitally Sign…
+        </button>
+      )}
     </ToolMenu>
   );
 }

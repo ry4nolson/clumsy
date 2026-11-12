@@ -14,6 +14,7 @@ export type PdfSignature = {
   problems: string[];
   revisionEnd: number;
   coversWholeFile: boolean;
+  modifiedAfter: boolean;
   laterRevisions: number;
   docMdp: DocMdpPermission | null;
   claimedTime: string | null;

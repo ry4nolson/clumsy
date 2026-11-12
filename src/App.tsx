@@ -6,6 +6,7 @@ import { PaneGrid } from "./components/PaneGrid";
 import { PasswordDialog } from "./components/PasswordDialog";
 import { QuickPick } from "./components/QuickPick";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
+import { SignDigitallyDialog } from "./components/SignDigitallyDialog";
 import { StampPicker } from "./components/StampPicker";
 import type { SidebarTab } from "./components/Sidebar";
 import { TabContents } from "./components/TabContents";
@@ -21,7 +22,8 @@ import { usePrint } from "./hooks/usePrint";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useMarkdownCommands } from "./hooks/useMarkdownCommands";
 import { usePageEdits } from "./hooks/usePageEdits";
-import { useSaveAll, useSaveDocument } from "./hooks/useSaveDocument";
+import { useSaveAll, useSaveDocument, useWriteAndReload } from "./hooks/useSaveDocument";
+import { useSignDigitally } from "./hooks/useSignDigitally";
 import { requestDefaultApp, useDefaultAppPrompt } from "./hooks/useDefaultAppPrompt";
 import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
 import { useUpdateInstall } from "./hooks/useUpdateInstall";
@@ -41,6 +43,7 @@ import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import { pickImage } from "./lib/imageFiles";
 import {
   canPrint,
+  canSignDigitally,
   clearRecentFiles,
   closeWindow,
   hasOverlayTitlebar,
@@ -97,6 +100,7 @@ export default function App() {
   const save = useSaveDocument(workspaceApi, pageEdits.settled);
   const imageExport = useImageExport(workspaceApi, pageEdits.settled);
   const printing = usePrint(workspaceApi, pageEdits.settled);
+  const signing = useSignDigitally(workspaceApi, pageEdits.settled, useWriteAndReload(workspaceApi));
   const pageEditsRef = useRef(pageEdits);
   pageEditsRef.current = pageEdits;
   const passwords = usePasswordPrompts();
@@ -203,6 +207,7 @@ export default function App() {
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
     canPrint,
+    canSignDigitally,
     documentMapAvailable: viewMenuState.documentMapAvailable,
     isMac,
     tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),
@@ -243,7 +248,7 @@ export default function App() {
     if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
-    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || markupControls.runMarkupCommand(id) || imageExport.runExportCommand(id, pages) || printing.runPrintCommand(id, pages)) {
+    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || markupControls.runMarkupCommand(id) || imageExport.runExportCommand(id, pages) || printing.runPrintCommand(id, pages) || signing.runSigningCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -456,6 +461,7 @@ export default function App() {
             onPageAction: (id, action) => pageEdits.pageAction(id, action, (command) => runCommandRef.current(command)),
             onMenuCommand: (id, pages) => runCommandRef.current(id, { pages }),
             onUndoRemoval: pageEdits.undoIn,
+            onOpenSource: (source) => openSource(source),
           }}
           markdownProps={{ sidebarOpen, documentMap, onSnapshot: handleMarkdownSnapshot, onLoaded: handleLoaded, onOpenUrl: openExternal, onOpenFile: markdown.openLinked }}
           caretBrowsing={viewControls.caretBrowsing}
@@ -475,6 +481,7 @@ export default function App() {
       />
       <ExportImagesDialog {...imageExport.dialog} />
       <PrintProgressDialog {...printing.progressDialog} />
+      <SignDigitallyDialog {...signing.dialog} />
       <AboutDialog
         request={infoSheet?.kind === "about" ? infoSheet : null}
         updateInstall={updateInstall}

@@ -81,6 +81,15 @@ describe("commandAvailable", () => {
     expect(commandById.get("printSelectedPages")?.menu).toBe("Pages");
   });
 
+  it("offers the digital signature commands for PDFs, only where the platform can sign", () => {
+    for (const id of ["signDigitally", "certifyDocument", "addValidationData", "sealWithTimestamp"] as const) {
+      expect(commandById.get(id)?.menu, id).toBe("Tools");
+      expect(available(id, { ...pdfTab, canSignDigitally: true }), id).toBe(true);
+      expect(available(id, pdfTab), id).toBe(false);
+      expect(available(id, { ...markdownTab, canSignDigitally: true }), id).toBe(false);
+    }
+  });
+
   it("offers Set Password for any PDF and Remove Password only for protected ones", () => {
     expect(available("setPassword", pdfTab)).toBe(true);
     expect(available("setPassword", markdownTab)).toBe(false);

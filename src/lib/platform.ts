@@ -10,6 +10,8 @@ import type { DefaultAppKind, DefaultAppStatus } from "./defaultApp";
 import { flattenMenu, type DocumentMenuId, type DocumentMenuSpec, type FlatEntry } from "./documentMenu";
 import { isExternalUrl } from "./markdownLinks";
 import type { RecentEntry } from "./recent";
+import { emptyAsNull, noValidationMaterial, readValidationMaterial, signatureRequest, unsupportedVerdict, verifyEnvelope } from "./signatureEnvelope";
+import type { DssData, SignaturePlaceholder, SignatureVerdict, SigningIdentity, SignRequest, ValidationMaterial, VerifyItem } from "./signatureTypes";
 import { decodeText, encodeText, ensureMarkdownExtension, isMarkdownName, type TextFormat } from "./textFile";
 import type { UpdateProgress } from "./updates";
 
@@ -285,6 +287,35 @@ export const isMac = navigator.userAgent.includes("Mac");
 export const hasOverlayTitlebar = isDesktop && isMac;
 
 export const canPrint = isDesktop && isMac;
+
+export const canSignDigitally = isDesktop && isMac;
+
+export { isTimestampFailure } from "./signatureEnvelope";
+
+export async function verifySignatures(bytes: Uint8Array, items: VerifyItem[], dss: DssData | null): Promise<SignatureVerdict[]> {
+  return canSignDigitally ? invoke<SignatureVerdict[]>("verify_signatures", verifyEnvelope(bytes, items, dss)) : items.map((item) => unsupportedVerdict(item.id));
+}
+
+export async function listSigningIdentities(): Promise<SigningIdentity[]> {
+  return canSignDigitally ? invoke<SigningIdentity[]>("list_signing_identities") : [];
+}
+
+export async function signPdf(bytes: Uint8Array, request: SignRequest): Promise<Uint8Array | null> {
+  return canSignDigitally ? emptyAsNull(new Uint8Array(await invoke<ArrayBuffer>("sign_pdf", bytes, signatureRequest(request)))) : null;
+}
+
+export async function fetchValidationData(bytes: Uint8Array, items: VerifyItem[]): Promise<ValidationMaterial> {
+  return canSignDigitally ? readValidationMaterial(new Uint8Array(await invoke<ArrayBuffer>("fetch_validation_data", bytes, signatureRequest({ items })))) : noValidationMaterial();
+}
+
+export async function timestampPdf(bytes: Uint8Array, placeholder: SignaturePlaceholder, url: string): Promise<Uint8Array> {
+  return new Uint8Array(await invoke<ArrayBuffer>("timestamp_pdf", bytes, signatureRequest({ placeholder, url })));
+}
+
+export async function showCertificate(fingerprintOrDer: string | Uint8Array) {
+  const [body, options] = typeof fingerprintOrDer === "string" ? [new Uint8Array(), { headers: { "x-fingerprint": fingerprintOrDer } }] : [fingerprintOrDer, undefined];
+  return canSignDigitally ? invoke<void>("show_certificate", body, options) : undefined;
+}
 
 export async function onFullscreenChange(handler: (fullscreen: boolean) => void) {
   if (!isDesktop) {

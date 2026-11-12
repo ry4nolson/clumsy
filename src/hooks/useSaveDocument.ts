@@ -15,9 +15,11 @@ import {
   writeMarkdown,
   writePdf,
 } from "../lib/platform";
-import { encryptPdfOffThread } from "../lib/pageEditWorker";
+import { encryptPdfOffThread, signaturesRemovedBy } from "../lib/pageEditWorker";
+import { ANNOTATIONS_REWRITE_ACTION } from "../lib/signatureBytes";
+import { confirmSignatureRemoval } from "../lib/signatureWarning";
 import { bytesForDisk, hasEncryptEntry } from "../lib/protection";
-import { isFileTab, type MarkdownDocTab } from "../lib/tabs";
+import { isFileTab, isMarkdownView, type DocTab, type MarkdownDocTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -36,6 +38,47 @@ async function writeTo(name: string, path: string, expectedStamp: string | null,
     const picked = await pick(name);
     return picked ? { path: picked, stamp: await write(picked) } : null;
   }
+}
+
+export async function writePdfFor(tab: DocTab, bytes: Uint8Array, saveAs: boolean) {
+  const chosen = saveAs || !tab.path ? await pickSavePath(tab.name) : tab.path;
+  if (!chosen) {
+    return null;
+  }
+  return writeTo(tab.name, chosen, chosen === tab.path ? tab.stamp : null, (path, expected) => writePdf(path, bytes, expected), pickSavePath);
+}
+
+export function useWriteAndReload({ workspaceRef, viewStateOf, update }: WorkspaceApi) {
+  return useCallback(
+    async (tabId: string, bytes: Uint8Array) => {
+      const tab = workspaceRef.current.tabs[tabId];
+      if (tab?.kind !== "document") {
+        return false;
+      }
+      if (!isDesktop) {
+        downloadPdf(tab.name, bytes);
+        return true;
+      }
+      const written = await writePdfFor(tab, bytes, false);
+      if (!written) {
+        return false;
+      }
+      const { path, stamp } = written;
+      const name = fileNameFromPath(path);
+      update((current) => {
+        const latest = current.tabs[tabId];
+        if (latest?.kind !== "document") {
+          return current;
+        }
+        const view = viewStateOf(latest);
+        const source = { name, path, data: bytes.slice(), stamp };
+        return ws.replaceTab(current, { ...latest, source, name, path, stamp, carriedChanges: false, protection: undefined, view: view && !isMarkdownView(view) ? view : latest.view });
+      });
+      recordRecentFile(path);
+      return true;
+    },
+    [update, viewStateOf, workspaceRef],
+  );
 }
 
 export function useSaveDocument({ workspaceRef, handles, markdownHandles, update }: WorkspaceApi, settled: (tabId: string) => Promise<void>) {
@@ -98,6 +141,10 @@ export function useSaveDocument({ workspaceRef, handles, markdownHandles, update
       if (!saved) {
         return;
       }
+      const removed = signaturesRemovedBy(saved);
+      if (removed && !(await confirmSignatureRemoval(removed, ANNOTATIONS_REWRITE_ACTION))) {
+        return;
+      }
       if (tab.protection?.ownerPassword && hasEncryptEntry(saved) !== true) {
         if (!(await confirmOwnerPassword(tab.name))) {
           return;
@@ -114,11 +161,7 @@ export function useSaveDocument({ workspaceRef, handles, markdownHandles, update
         handle.viewer.markSaved();
         return;
       }
-      const chosen = saveAs || !tab.path ? await pickSavePath(tab.name) : tab.path;
-      if (!chosen) {
-        return;
-      }
-      const written = await writeTo(tab.name, chosen, chosen === tab.path ? tab.stamp : null, (path, expected) => writePdf(path, bytes, expected), pickSavePath);
+      const written = await writePdfFor(tab, bytes, saveAs);
       if (!written) {
         return;
       }

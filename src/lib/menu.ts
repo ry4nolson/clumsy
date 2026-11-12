@@ -1,5 +1,5 @@
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
-import { acceleratorFor, commandById, documentAvailable, platformSupports, type Command, type CommandId, type MenuName } from "./commands";
+import { acceleratorFor, commandById, documentAvailable, platformSupports, type Command, type CommandId, type MenuName, type PlatformAbilities } from "./commands";
 import type { RecentEntry } from "./recent";
 import type { ScrollModeName, SpreadModeName, ViewModes } from "./viewModes";
 
@@ -151,6 +151,11 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "sign",
       "newSignature",
       "-",
+      "signDigitally",
+      "certifyDocument",
+      "addValidationData",
+      "sealWithTimestamp",
+      "-",
       "markCheck",
       "markCross",
       "markDot",
@@ -181,8 +186,8 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
   ["Help", ["keyboardShortcuts", "whatsNew", "-", "openGitHub", "reportIssue"]],
 ];
 
-export function visibleSlots(slots: Slot[], canPrint: boolean) {
-  const shown = slots.filter((slot) => typeof slot !== "string" || slot === "-" || slot === "recent" || platformSupports(commandById.get(slot)!, { canPrint }));
+export function visibleSlots(slots: Slot[], platform: PlatformAbilities) {
+  const shown = slots.filter((slot) => typeof slot !== "string" || slot === "-" || slot === "recent" || platformSupports(commandById.get(slot)!, platform));
   const result: Slot[] = [];
   for (const slot of shown) {
     if (slot !== "-" || (result.length && result[result.length - 1] !== "-")) {
@@ -254,7 +259,7 @@ type MenuCallbacks = {
   onCommand: (id: CommandId) => void;
   onOpenRecent: (entry: RecentEntry) => void;
   onClearRecent: () => void;
-  canPrint: boolean;
+  platform: PlatformAbilities;
   ownsAppMenu: () => Promise<boolean>;
 };
 
@@ -316,7 +321,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const submenus = [];
   for (const [name, slots] of menuLayout) {
     const items = [];
-    for (const slot of visibleSlots(slots, callbacks.canPrint)) {
+    for (const slot of visibleSlots(slots, callbacks.platform)) {
       items.push(await slotItem(slot));
     }
     submenus.push(await Submenu.new({ text: name, items }));
