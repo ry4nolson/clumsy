@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-12
+
 ### Changed
 - Saving keeps a file's Finder tags, comments, and other extended attributes
 - Clumsy checks for updates on its own every few hours while it stays open, and tries again sooner after a check that failed
