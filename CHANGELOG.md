@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-12
+
 ### Added
 - **Digital signatures.** Signed PDFs show who signed them and whether the signature is valid in a bar over the document, with every signature listed in the new Signatures sidebar tab. Details shows the certificate, when it was signed and whether that time is proven by a timestamp, whether the certificate was revoked, and anything wrong with it
 - View Signed Version opens exactly what a signer signed in a new tab, so you can compare it with what the document says now
