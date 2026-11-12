@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-11-12
+
 ### Changed
 - Typed signatures offer sixteen handwriting fonts to pick from, shown with your name in each. Clumsy remembers the last one you used
 
