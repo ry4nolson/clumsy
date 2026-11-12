@@ -318,6 +318,10 @@ pre {
   color: var(--ink-faint);
 }
 
+.hero__note--tight {
+  margin-top: 0.25rem;
+}
+
 .hero__window {
   width: min(calc(100% - 2.5rem), 60rem);
   margin: 4rem auto 0;
@@ -701,6 +705,41 @@ pre {
   gap: 0.75rem;
 }
 
+.support-form {
+  display: contents;
+}
+
+.download__error {
+  margin: 1rem 0 0;
+  font-size: 0.95rem;
+  color: var(--coral);
+}
+
+.thanks {
+  padding-top: calc(var(--nav-h) + 5rem);
+  text-align: center;
+}
+
+.thanks__inner {
+  max-width: 40rem;
+}
+
+.thanks__icon {
+  margin: 0 auto 1.5rem;
+}
+
+.thanks .section__body {
+  margin-inline: auto;
+}
+
+.thanks__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
 @media (max-width: 760px) {
   .download {
     grid-template-columns: 1fr;
@@ -741,6 +780,42 @@ pre {
 
 .sponsor a:hover .sponsor__logo {
   opacity: 1;
+}
+
+.sponsor__logos {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.sponsor__fsg {
+  color: var(--ink);
+  text-decoration: none;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+
+.sponsor__fsg:hover {
+  opacity: 1;
+}
+
+.fsg-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fsg-mark svg {
+  display: block;
+  width: auto;
+}
+
+.fsg-mark__words {
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .site-footer {

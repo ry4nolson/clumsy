@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
-import { DOWNLOAD, GITHUB } from "~/lib/links";
+import { GITHUB } from "~/lib/links";
 
 export default function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
@@ -33,8 +33,8 @@ export default function SiteNav() {
           <a className="nav__link nav__link--wide" href={GITHUB}>
             GitHub
           </a>
-          <a className="btn btn--primary btn--sm nav__cta" href={DOWNLOAD}>
-            Download
+          <a className="btn btn--primary btn--sm nav__cta" href="/#download">
+            Get Clumsy
           </a>
         </div>
       </div>

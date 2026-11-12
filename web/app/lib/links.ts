@@ -1,6 +1,9 @@
 export const GITHUB = "https://github.com/ry4nolson/clumsy";
 export const RELEASES = `${GITHUB}/releases`;
 export const DOWNLOAD = "/download";
+export const CHECKOUT = "/checkout";
+export const SUPPORT_PRICE = "$5";
 export const ISSUES = `${GITHUB}/issues`;
 export const LICENSE = `${GITHUB}/blob/main/LICENSE`;
 export const SPONSOR = "https://www.texasbeardcompany.com";
+export const FSG = "https://www.fsg.com";

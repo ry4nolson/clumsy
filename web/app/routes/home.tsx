@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import type { Route } from "./+types/home";
 import { ThemeSlider } from "~/components/ThemeSlider";
 import { SCREENS, type ScreenId } from "~/lib/content";
 import { loadFeatures } from "~/lib/features.server";
-import { DOWNLOAD, GITHUB } from "~/lib/links";
+import { CHECKOUT, DOWNLOAD, GITHUB, SUPPORT_PRICE } from "~/lib/links";
 import { CACHE_HEADERS } from "~/lib/remote.server";
 import { useVersion } from "~/lib/useVersion";
 import { pageMeta } from "~/lib/meta";
@@ -71,8 +72,24 @@ function Showcase() {
   );
 }
 
+function SupportButton() {
+  return (
+    <form method="post" action={CHECKOUT} className="support-form">
+      <button type="submit" className="btn btn--primary">
+        Support for {SUPPORT_PRICE}
+      </button>
+    </form>
+  );
+}
+
 export default function Home({ loaderData }: Route.ComponentProps) {
   const version = useVersion();
+  const [searchParams] = useSearchParams();
+  const checkoutFailed = searchParams.get("checkout") === "failed";
+
+  useEffect(() => {
+    if (checkoutFailed) document.getElementById("download")?.scrollIntoView();
+  }, [checkoutFailed]);
   return (
     <main>
       <header className="hero">
@@ -92,15 +109,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             fill forms, and sign, saved straight back into the file.
           </p>
           <div className="hero__actions">
-            <a className="btn btn--primary" href={DOWNLOAD}>
-              Download for Mac
-            </a>
-            <a className="btn btn--secondary" href={GITHUB}>
-              View on GitHub
+            <SupportButton />
+            <a className="btn btn--secondary" href={DOWNLOAD}>
+              Free download
             </a>
           </div>
           <p className="hero__note">
             Free and open source · v{version} · Apple Silicon and Intel
+          </p>
+          <p className="hero__note hero__note--tight">
+            The {SUPPORT_PRICE} is optional. Same app either way.
           </p>
         </div>
 
@@ -213,10 +231,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 notarized. After that, Clumsy updates itself: it offers each new
                 version and installs it in place. Windows and Linux are planned.
               </p>
+              <p className="section__body">
+                Clumsy is free and always will be, and the source is on GitHub.
+                If it saves you a headache, you can chip in {SUPPORT_PRICE}. You
+                get the same app, plus our thanks.
+              </p>
+              {checkoutFailed && (
+                <p className="download__error" role="alert">
+                  Checkout didn&apos;t open. Try again in a minute, or just take
+                  the free download.
+                </p>
+              )}
             </div>
             <div className="download__actions">
-              <a className="btn btn--primary" href={DOWNLOAD}>
-                Download Clumsy.dmg
+              <SupportButton />
+              <a className="btn btn--secondary" href={DOWNLOAD}>
+                Free download
               </a>
               <a className="btn btn--ghost" href={`${GITHUB}/releases/latest`}>
                 All release files
