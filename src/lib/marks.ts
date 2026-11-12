@@ -72,10 +72,11 @@ export function markShape(kind: Exclude<MarkKind, "date">): MarkShape {
 
 const pad = (value: number, length = 2) => String(value).padStart(length, "0");
 
+const NOT_WIN_ANSI = /[^\x20-\x7e\xa0-\xff]/g;
+
 export function dateLabel(date: Date, locale?: string) {
-  const formatted = new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit" })
-    .format(date)
-    .replace(/[^\x20-\x7e\xa0-\xff]/g, "")
-    .trim();
-  return /\d/.test(formatted) ? formatted : `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const local = new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  const dropped = local.match(NOT_WIN_ANSI)?.join("") ?? "";
+  const formatted = local.replace(NOT_WIN_ANSI, "").trim();
+  return /\d/.test(formatted) && !/[\p{L}\p{N}]/u.test(dropped) ? formatted : `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }

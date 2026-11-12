@@ -354,7 +354,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       editPageLabels: (explicit) => {
         const current = viewer.pageNumber - 1;
         const pages = explicit ?? targetPages(followCurrentPage(selectionRef.current, current), current);
-        const range = pages.length > 1 ? [Math.min(...pages), Math.max(...pages)] : [current, runEnd(viewer.pageLabels, current, viewer.pagesCount)];
+        const range = pages.length > 1 ? [Math.min(...pages), Math.max(...pages)] : [pages[0] ?? current, runEnd(viewer.pageLabels, pages[0] ?? current, viewer.pagesCount)];
         setLabelsRequest({ pagesCount: viewer.pagesCount, labels: viewer.pageLabels, from: range[0], to: range[1] });
       },
       editPassword: () => setPasswordRequest({ changing: !!callbacks.current.protection }),
@@ -419,7 +419,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       )}
       <main className={`viewer-area${darkPages ? " dark-pages" : ""}${keepImages ? " keep-images" : ""}${compare ? " comparing" : ""}`}>
         {compare && <CompareBar view={compare} />}
-        {findOpen && loaded && (
+        {findOpen && (
           <FindBar
             status={viewer.findStatus}
             focusToken={findFocusToken}

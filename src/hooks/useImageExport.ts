@@ -88,7 +88,7 @@ export function useImageExport({ workspaceRef, handles }: WorkspaceApi, settled:
         return;
       }
       viewer.commitEdits();
-      const saved = hasOwnedChanges(doc.annotationStorage, NOTE_KEY_PREFIX) ? await viewer.save(true) : null;
+      const saved = hasOwnedChanges(doc.annotationStorage, NOTE_KEY_PREFIX) ? await viewer.save() : null;
       const source = saved ? await loadPdf(saved, async () => passwordOf(doc) ?? null) : doc;
       try {
         const storage = source.annotationStorage.print;

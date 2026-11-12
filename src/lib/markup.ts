@@ -122,11 +122,16 @@ export function reshapedMarkup(markup: Markup, geometry: { box?: number[]; line?
   return { ...markup, box: normalizeBox(geometry.box ?? markup.box), date };
 }
 
+const sameColor = (a: number[], b: number[]) => a.length === b.length && a.every((value, index) => Math.abs(value - b[index]) < 1 / 512);
+
+const fillable = (kind: MarkupKind) => kind === "rectangle" || kind === "ellipse" || kind === "cloud";
+
 export function restyledMarkup(markup: Markup, style: Partial<MarkupStyle>, date: string): Markup {
   const color = style.color ?? markup.color;
   const filled = style.fill ?? markup.fill !== null;
-  const canFill = markup.kind === "rectangle" || markup.kind === "ellipse" || markup.kind === "cloud";
-  const fill = canFill ? (filled ? color : null) : isLineKind(markup.kind) ? markup.fill : null;
+  const canFill = fillable(markup.kind);
+  const followsStroke = markup.fill === null || sameColor(markup.fill, markup.color);
+  const fill = canFill ? (filled ? (followsStroke ? color : markup.fill) : null) : isLineKind(markup.kind) ? markup.fill : null;
   return {
     ...markup,
     color,
@@ -141,9 +146,9 @@ export function restyledMarkup(markup: Markup, style: Partial<MarkupStyle>, date
 export const removedMarkup = (markup: Markup, date: string): Markup | null => (markup.fresh ? null : { ...markup, deleted: true, date });
 
 export const sameStyle = (markup: Markup, style: Partial<MarkupStyle>) =>
-  (style.color === undefined || style.color.every((value, index) => Math.abs(value - markup.color[index]) < 1 / 512)) &&
-  (style.fill === undefined || style.fill === (markup.fill !== null)) &&
-  (style.width === undefined || style.width === markup.width) &&
+  (style.color === undefined || sameColor(style.color, markup.color)) &&
+  (style.fill === undefined || !fillable(markup.kind) || style.fill === (markup.fill !== null)) &&
+  (style.width === undefined || markup.kind === "stamp" || style.width === markup.width) &&
   (style.opacity === undefined || style.opacity === markup.opacity);
 
 export function hexColor(color: number[]) {

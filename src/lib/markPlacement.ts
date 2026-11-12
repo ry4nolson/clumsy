@@ -44,6 +44,7 @@ export function attachMarkPlacement(container: HTMLElement, viewer: MarkViewer):
   };
 
   const onPointerDown = (event: PointerEvent) => {
+    down = null;
     if (!mark || event.defaultPrevented || event.button !== 0 || !layerAt(event.target)) {
       return;
     }
@@ -57,6 +58,9 @@ export function attachMarkPlacement(container: HTMLElement, viewer: MarkViewer):
     }
     const moved = Math.hypot(event.clientX - down.x, event.clientY - down.y) > CLICK_SLOP;
     down = null;
+    if (!(event.target instanceof Node) || !container.contains(event.target)) {
+      return;
+    }
     event.stopPropagation();
     const layer = layerAt(event.target);
     if (mark && layer && !moved) {
@@ -64,8 +68,13 @@ export function attachMarkPlacement(container: HTMLElement, viewer: MarkViewer):
     }
   };
 
+  const onPointerCancel = () => {
+    down = null;
+  };
+
   container.addEventListener("pointerdown", onPointerDown, true);
-  container.addEventListener("pointerup", onPointerUp, true);
+  window.addEventListener("pointerup", onPointerUp, true);
+  window.addEventListener("pointercancel", onPointerCancel, true);
 
   return {
     setMark(kind) {
@@ -75,7 +84,8 @@ export function attachMarkPlacement(container: HTMLElement, viewer: MarkViewer):
     },
     dispose() {
       container.removeEventListener("pointerdown", onPointerDown, true);
-      container.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
       container.classList.remove("placing-mark");
     },
   };

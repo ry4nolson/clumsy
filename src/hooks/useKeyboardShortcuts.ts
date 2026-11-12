@@ -24,7 +24,8 @@ export function useKeyboardShortcuts(isMac: boolean, onCommand: (id: CommandId) 
         return;
       }
       const typing = isTypingTarget(event.target);
-      const id = resolveCommand(event, isMac, typing, event.target instanceof Element && hasCaret(event.target));
+      const sheetOpen = !!document.querySelector("dialog[open]");
+      const id = resolveCommand(event, isMac, typing || sheetOpen, event.target instanceof Element && hasCaret(event.target));
       if (!id || id === "undo" || id === "redo") {
         return;
       }

@@ -33,6 +33,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Setup pnpm
@@ -237,21 +238,6 @@ jobs:
           node scripts/update-manifest.mjs "$VERSION" "$DIST_DIR/Clumsy.app.tar.gz.sig" /tmp/release_notes.md "https://github.com/${{ github.repository }}" > "$DIST_DIR/latest.json"
           cat "$DIST_DIR/latest.json"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.VERSION }}
-          name: Clumsy v${{ env.VERSION }}
-          target_commitish: ${{ github.sha }}
-          files: |
-            ${{ env.DIST_DIR }}/Clumsy.zip
-            ${{ env.DIST_DIR }}/Clumsy.dmg
-            ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
-            ${{ env.DIST_DIR }}/latest.json
-          body_path: /tmp/release_notes.md
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Commit release metadata
         run: |
           git config user.name "github-actions[bot]"
@@ -262,12 +248,35 @@ jobs:
           fi
           if git diff --cached --quiet; then
             echo "No version or changelog changes to commit"
-            exit 0
+          else
+            git commit -m "Release v$VERSION"
+            pushed=false
+            for attempt in 1 2 3; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                pushed=true
+                break
+              fi
+              git rebase --abort 2>/dev/null || true
+              sleep 5
+            done
+            if [ "$pushed" != "true" ]; then
+              echo "::error::Could not push the release metadata, so nothing was published. Run the workflow again."
+              exit 1
+            fi
           fi
-          git commit -m "Release v$VERSION"
-          for attempt in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
-            sleep 5
-          done
-          echo "::error::Could not push the release metadata; set version $VERSION and stamp CHANGELOG.md by hand"
-          exit 1
+          echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Clumsy v${{ env.VERSION }}
+          target_commitish: ${{ env.RELEASE_SHA }}
+          files: |
+            ${{ env.DIST_DIR }}/Clumsy.zip
+            ${{ env.DIST_DIR }}/Clumsy.dmg
+            ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
+            ${{ env.DIST_DIR }}/latest.json
+          body_path: /tmp/release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

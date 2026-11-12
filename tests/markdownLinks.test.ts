@@ -66,3 +66,13 @@ describe("opensElsewhere", () => {
     }
   });
 });
+
+describe("opensElsewhere with characters the URL parser ignores", () => {
+  it("still flags the scheme", () => {
+    for (const href of ["t\tel:5551234", "s\nms:1", "\u0001tel:5551234", " te\rl:5551234"]) {
+      expect(opensElsewhere(href)).toBe(true);
+    }
+    expect(opensElsewhere("ht\ttps://example.com")).toBe(false);
+    expect(opensElsewhere("notes/part 1.md")).toBe(false);
+  });
+});

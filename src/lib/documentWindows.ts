@@ -5,7 +5,7 @@ import { WebviewWindow, getAllWebviewWindows, getCurrentWebviewWindow } from "@t
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { isDesktop, markdownSource, readDocumentFromPath, type DocumentSource } from "./platform";
 import type { NavHistory } from "./navHistory";
-import type { Protection } from "./protection";
+import { parseProtection, serializeProtection, type Protection } from "./protection";
 import type { AnyViewState } from "./tabs";
 import type { ScrollModeName, SpreadModeName } from "./viewModes";
 
@@ -59,11 +59,11 @@ export async function takeTransferBytes(id: string) {
 }
 
 export async function stashTransferPassword(protection: Protection | undefined) {
-  return protection ? stashTransferBytes(new TextEncoder().encode(protection.password)) : undefined;
+  return protection ? stashTransferBytes(new TextEncoder().encode(serializeProtection(protection))) : undefined;
 }
 
 export async function transferProtection(transfer: Extract<TabTransfer, { kind: "document" }>): Promise<Protection | undefined> {
-  return transfer.passwordId ? { password: new TextDecoder().decode(await takeTransferBytes(transfer.passwordId)) } : undefined;
+  return transfer.passwordId ? parseProtection(new TextDecoder().decode(await takeTransferBytes(transfer.passwordId))) : undefined;
 }
 
 export async function discardTransfer(transfer: TabTransfer) {
@@ -212,6 +212,10 @@ export async function onReceiveTab(handler: (transfer: TabTransfer) => void) {
     return () => {};
   }
   return getCurrentWebviewWindow().listen<TabTransfer>("receive-tab", ({ payload }) => handler(payload));
+}
+
+export async function ownsAppMenu() {
+  return invoke<boolean>("owns_app_menu").catch(() => true);
 }
 
 export async function onWindowFocused(handler: () => void) {

@@ -242,3 +242,21 @@ describe("stamps", () => {
     expect(stampBox([100, 100], 3, 20, 90)).toEqual([90, 70, 110, 130]);
   });
 });
+
+describe("text markup across columns", () => {
+  it("keeps rows at the same height in separate columns apart", () => {
+    const quads = quadsFromRects([
+      { left: 50, right: 250, bottom: 500, top: 512 },
+      { left: 320, right: 520, bottom: 500, top: 512 },
+    ]);
+    expect(quads).toEqual([50, 512, 250, 512, 50, 500, 250, 500, 320, 512, 520, 512, 320, 500, 520, 500]);
+  });
+
+  it("still joins words separated by an ordinary space", () => {
+    const quads = quadsFromRects([
+      { left: 50, right: 90, bottom: 500, top: 512 },
+      { left: 96, right: 140, bottom: 500, top: 512 },
+    ]);
+    expect(quads).toEqual([50, 512, 140, 512, 50, 500, 140, 500]);
+  });
+});

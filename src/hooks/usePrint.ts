@@ -85,7 +85,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
       return;
     }
     const pages = pagesToPrint(id, explicit?.length ? explicit : handle.selectedPages(), doc.numPages);
-    const saved = await viewer.save(true).catch((error) => {
+    const saved = await viewer.save().catch((error) => {
       if (viewer.pdfDocument === doc) {
         throw error;
       }
@@ -97,7 +97,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
     const outcome = await printWithFallback(saved, pages, await decryptionPassword(doc), {
       ...printOps,
       send: (bytes) => printPdf(name, bytes),
-      asImages: () => asImages(tabId, doc, () => viewer.save(true), pages ?? allPages(doc.numPages)),
+      asImages: () => asImages(tabId, doc, () => viewer.save(), pages ?? allPages(doc.numPages)),
     });
     if (outcome === "unreadable") {
       await showError(unreadable(name));

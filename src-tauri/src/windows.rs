@@ -72,7 +72,13 @@ impl Transfers {
     }
 
     pub fn take(&self, id: &str) -> Option<Vec<u8>> {
-        lock(&self.items).remove(id).map(|(_, bytes)| bytes)
+        self.take_at(id, Instant::now())
+    }
+
+    fn take_at(&self, id: &str, now: Instant) -> Option<Vec<u8>> {
+        let mut items = lock(&self.items);
+        items.retain(|_, (stashed, _)| now.duration_since(*stashed) < TRANSFER_LIFETIME);
+        items.remove(id).map(|(_, bytes)| bytes)
     }
 }
 
@@ -189,5 +195,15 @@ mod tests {
         assert!(transfers.stash_at(vec![0; 9], start + TRANSFER_LIFETIME, 10).is_ok());
         assert_eq!(transfers.take(&second), None);
         assert!(!transfers.restore(vec![0; 100]).is_empty());
+    }
+
+    #[test]
+    fn an_expired_transfer_cannot_be_taken() {
+        let transfers = Transfers::default();
+        let start = Instant::now();
+        let id = transfers.stash_at(vec![1], start, TRANSFER_LIMIT).unwrap();
+        assert_eq!(transfers.take_at(&id, start + TRANSFER_LIFETIME), None);
+        let fresh = transfers.stash_at(vec![2], start, TRANSFER_LIMIT).unwrap();
+        assert_eq!(transfers.take_at(&fresh, start + TRANSFER_LIFETIME / 2), Some(vec![2]));
     }
 }

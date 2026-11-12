@@ -43,3 +43,14 @@ describe("setVersion", () => {
     expect(() => setVersionFiles({}, "v0.2.4")).toThrow(/X\.Y\.Z/);
   });
 });
+
+describe("setCargoLockVersion", () => {
+  it("accepts a lock file that already has the version", () => {
+    const lock = 'name = "clumsy"\nversion = "1.0.0"\n';
+    expect(setCargoLockVersion(lock, "1.0.0")).toBe(lock);
+  });
+
+  it("refuses a lock file without the local package", () => {
+    expect(() => setCargoLockVersion('name = "other"\nversion = "1.0.0"\n', "1.0.0")).toThrow();
+  });
+});

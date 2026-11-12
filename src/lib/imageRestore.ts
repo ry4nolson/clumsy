@@ -45,6 +45,15 @@ export function restoreImages(pageView: RenderedPageView, enabled: boolean) {
   drawImages(canvas, overlay, imageRects(images.coords, viewport.rotation - images.rotation));
 }
 
+export function restoreRenderedImages(viewer: { pagesCount: number; getPageView(index: number): unknown }, enabled: boolean) {
+  for (let index = 0; index < viewer.pagesCount; index += 1) {
+    const view = viewer.getPageView(index) as RenderedPageView | undefined;
+    if (view?.canvas) {
+      restoreImages(view, enabled);
+    }
+  }
+}
+
 export function restorePreviewImages(overlay: HTMLCanvasElement, shown: ShownPreview | null, enabled: boolean) {
   const images = shown && enabled && shown.canvas.width ? recordedImages(shown.page) : null;
   if (!shown || !images?.coords.length) {

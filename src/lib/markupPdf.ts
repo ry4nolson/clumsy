@@ -162,7 +162,7 @@ function updateMarkup(writer: Writer, dict: PDFDict, markup: Markup) {
   }
 }
 
-function removeMarkup(context: PDFContext, page: PDFDict, ref: PDFRef, dict: PDFDict) {
+export function removeAnnotation(context: PDFContext, page: PDFDict, ref: PDFRef, dict: PDFDict) {
   const gone = new Set<PDFRef>([ref]);
   const annots = page.lookupMaybe(name("Annots"), PDFArray);
   const entries = (annots?.asArray() ?? []).map((entry) => [entry, entry instanceof PDFRef ? context.lookupMaybe(entry, PDFDict) : undefined] as const);
@@ -214,7 +214,7 @@ export function applyMarkup(doc: PDFDocument, markup: Markup[], pages = pageLeaf
       continue;
     }
     if (change.deleted) {
-      removeMarkup(context, page, ref, existing);
+      removeAnnotation(context, page, ref, existing);
     } else {
       updateMarkup(writer, existing, change);
     }

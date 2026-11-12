@@ -413,8 +413,8 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     return created.length > 0;
   };
 
-  const onContainerPointerUp = () => {
-    if (tool?.kind === "text") {
+  const onContainerPointerUp = (event: PointerEvent) => {
+    if (tool?.kind === "text" && event.button === 0) {
       const kind = tool.text;
       setTimeout(() => applyText(kind));
     }

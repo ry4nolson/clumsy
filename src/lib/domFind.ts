@@ -73,7 +73,7 @@ export function highlightMatches(root: HTMLElement, query: TextQuery): HTMLEleme
     }
   }
   range.detach();
-  return groups;
+  return groups.filter((group) => group.length);
 }
 
 export function markCurrent(groups: HTMLElement[][], current: number) {

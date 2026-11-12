@@ -6,9 +6,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyPageEdit, decryptPdf, encryptPdf, runPageEditJob } from "../src/lib/pageEdits";
-import { passwordRole } from "../src/lib/pdfDecrypt";
+import { passwordRole, withoutPdfAClaim } from "../src/lib/pdfDecrypt";
 import { writeStickyNotes } from "../src/lib/notesPdf";
-import { bytesForDisk, hasEncryptEntry } from "../src/lib/protection";
+import { bytesForDisk, hasEncryptEntry, parseProtection, serializeProtection } from "../src/lib/protection";
 import type { StickyNote } from "../src/lib/notes";
 
 Promise.withResolvers ??= <T>() => {
@@ -313,5 +313,42 @@ describe("bytesForDisk", () => {
     expect(encrypt).toHaveBeenCalledWith(plain, "secret");
     await refusesWithout(written);
     expect(latin1(written)).not.toContain("secret");
+  });
+});
+
+describe("protection carried between windows", () => {
+  it("keeps the owner-password flag", () => {
+    expect(parseProtection(serializeProtection({ password: "pä ss", ownerPassword: true }))).toEqual({ password: "pä ss", ownerPassword: true });
+    expect(parseProtection(serializeProtection({ password: "x" }))).toEqual({ password: "x" });
+  });
+
+  it("rejects anything that isn't a protection record", () => {
+    expect(parseProtection("secret")).toBeUndefined();
+    expect(parseProtection('{"password":5}')).toBeUndefined();
+  });
+});
+
+describe("encrypting a PDF/A file", () => {
+  const xmp = (claim: string) =>
+    `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">${claim}</rdf:RDF></x:xmpmeta><?xpacket end="w"?>`;
+  const elements = '<rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/"><pdfaid:part>2</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance></rdf:Description>';
+  const attributes = '<rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" pdfaid:part="1" pdfaid:conformance="B"/>';
+
+  it("removes the claim written as elements or attributes", () => {
+    expect(withoutPdfAClaim(xmp(elements))).not.toMatch(/pdfaid:(part|conformance)/);
+    expect(withoutPdfAClaim(xmp(attributes))).not.toMatch(/pdfaid:(part|conformance)/);
+    expect(withoutPdfAClaim(xmp("<dc:title>Scan</dc:title>"))).toBe(xmp("<dc:title>Scan</dc:title>"));
+  });
+
+  it("encrypts instead of failing", async () => {
+    for (const claim of [elements, attributes]) {
+      const doc = await PDFDocument.create();
+      doc.addPage([200, 200]);
+      const metadata = doc.context.stream(new TextEncoder().encode(xmp(claim)), { Type: "Metadata", Subtype: "XML" });
+      doc.catalog.set(PDFName.of("Metadata"), doc.context.register(metadata));
+      const saved = await encryptPdf(await doc.save(), "secret");
+      expect(hasEncryptEntry(saved)).toBe(true);
+      expect((await PDFDocument.load(await decryptPdf(saved, "secret"))).getPageCount()).toBe(1);
+    }
   });
 });

@@ -319,3 +319,26 @@ describe("extractPages and combinePdfs", () => {
     expect(await describePdf(await combinePdfs([first, second]))).toEqual(["100", "200", "300"]);
   });
 });
+
+describe("page trees pdf.js reads but pdf-lib doesn't", () => {
+  it("keeps a page that has no /Type when another page is edited", async () => {
+    const bytes = await makePdf([100, 200, 300], (doc) => {
+      doc.getPages()[1].node.delete(PDFName.of("Type"));
+    });
+    expect(await describePdf(await applyPageEdit(bytes, { kind: "rotate", pages: [0], by: 90 }))).toEqual(["100@90", "200", "300"]);
+    expect(await describePdf(await applyPageEdit(bytes, { kind: "delete", pages: [2] }))).toEqual(["100", "200"]);
+  });
+
+  it("doesn't pass the root node's rotation or crop on to inserted pages", async () => {
+    const target = await makePdf([100], (doc) => {
+      const root = doc.catalog.Pages();
+      root.set(PDFName.of("Rotate"), PDFNumber.of(90));
+      root.set(PDFName.of("CropBox"), doc.context.obj([0, 0, 50, 50]));
+    });
+    const edited = await PDFDocument.load(await applyPageEdit(target, { kind: "insert", at: 1, data: await makePdf([400]) }));
+    const [first, inserted] = edited.getPages();
+    expect(first.getRotation().angle).toBe(90);
+    expect(inserted.getRotation().angle).toBe(0);
+    expect(inserted.getCropBox().width).toBe(400);
+  });
+});

@@ -1,6 +1,6 @@
 import { EncryptedPDFError, PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext } from "@cantoo/pdf-lib";
 import type { Markup } from "./markup";
-import { applyMarkup, refFromId } from "./markupPdf";
+import { applyMarkup, refFromId, removeAnnotation } from "./markupPdf";
 import type { StickyNote } from "./notes";
 import { installDecryptedStrings, loadDecrypting } from "./pdfDecrypt";
 import { collectGarbage, pageLeafRefs } from "./pdfStructure";
@@ -48,21 +48,6 @@ function addNote(context: PDFContext, pageRef: PDFRef, page: PDFDict, note: Stic
   const annots = annotsOf(context, page);
   annots.push(noteRef);
   annots.push(popupRef);
-}
-
-function removeNote(context: PDFContext, page: PDFDict, ref: PDFRef, note: PDFDict) {
-  const popupRef = note.get(PDFName.of("Popup"));
-  const gone = new Set<unknown>([ref, popupRef]);
-  const annots = page.lookupMaybe(PDFName.of("Annots"), PDFArray);
-  for (let index = (annots?.size() ?? 0) - 1; index >= 0; index--) {
-    if (gone.has(annots!.get(index))) {
-      annots!.remove(index);
-    }
-  }
-  context.delete(ref);
-  if (popupRef instanceof PDFRef) {
-    context.delete(popupRef);
-  }
 }
 
 const rectOf = (dict: PDFDict | undefined) => {
@@ -160,7 +145,7 @@ export async function writeAnnotations(bytes: Uint8Array, notes: StickyNote[], m
       continue;
     }
     if (note.deleted) {
-      removeNote(context, page, ref, existing);
+      removeAnnotation(context, page, ref, existing);
     } else {
       updateNote(context, existing, note);
     }

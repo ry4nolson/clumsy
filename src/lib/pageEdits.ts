@@ -5,7 +5,7 @@ import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
 import { readMarkup } from "./markupPdf";
 import { writeAnnotations } from "./notesPdf";
-import { encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
+import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { flattenForm } from "./pdfForm";
 import { collectGarbage, flattenPageTree, importPageRefs, pageLeafRefs, removePageRefs, setPageRefs } from "./pdfStructure";
 
@@ -101,6 +101,7 @@ export async function decryptPdf(bytes: Uint8Array, password = "") {
 export async function encryptPdf(bytes: Uint8Array, password: string) {
   const doc = await load(bytes, password);
   collectGarbage(doc);
+  dropPdfAClaim(doc);
   doc.encrypt({ userPassword: password, ownerPassword: password });
   encryptUncompressedStrings(doc);
   return doc.save({ rewrite: true, useObjectStreams: true, addDefaultPage: false, updateFieldAppearances: false });

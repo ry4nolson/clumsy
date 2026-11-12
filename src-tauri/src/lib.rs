@@ -45,6 +45,13 @@ fn allow_paths(app: &AppHandle, paths: &[PathBuf]) {
     }
 }
 
+fn allow_recent(app: &AppHandle, paths: &[PathBuf]) {
+    let allowed = app.state::<AllowedPaths>();
+    for path in paths.iter().filter(|path| is_document(path) && !path.is_dir()) {
+        allowed.allow(path);
+    }
+}
+
 fn allow_dropped(app: &AppHandle, paths: &[PathBuf]) {
     allow_paths(app, paths);
     let read_only = app.state::<ReadOnlyPaths>();
@@ -276,6 +283,11 @@ fn document_window(window: Window, path: String, documents: tauri::State<'_, Doc
     documents.window_with(&path, window.label())
 }
 
+#[tauri::command]
+fn owns_app_menu(app: AppHandle, window: Window, tracker: tauri::State<'_, FocusTracker>) -> bool {
+    tracker.last().is_none_or(|label| label == window.label() || app.get_webview_window(&label).is_none())
+}
+
 fn discard_prompt(names: &[String], action: &str) -> String {
     match names {
         [name] => format!("“{name}” has unsaved changes. Discard them and {action}?"),
@@ -387,7 +399,7 @@ pub fn run() {
         .setup(|app| {
             let recent = app.state::<RecentFiles>();
             recent.load(app.handle());
-            allow_paths(app.handle(), &recent.paths());
+            allow_recent(app.handle(), &recent.paths());
             if !session::load(app.handle()) {
                 let args = std::env::args().skip(1).map(PathBuf::from).collect();
                 queue_files(app.handle(), args);
@@ -420,6 +432,7 @@ pub fn run() {
             print::print_webview,
             report_documents,
             document_window,
+            owns_app_menu,
             request_quit,
             session::request_restart,
             session::report_session,
