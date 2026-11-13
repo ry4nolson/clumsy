@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- The sidebar can be resized by dragging its right edge; double-click the edge to go back to the default width. Clumsy remembers the width
+
 ## [0.15.0] - 2026-11-12
 
 ### Added
