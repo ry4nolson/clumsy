@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-11-13
+
 ### Changed
 - After Clumsy becomes your default PDF app, it points out that Chrome still opens PDFs in its own tab and offers **Open Chrome Settings**, where you can choose Download PDFs so they open in Clumsy instead
 
