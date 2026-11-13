@@ -27,12 +27,12 @@ describe("visibleSlots", () => {
   const slotsOf = (name: string) => menuLayout.find(([menu]) => menu === name)![1];
 
   it("shows the print commands where the platform can print", () => {
-    expect(visibleSlots(slotsOf("File"), { canPrint: true }).slice(-6)).toEqual(["revealInFinder", "-", "setPassword", "removePassword", "-", "print"]);
+    expect(visibleSlots(slotsOf("File"), { canPrint: true }).slice(-7)).toEqual(["revealInFinder", "-", "compressPdf", "setPassword", "removePassword", "-", "print"]);
     expect(visibleSlots(slotsOf("Pages"), { canPrint: true })).toContain("printSelectedPages");
   });
 
   it("drops them, and the separators they leave behind, where it can't", () => {
-    expect(visibleSlots(slotsOf("File"), {}).slice(-4)).toEqual(["revealInFinder", "-", "setPassword", "removePassword"]);
+    expect(visibleSlots(slotsOf("File"), {}).slice(-5)).toEqual(["revealInFinder", "-", "compressPdf", "setPassword", "removePassword"]);
     expect(visibleSlots(slotsOf("Pages"), {})).not.toContain("printSelectedPages");
     expect(visibleSlots(["-", "print", "-", "-", "open", "-", "printSelectedPages", "-"], {})).toEqual(["open"]);
   });

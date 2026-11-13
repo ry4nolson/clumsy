@@ -28,6 +28,8 @@ type TabEdits = {
 
 class StaleEditError extends Error {}
 
+export type CapturedVersion = { version: Version; generation: number; source: PdfSource | null };
+
 const protectionAfter = (edit: PageEdit, before: Protection | undefined) =>
   edit.kind === "protect" ? (edit.password ? { password: edit.password } : undefined) : before;
 
@@ -196,6 +198,42 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     (tabId: string, edit: PageEdit) => {
       const generation = editsFor(tabId).generation;
       return enqueue(tabId, () => performEdit(tabId, edit, generation));
+    },
+    [enqueue],
+  );
+
+  const capture = useCallback(
+    async (tabId: string) => {
+      let captured: CapturedVersion | null = null;
+      await enqueue(tabId, async () => {
+        const edits = editsFor(tabId);
+        const version = await currentVersion(tabId);
+        captured = version && { version, generation: edits.generation, source: edits.source };
+      });
+      return captured as CapturedVersion | null;
+    },
+    [enqueue],
+  );
+
+  const replaceCaptured = useCallback(
+    async (tabId: string, { version, generation, source }: CapturedVersion, bytes: Uint8Array, action: string) => {
+      let replaced = false;
+      await enqueue(tabId, async () => {
+        const edits = editsFor(tabId);
+        if (edits.generation !== generation || edits.source !== source) {
+          throw new StaleEditError();
+        }
+        const atRisk = await signaturesAtRisk(version);
+        if (atRisk && !(await confirmSignatureRemoval(atRisk, action))) {
+          return;
+        }
+        show(tabId, { ...version, bytes }, [], source, undefined, true);
+        edits.undo = trimHistory([...edits.undo, version]);
+        edits.redo = [];
+        trimWindow();
+        replaced = true;
+      });
+      return replaced;
     },
     [enqueue],
   );
@@ -422,7 +460,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
     [insertFiles, openSource],
   );
 
-  return { runPageCommand, pageAction, stepHistory, undoIn, documentLoaded, ownerPasswordUsed, documentFailed, dropFiles, settled };
+  return { runPageCommand, pageAction, stepHistory, undoIn, documentLoaded, ownerPasswordUsed, documentFailed, dropFiles, settled, capture, replaceCaptured };
 }
 
 export type PageEditsApi = ReturnType<typeof usePageEdits>;

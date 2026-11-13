@@ -108,14 +108,15 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
   - Windows: tabs in the title bar and the menu in a dropdown, a local cross-build script, and a Windows CI job.
   - The release is split into build and publish jobs that run in parallel, builds the Windows installer, and attaches it. Downloads have plain names, and the website offers Windows.
 
+Unreleased: Compress. File > Compress… shrinks a PDF's images (JPEG and lossless, gray and RGB) to 200, 150, or 96 dpi at the size each is actually drawn, shows the size before and after, and applies as one undoable page edit.
+
 Unreleased: form calculations. A PDF's own scripts (totals, number and date formats, validation) run in pdf.js's QuickJS sandbox, one worker per document, with a watchdog that turns off a script that hangs. Script print and Save As, yes/no questions, will-save and will-print actions, and View > Run Form Scripts.
 
 ## Next, in order
 
-1. **Compress.** Downsample big images to get under email size limits.
-2. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
-3. **OCR with Apple's Vision framework.** Local, free, from Rust.
-4. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
+1. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
+2. **OCR with Apple's Vision framework.** Local, free, from Rust.
+3. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
 
 Cleanup, whenever: split `styles.css` (2,454 lines), prune the merged remote branches. Not blocking anything.
 
@@ -161,6 +162,8 @@ From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
 - Editing existing text and converting to Word. Hard, and every competitor does it badly.
 
 ## Known gaps
+
+- Compress leaves CMYK, indexed, 1-bit, JBIG2, CCITT, and JPEG 2000 images, inline images, and images under 16 KB as they are, and doesn't subset fonts or recompress page content. A gray image comes out as an RGB JPEG.
 
 - Quitting from the Dock or logging out skips the unsaved-changes prompt, because tao lacks `applicationShouldTerminate`. Quitting doesn't save a session either.
 - Releasing a thumbnail drag outside the sidebar still moves the pages, and the drag doesn't autoscroll while the pointer is held still.

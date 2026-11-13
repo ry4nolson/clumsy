@@ -51,6 +51,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "-",
       "revealInFinder",
       "-",
+      "compressPdf",
       "setPassword",
       "removePassword",
       "-",
