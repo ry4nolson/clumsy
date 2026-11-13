@@ -3,6 +3,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { EditorManagers } from "../lib/editorManagers";
 import { adjacentField, readFields, readShown, resetEntry, shownValue, tabOrder, writeShown, type FieldEntry, type FormField } from "../lib/formFields";
+import { commitEvent, resetEvent, sameValue } from "../lib/scriptEvents";
 
 type FormParts = { eventBus: EventBus; viewer: PDFViewer; editorUi: EditorManagers };
 
@@ -121,6 +122,17 @@ export function useViewerForm(partsRef: RefObject<FormParts | null>) {
           element.dispatchEvent(new Event("resetform"));
         } else if (element) {
           writeShown(element, shownBefore);
+        }
+      }
+      const { scripting } = parts.editorUi;
+      if (forward) {
+        scripting.dispatch(resetEvent(changes.map(({ field }) => field.id)));
+      } else {
+        for (const { field, before, after } of changes) {
+          const restored = shownValue(field, before);
+          if (!sameValue(restored, shownValue(field, after))) {
+            scripting.dispatch(commitEvent(field, restored));
+          }
         }
       }
     };

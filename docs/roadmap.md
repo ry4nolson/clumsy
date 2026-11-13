@@ -108,13 +108,14 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
   - Windows: tabs in the title bar and the menu in a dropdown, a local cross-build script, and a Windows CI job.
   - The release is split into build and publish jobs that run in parallel, builds the Windows installer, and attaches it. Downloads have plain names, and the website offers Windows.
 
+Unreleased: form calculations. A PDF's own scripts (totals, number and date formats, validation) run in pdf.js's QuickJS sandbox, one worker per document, with a watchdog that turns off a script that hangs. Script print and Save As, yes/no questions, will-save and will-print actions, and View > Run Form Scripts.
+
 ## Next, in order
 
-1. **Form calculations.** pdf.js `enableScripting` in its sandbox. Check against the CSP (`wasm-unsafe-eval`, no `unsafe-eval`). Script-set values won't trip the typed-input detection `routeStep` relies on, so undo routing needs a look. Has to play nice with 0.10's Reset and Flatten.
-2. **Compress.** Downsample big images to get under email size limits.
-3. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
-4. **OCR with Apple's Vision framework.** Local, free, from Rust.
-5. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
+1. **Compress.** Downsample big images to get under email size limits.
+2. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
+3. **OCR with Apple's Vision framework.** Local, free, from Rust.
+4. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
 
 Cleanup, whenever: split `styles.css` (2,454 lines), prune the merged remote branches. Not blocking anything.
 
@@ -139,9 +140,9 @@ Goal: every feature pdf.js 6.4.299 offers is reachable in Clumsy.
 Done: everything from the old "viewer flags and wiring" list (0.4.1), comments, signatures (moved onto pdf.js's `SignatureEditor`), alt text, and the undo bar (0.9.0), and print (0.11.0, through PDFKit rather than pdf.js's print service). `enableDetailCanvas` stays off on purpose; AGENTS.md explains the image-restore conflict.
 
 Left:
-- **Document Properties, Attachments, Layers, XFA.** Next item 4.
+- **Document Properties, Attachments, Layers, XFA.** Next item 2.
 - **Presentation mode.** Full screen, one page at a time, arrow keys and click to advance.
-- **Form scripting.** Next item 2.
+- **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
 
 ## Compare, later phases
@@ -163,6 +164,7 @@ From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
 
 - Quitting from the Dock or logging out skips the unsaved-changes prompt, because tao lacks `applicationShouldTerminate`. Quitting doesn't save a session either.
 - Releasing a thumbnail drag outside the sidebar still moves the pages, and the drag doesn't autoscroll while the pointer is held still.
+- A form script's text prompt (`app.response`) is always cancelled. Yes/no questions aren't asked on Windows until the `formask` protocol is checked there.
 - After typing into a form field, ⌘Z won't undo the last page edit until another page edit happens. On purpose, so Undo can't take the typed values with it.
 - Pages pulled in from another file keep their annotations, but their form fields stop working.
 - Clicking Go > First/Last Page in the menu bar while a text field has focus moves the caret instead of changing pages. The palette always changes pages.

@@ -256,13 +256,14 @@ export async function confirmDiscard(names: string[]) {
   return ask(prompt, { title: "Unsaved changes", kind: "warning", okLabel: "Discard", cancelLabel: "Cancel" });
 }
 
-export async function showError(text: string) {
+export async function showError(text: string, title = "Clumsy", kind: "error" | "info" = "error") {
   if (!isDesktop) {
     window.alert(text);
     return;
   }
-  await message(text, { title: "Clumsy", kind: "error" });
+  await message(text, { title, kind });
 }
+export const showMessage = (text: string, title: string) => showError(text, title, "info");
 
 export async function setWindowTitle(title: string) {
   document.title = title;

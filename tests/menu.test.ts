@@ -48,7 +48,7 @@ describe("visibleSlots", () => {
   it("keeps only the editing items a popup menu can run", () => {
     expect(visibleSlots(slotsOf("Clumsy"), {}, true)).toEqual(["about", "checkUpdates", "makeDefault", "makeDefaultMarkdown", "-", "quit"]);
     expect(visibleSlots(slotsOf("Window"), {}, true)).toEqual(["nextTab", "previousTab", "-", "focusLeftPane", "focusRightPane", "moveTabLeft", "moveTabRight", "moveTabToNewWindow"]);
-    expect(visibleSlots(slotsOf("View"), {}, true).at(-1)).toBe("toggleFieldHighlights");
+    expect(visibleSlots(slotsOf("View"), {}, true).at(-1)).toBe("toggleFormScripts");
     expect(visibleSlots(slotsOf("Edit"), {}, true)).toEqual(slotsOf("Edit"));
   });
 

@@ -59,6 +59,7 @@ export type CommandId =
   | "spreadEven"
   | "toggleCaretBrowsing"
   | "toggleFieldHighlights"
+  | "toggleFormScripts"
   | "previousPage"
   | "nextPage"
   | "firstPage"
@@ -211,6 +212,7 @@ export const commands: Command[] = [
   { id: "spreadEven", label: "Even Spreads", menu: "View", combos: [], needsDocument: true },
   { id: "toggleCaretBrowsing", label: "Caret Browsing", menu: "View", combos: ["F7"] },
   { id: "toggleFieldHighlights", label: "Highlight Form Fields", menu: "View", combos: [] },
+  { id: "toggleFormScripts", label: "Run Form Scripts", menu: "View", combos: [] },
 
   { id: "previousPage", label: "Previous Page", menu: "Go", combos: ["alt+mod+ArrowUp", "p", "k"], needsDocument: true },
   { id: "nextPage", label: "Next Page", menu: "Go", combos: ["alt+mod+ArrowDown", "n", "j"], needsDocument: true },

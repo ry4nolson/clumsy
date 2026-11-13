@@ -6,9 +6,8 @@ import { isExternalUrl } from "../lib/markdownLinks";
 import { readMarkupParams } from "../lib/markupParams";
 import { stepNav, type NavDirection } from "../lib/navHistory";
 import { canPrint, isDesktop, showDocumentMenu } from "../lib/platform";
+import { nativeMenuTargets } from "../lib/shellMenu";
 import type { PdfViewerApi } from "./usePdfViewer";
-
-const nativeMenuTargets = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), .commentPopup';
 
 type Point = { x: number; y: number };
 

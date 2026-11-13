@@ -104,7 +104,16 @@ fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     }
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
     file.write_all(bytes)?;
-    file.sync_all()
+    file.sync_all().or_else(|err| if sync_unsupported(&err) { Ok(()) } else { Err(err) })
+}
+
+#[cfg(windows)]
+const UNSUPPORTED_SYNC_ERRORS: &[i32] = &[1, 31, 50];
+#[cfg(not(windows))]
+const UNSUPPORTED_SYNC_ERRORS: &[i32] = &[];
+
+fn sync_unsupported(err: &std::io::Error) -> bool {
+    err.raw_os_error().is_some_and(|code| UNSUPPORTED_SYNC_ERRORS.contains(&code))
 }
 
 #[cfg(target_os = "macos")]
@@ -226,6 +235,13 @@ pub fn write_atomically(path: &Path, bytes: &[u8], expected_stamp: Option<&str>)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_drive_that_cannot_flush_may_skip_the_flush() {
+        assert!(!sync_unsupported(&std::io::Error::from(ErrorKind::PermissionDenied)));
+        assert!(!sync_unsupported(&std::io::Error::other("no code")));
+        assert_eq!(sync_unsupported(&std::io::Error::from_raw_os_error(31)), cfg!(windows));
+    }
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("clumsy-files-{name}-{}", std::process::id()));
