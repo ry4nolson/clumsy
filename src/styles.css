@@ -414,6 +414,58 @@ body {
   min-height: 0;
   display: grid;
   grid-template-rows: 34px minmax(0, 1fr);
+  --content-row: 2;
+}
+
+.workspace.titlebar {
+  grid-template-rows: 38px auto minmax(0, 1fr);
+  --content-row: 3;
+}
+
+.workspace.titlebar .toolbar {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.workspace.titlebar .tab-strip {
+  height: 38px;
+  padding-right: 0;
+}
+
+.workspace.titlebar .pane-divider {
+  grid-row: 3;
+}
+
+.titlebar-menu {
+  align-self: center;
+  flex-shrink: 0;
+  margin: 0 4px 0 6px;
+}
+
+.window-controls {
+  display: flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+.window-control {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.window-control:hover {
+  background: var(--hover);
+}
+
+.window-control.close:hover {
+  background: #e81123;
+  color: #ffffff;
 }
 
 .workspace.dragging-tab {
@@ -432,7 +484,7 @@ body {
 
 .document-tab {
   position: relative;
-  grid-row: 2;
+  grid-row: var(--content-row);
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -440,7 +492,7 @@ body {
 
 .pane-overlay {
   position: relative;
-  grid-row: 2;
+  grid-row: var(--content-row);
   z-index: 5;
   pointer-events: none;
 }

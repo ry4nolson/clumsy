@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
+import { hasWindowControls } from "../lib/documentWindows";
 import { MAX_PANES, type Pane } from "../lib/workspace";
 import type { TabItem } from "../lib/tabs";
 import { TabStrip } from "./TabStrip";
+import { MenuButton, WindowControls } from "./Titlebar";
 
 export type TabDropTarget = { kind: "pane"; paneId: string; index: number } | { kind: "newPane"; afterPaneId: string };
 
@@ -24,6 +26,7 @@ type PaneGridProps = {
   focusedPaneId: string;
   tabItems: Record<string, TabItem>;
   newTabShortcut: string;
+  toolbar: ReactNode;
   overlay?: ReactNode;
   children: ReactNode;
   onSelectTab: (tabId: string) => void;
@@ -33,6 +36,7 @@ type PaneGridProps = {
   onMoveTab: (tabId: string, target: TabDropTarget) => void;
   onResize: (sizes: Record<string, number>) => void;
   onTearOff: (tabId: string, screenX: number, screenY: number) => void;
+  onMenu: (x: number, y: number) => void;
 };
 
 const MIN_PANE_WIDTH = 240;
@@ -87,6 +91,7 @@ export function PaneGrid({
   focusedPaneId,
   tabItems,
   newTabShortcut,
+  toolbar,
   overlay,
   children,
   onSelectTab,
@@ -96,6 +101,7 @@ export function PaneGrid({
   onMoveTab,
   onResize,
   onTearOff,
+  onMenu,
 }: PaneGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -213,55 +219,62 @@ export function PaneGrid({
   const target = drag?.active ? drag.target : null;
 
   return (
-    <div
-      ref={gridRef}
-      className={`workspace${split ? " split" : ""}${drag?.active ? " dragging-tab" : ""}${resizing ? " resizing" : ""}`}
-      style={{ gridTemplateColumns: columns }}
-      onPointerDownCapture={(event) => {
-        const paneId = (event.target as HTMLElement).closest<HTMLElement>("[data-pane-id]")?.dataset.paneId;
-        if (paneId && paneId !== focusedPaneId) {
-          onFocusPane(paneId);
-        }
-      }}
-    >
-      {panes.map((pane, index) => (
-        <Fragment key={pane.id}>
-          <TabStrip
-            paneId={pane.id}
-            column={index * 2 + 1}
-            focused={split && pane.id === focusedPaneId}
-            tabs={pane.tabIds.map((id) => tabItems[id]).filter(Boolean)}
-            activeId={pane.activeTabId}
-            draggedTabId={drag?.active ? drag.tabId : null}
-            insertAt={target?.kind === "pane" && target.paneId === pane.id ? target.index : null}
-            newTabShortcut={newTabShortcut}
-            onSelect={onSelectTab}
-            onClose={onCloseTab}
-            onNewTab={() => onNewTab(pane.id)}
-            onTabPointerDown={startTabDrag}
-          />
-          <div className="pane-overlay" style={{ gridColumn: index * 2 + 1 }}>
-            {target?.kind === "pane" && target.paneId === pane.id && <div className="pane-drop pane-drop-whole" />}
-            {target?.kind === "newPane" && target.afterPaneId === pane.id && <div className="pane-drop pane-drop-split" />}
-          </div>
-          {index < panes.length - 1 && (
-            <div
-              className="pane-divider"
-              role="separator"
-              aria-orientation="vertical"
-              style={{ gridColumn: index * 2 + 2 }}
-              onPointerDown={(event) => startResize(index, event)}
+    <>
+      {!hasWindowControls && toolbar}
+      <div
+        ref={gridRef}
+        className={`workspace${split ? " split" : ""}${hasWindowControls ? " titlebar" : ""}${drag?.active ? " dragging-tab" : ""}${resizing ? " resizing" : ""}`}
+        style={{ gridTemplateColumns: columns }}
+        onPointerDownCapture={(event) => {
+          const paneId = (event.target as HTMLElement).closest<HTMLElement>("[data-pane-id]")?.dataset.paneId;
+          if (paneId && paneId !== focusedPaneId) {
+            onFocusPane(paneId);
+          }
+        }}
+      >
+        {panes.map((pane, index) => (
+          <Fragment key={pane.id}>
+            <TabStrip
+              paneId={pane.id}
+              column={index * 2 + 1}
+              focused={split && pane.id === focusedPaneId}
+              tabs={pane.tabIds.map((id) => tabItems[id]).filter(Boolean)}
+              activeId={pane.activeTabId}
+              draggedTabId={drag?.active ? drag.tabId : null}
+              insertAt={target?.kind === "pane" && target.paneId === pane.id ? target.index : null}
+              newTabShortcut={newTabShortcut}
+              titlebar={hasWindowControls}
+              leading={hasWindowControls && index === 0 && <MenuButton onOpen={onMenu} />}
+              trailing={hasWindowControls && index === panes.length - 1 && <WindowControls />}
+              onSelect={onSelectTab}
+              onClose={onCloseTab}
+              onNewTab={() => onNewTab(pane.id)}
+              onTabPointerDown={startTabDrag}
             />
-          )}
-        </Fragment>
-      ))}
-      {children}
-      {overlay}
-      {drag?.active && (
-        <div className="tab-drag-ghost" style={{ transform: `translate(${drag.x + 12}px, ${drag.y + 8}px)` }}>
-          {drag.title}
-        </div>
-      )}
-    </div>
+            <div className="pane-overlay" style={{ gridColumn: index * 2 + 1 }}>
+              {target?.kind === "pane" && target.paneId === pane.id && <div className="pane-drop pane-drop-whole" />}
+              {target?.kind === "newPane" && target.afterPaneId === pane.id && <div className="pane-drop pane-drop-split" />}
+            </div>
+            {index < panes.length - 1 && (
+              <div
+                className="pane-divider"
+                role="separator"
+                aria-orientation="vertical"
+                style={{ gridColumn: index * 2 + 2 }}
+                onPointerDown={(event) => startResize(index, event)}
+              />
+            )}
+          </Fragment>
+        ))}
+        {hasWindowControls && toolbar}
+        {children}
+        {overlay}
+        {drag?.active && (
+          <div className="tab-drag-ghost" style={{ transform: `translate(${drag.x + 12}px, ${drag.y + 8}px)` }}>
+            {drag.title}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

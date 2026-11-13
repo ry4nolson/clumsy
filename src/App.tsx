@@ -353,7 +353,7 @@ export default function App() {
   const runCommandRef = useRef(runCommand);
   runCommandRef.current = runCommand;
 
-  useAppMenu(
+  const openAppMenu = useAppMenu(
     { onCommand: (id) => runCommand(id, { fromMenu: true }), onOpenRecent: openRecent },
     {
       hasDocument,
@@ -388,37 +388,40 @@ export default function App() {
 
   return (
     <div className={`app${dropHover ? " dragging" : ""}${forms.fieldHighlights ? "" : " hide-field-highlights"}`}>
-      <Toolbar
-        titlebarInset={hasOverlayTitlebar && !fullscreen}
-        hasDocument={hasDocument}
-        markdownMode={markdownSnapshot?.mode ?? null}
-        sidebarOpen={sidebarOpen}
-        findOpen={findOpen}
-        darkPages={darkPages}
-        darkPagesImages={darkPagesImages}
-        onDarkPagesImages={setDarkPagesImages}
-        pageNumber={activeSnapshot?.pageNumber ?? 1}
-        pagesCount={activeSnapshot?.pagesCount ?? 0}
-        pageLabels={activeSnapshot?.pageLabels ?? null}
-        scale={activeSnapshot?.scale ?? 1}
-        scaleValue={activeSnapshot?.scaleValue ?? "page-width"}
-        tools={tools}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        onOpen={() => openSource(pickDocument())}
-        onSave={() => save(false)}
-        onPage={(page) => viewer?.goToPage(page, true)}
-        onZoom={(direction) => viewer?.zoom(direction)}
-        onZoomValue={(value) => viewer?.setZoom(value)}
-        onRotate={() => viewer?.rotate(1)}
-        onToggleFind={toggleFind}
-        onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
-        onToggleSource={() => activeMarkdown()?.toggleSource()}
-      />
       <PaneGrid
         panes={workspace.panes}
         focusedPaneId={workspace.focusedPaneId}
         tabItems={tabItems}
         newTabShortcut={shortcutFor("newTab", isMac) ?? ""}
+        toolbar={
+            <Toolbar
+              titlebarInset={hasOverlayTitlebar && !fullscreen}
+              hasDocument={hasDocument}
+              markdownMode={markdownSnapshot?.mode ?? null}
+              sidebarOpen={sidebarOpen}
+              findOpen={findOpen}
+              darkPages={darkPages}
+              darkPagesImages={darkPagesImages}
+              onDarkPagesImages={setDarkPagesImages}
+              pageNumber={activeSnapshot?.pageNumber ?? 1}
+              pagesCount={activeSnapshot?.pagesCount ?? 0}
+              pageLabels={activeSnapshot?.pageLabels ?? null}
+              scale={activeSnapshot?.scale ?? 1}
+              scaleValue={activeSnapshot?.scaleValue ?? "page-width"}
+              tools={tools}
+              onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+              onOpen={() => openSource(pickDocument())}
+              onSave={() => save(false)}
+              onPage={(page) => viewer?.goToPage(page, true)}
+              onZoom={(direction) => viewer?.zoom(direction)}
+              onZoomValue={(value) => viewer?.setZoom(value)}
+              onRotate={() => viewer?.rotate(1)}
+              onToggleFind={toggleFind}
+              onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
+              onToggleSource={() => activeMarkdown()?.toggleSource()}
+            />
+        }
+        onMenu={openAppMenu}
         overlay={dropHover === "open" && <div className="drop-overlay">Drop to open</div>}
         onSelectTab={selectTab}
         onCloseTab={closeTab}

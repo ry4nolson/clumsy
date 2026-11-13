@@ -24,6 +24,8 @@ import { ChangelogList } from "./ChangelogList";
 import { LicensesView } from "./LicensesView";
 import { InstallProgress } from "./UpdateDialog";
 
+const platformLabel = navigator.userAgent.includes("Windows") ? "Windows x64" : navigator.userAgent.includes("Mac") ? "macOS Universal" : "Linux";
+
 export type AboutTab = "about" | "changelog" | "licenses";
 
 export type AboutRequest = { tab: AboutTab; check: boolean; token: number };
@@ -150,7 +152,7 @@ export function AboutDialog({ request, updateInstall, onRestart, onClose }: Abou
             </div>
             <div>
               <dt>Platform</dt>
-              <dd>macOS Universal</dd>
+              <dd>{platformLabel}</dd>
             </div>
           </dl>
 

@@ -1,0 +1,15 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Clumsy",
+        "width": 1200,
+        "height": 860,
+        "minWidth": 640,
+        "minHeight": 420,
+        "decorations": false
+      }
+    ]
+  }
+}
