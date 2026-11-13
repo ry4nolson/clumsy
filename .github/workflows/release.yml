@@ -25,16 +25,13 @@ env:
   DIST_DIR: dist-release
 
 jobs:
-  build:
-    runs-on: macos-15
-    env:
-      APP_PATH: src-tauri/target/universal-apple-darwin/release/bundle/macos/Clumsy.app
+  version:
+    runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.handoff.outputs.sha }}
       version: ${{ steps.handoff.outputs.version }}
       previous_tag: ${{ steps.handoff.outputs.previous_tag }}
       changelog_stamped: ${{ steps.handoff.outputs.changelog_stamped }}
-      signed: ${{ steps.handoff.outputs.signed }}
 
     steps:
       - name: Checkout code
@@ -42,6 +39,68 @@ jobs:
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Determine version
+        run: |
+          PREVIOUS_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+          VERSION="$(node scripts/next-version.mjs)"
+          echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          node scripts/set-version.mjs "$VERSION"
+          echo "Version set to $VERSION"
+
+      - name: Stamp changelog
+        run: |
+          node scripts/stamp-changelog.mjs "$VERSION" "$(date -u +%F)" > /tmp/changelog_notes.md
+          if [ -s /tmp/changelog_notes.md ]; then
+            echo "CHANGELOG_STAMPED=true" >> $GITHUB_ENV
+            echo "Moved [Unreleased] under [$VERSION]"
+          else
+            echo "No unreleased changelog entries; release notes will list commits"
+          fi
+
+      - name: Stage the release metadata
+        id: handoff
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/release-metadata"
+          mkdir -p "$STAGE/metadata/src-tauri"
+          cp /tmp/changelog_notes.md "$STAGE/changelog_notes.md"
+          cp package.json CHANGELOG.md "$STAGE/metadata/"
+          cp src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock "$STAGE/metadata/src-tauri/"
+          {
+            echo "sha=$(git rev-parse HEAD)"
+            echo "version=$VERSION"
+            echo "previous_tag=$PREVIOUS_TAG"
+            echo "changelog_stamped=${CHANGELOG_STAMPED:-}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload the release metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata
+          retention-days: 7
+          if-no-files-found: error
+
+  build:
+    needs: version
+    runs-on: macos-15
+    env:
+      APP_PATH: src-tauri/target/universal-apple-darwin/release/bundle/macos/Clumsy.app
+    outputs:
+      signed: ${{ steps.handoff.outputs.signed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -66,6 +125,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download the release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata
+
+      - name: Apply the release version
+        shell: bash
+        run: cp -R "$RUNNER_TEMP/release-metadata/metadata/." .
+
       - name: Typecheck
         run: pnpm exec tsc --noEmit
 
@@ -77,25 +146,6 @@ jobs:
 
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
-
-      - name: Determine version
-        run: |
-          PREVIOUS_TAG="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
-          VERSION="$(node scripts/next-version.mjs)"
-          echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          node scripts/set-version.mjs "$VERSION"
-          echo "Version set to $VERSION"
-
-      - name: Stamp changelog
-        run: |
-          node scripts/stamp-changelog.mjs "$VERSION" "$(date -u +%F)" > /tmp/changelog_notes.md
-          if [ -s /tmp/changelog_notes.md ]; then
-            echo "CHANGELOG_STAMPED=true" >> $GITHUB_ENV
-            echo "Moved [Unreleased] under [$VERSION]"
-          else
-            echo "No unreleased changelog entries; release notes will list commits"
-          fi
 
       - name: Import signing certificate
         env:
@@ -133,18 +183,9 @@ jobs:
         run: |
           set -euo pipefail
           STAGE="$RUNNER_TEMP/release-build"
-          mkdir -p "$STAGE/metadata/src-tauri"
+          mkdir -p "$STAGE"
           ditto -c -k --keepParent "$APP_PATH" "$STAGE/Clumsy.zip"
-          cp /tmp/changelog_notes.md "$STAGE/changelog_notes.md"
-          cp package.json CHANGELOG.md "$STAGE/metadata/"
-          cp src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock "$STAGE/metadata/src-tauri/"
-          {
-            echo "sha=$(git rev-parse HEAD)"
-            echo "version=$VERSION"
-            echo "previous_tag=$PREVIOUS_TAG"
-            echo "changelog_stamped=${CHANGELOG_STAMPED:-}"
-            echo "signed=$([ "$CODESIGN_IDENTITY" != "-" ] && echo true || echo false)"
-          } >> "$GITHUB_OUTPUT"
+          echo "signed=$([ "$CODESIGN_IDENTITY" != "-" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Upload the staged build
         uses: actions/upload-artifact@v4
@@ -155,7 +196,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    needs: build
+    needs: version
     runs-on: windows-latest
     continue-on-error: true
 
@@ -163,7 +204,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.build.outputs.sha }}
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -185,18 +226,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Download the staged build
+      - name: Download the release metadata
         uses: actions/download-artifact@v4
         with:
-          name: release-build
-          path: release-build
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata
 
       - name: Apply the release version
         shell: bash
-        run: |
-          set -euo pipefail
-          cp -R release-build/metadata/. .
-          rm -rf release-build
+        run: cp -R "$RUNNER_TEMP/release-metadata/metadata/." .
 
       - name: Build installer
         run: pnpm tauri build --bundles nsis
@@ -217,18 +255,18 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [build, windows]
+    needs: [version, build, windows]
     runs-on: macos-15
     env:
-      VERSION: ${{ needs.build.outputs.version }}
-      PREVIOUS_TAG: ${{ needs.build.outputs.previous_tag }}
-      CHANGELOG_STAMPED: ${{ needs.build.outputs.changelog_stamped }}
+      VERSION: ${{ needs.version.outputs.version }}
+      PREVIOUS_TAG: ${{ needs.version.outputs.previous_tag }}
+      CHANGELOG_STAMPED: ${{ needs.version.outputs.changelog_stamped }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.build.outputs.sha }}
+          ref: ${{ needs.version.outputs.sha }}
           fetch-depth: 0
 
       - name: Setup pnpm
@@ -248,6 +286,12 @@ jobs:
         with:
           name: release-build
           path: ${{ runner.temp }}/release-build
+
+      - name: Download the release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata
 
       - name: Import signing certificate
         env:
@@ -277,8 +321,8 @@ jobs:
         run: |
           set -euo pipefail
           STAGE="$RUNNER_TEMP/release-build"
-          cp -R "$STAGE/metadata/." .
-          cp "$STAGE/changelog_notes.md" /tmp/changelog_notes.md
+          cp -R "$RUNNER_TEMP/release-metadata/metadata/." .
+          cp "$RUNNER_TEMP/release-metadata/changelog_notes.md" /tmp/changelog_notes.md
           mkdir -p "$DIST_DIR" "$RUNNER_TEMP/app"
           cp "$STAGE/Clumsy.zip" "$DIST_DIR/Clumsy.zip"
           ditto -x -k "$STAGE/Clumsy.zip" "$RUNNER_TEMP/app"
