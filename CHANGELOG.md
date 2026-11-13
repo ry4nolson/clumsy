@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-13
+
 ### Fixed
 - On Windows, right-clicking the tab bar or toolbar no longer shows a browser menu whose Print and Save as acted on the whole window
 - Saving to a shared or network drive on Windows that reported "A device attached to the system is not functioning"
