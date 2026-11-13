@@ -42,6 +42,19 @@ export type SessionWindow = { panes: SessionPane[]; focusedPane: number; bounds?
 
 const CASCADE = 28;
 
+export const hasWindowControls = isDesktop && navigator.userAgent.includes("Windows");
+
+export const minimizeWindow = () => getCurrentWindow().minimize();
+
+export const toggleMaximizeWindow = () => getCurrentWindow().toggleMaximize();
+
+export async function onMaximizedChange(handler: (maximized: boolean) => void) {
+  const window = getCurrentWindow();
+  const sync = async () => handler(await window.isMaximized());
+  await sync();
+  return window.onResized(sync);
+}
+
 export function currentWindowLabel() {
   return isDesktop ? getCurrentWindow().label : "main";
 }
@@ -196,6 +209,7 @@ export async function openDocumentWindow(transfer: TabTransfer | null, at?: { x:
     y: at ? at.y : rect.y + CASCADE,
     minWidth: 640,
     minHeight: 420,
+    decorations: !hasWindowControls,
     titleBarStyle: "overlay",
     hiddenTitle: true,
     trafficLightPosition: new LogicalPosition(16, 17),

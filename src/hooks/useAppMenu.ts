@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
-import { onWindowFocused, ownsAppMenu } from "../lib/documentWindows";
+import { hasWindowControls, onWindowFocused, ownsAppMenu } from "../lib/documentWindows";
 import { installAppMenu, type AppMenu, type MenuState } from "../lib/menu";
 import { canPrint, canSignDigitally, clearRecentFiles, isDesktop } from "../lib/platform";
 import type { RecentEntry } from "../lib/recent";
@@ -26,6 +26,7 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: MenuState, recent
       onOpenRecent: (entry) => callbacksRef.current.onOpenRecent(entry),
       onClearRecent: () => clearRecentFiles(),
       platform: { canPrint, canSignDigitally },
+      popup: hasWindowControls,
       ownsAppMenu,
     })
       .then((menu) => {
@@ -52,4 +53,6 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: MenuState, recent
       menuRef.current?.setRecent(recentFiles);
     }
   }, [menuReady, recentFiles]);
+
+  return (x: number, y: number) => void menuRef.current?.popup(x, y);
 }

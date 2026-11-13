@@ -1,3 +1,4 @@
+import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
 import { acceleratorFor, commandById, documentAvailable, platformSupports, type Command, type CommandId, type MenuName, type PlatformAbilities } from "./commands";
 import type { RecentEntry } from "./recent";
@@ -186,8 +187,12 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
   ["Help", ["keyboardShortcuts", "whatsNew", "-", "openGitHub", "reportIssue"]],
 ];
 
-export function visibleSlots(slots: Slot[], platform: PlatformAbilities) {
-  const shown = slots.filter((slot) => typeof slot !== "string" || slot === "-" || slot === "recent" || platformSupports(commandById.get(slot)!, platform));
+const popupPredefined = new Set<Predefined>(["Cut", "Copy", "Paste", "SelectAll"]);
+
+export function visibleSlots(slots: Slot[], platform: PlatformAbilities, popup = false) {
+  const shown = slots.filter((slot) =>
+    typeof slot === "object" ? !popup || popupPredefined.has(slot.predefined) : slot === "-" || slot === "recent" || platformSupports(commandById.get(slot)!, platform),
+  );
   const result: Slot[] = [];
   for (const slot of shown) {
     if (slot !== "-" || (result.length && result[result.length - 1] !== "-")) {
@@ -251,6 +256,7 @@ export function checkedCommands(state: MenuState): Set<CommandId> {
 
 export type AppMenu = {
   activate: () => Promise<void>;
+  popup: (x: number, y: number) => Promise<void>;
   setState: (state: MenuState) => Promise<void>;
   setRecent: (entries: RecentEntry[]) => Promise<void>;
 };
@@ -260,6 +266,7 @@ type MenuCallbacks = {
   onOpenRecent: (entry: RecentEntry) => void;
   onClearRecent: () => void;
   platform: PlatformAbilities;
+  popup: boolean;
   ownsAppMenu: () => Promise<boolean>;
 };
 
@@ -318,22 +325,32 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     return commandItem(slot);
   };
 
-  const submenus = [];
-  for (const [name, slots] of menuLayout) {
+  const itemsFor = async (slots: Slot[]) => {
     const items = [];
-    for (const slot of visibleSlots(slots, callbacks.platform)) {
+    for (const slot of visibleSlots(slots, callbacks.platform, callbacks.popup)) {
       items.push(await slotItem(slot));
     }
-    submenus.push(await Submenu.new({ text: name, items }));
+    return items;
+  };
+  const [[, appSlots], ...documentMenus] = menuLayout;
+  const submenus = [];
+  for (const [name, slots] of callbacks.popup ? documentMenus : menuLayout) {
+    submenus.push(await Submenu.new({ text: name, items: await itemsFor(slots) }));
   }
-  const menu = await Menu.new({ items: submenus });
-  if (await callbacks.ownsAppMenu()) {
+  const appItems = callbacks.popup ? [await slotItem("-"), ...(await itemsFor(appSlots))] : [];
+  const menu = await Menu.new({ items: [...submenus, ...appItems] });
+  if (!callbacks.popup && (await callbacks.ownsAppMenu())) {
     await menu.setAsAppMenu();
   }
 
   return {
     async activate() {
-      await menu.setAsAppMenu();
+      if (!callbacks.popup) {
+        await menu.setAsAppMenu();
+      }
+    },
+    async popup(x, y) {
+      await menu.popup(new LogicalPosition(x, y));
     },
     async setState(state) {
       const checked = checkedCommands(state);

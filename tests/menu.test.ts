@@ -45,6 +45,13 @@ describe("visibleSlots", () => {
     expect(without.filter((slot, index) => slot === "-" && without[index + 1] === "-")).toEqual([]);
   });
 
+  it("keeps only the editing items a popup menu can run", () => {
+    expect(visibleSlots(slotsOf("Clumsy"), {}, true)).toEqual(["about", "checkUpdates", "makeDefault", "makeDefaultMarkdown", "-", "quit"]);
+    expect(visibleSlots(slotsOf("Window"), {}, true)).toEqual(["nextTab", "previousTab", "-", "focusLeftPane", "focusRightPane", "moveTabLeft", "moveTabRight", "moveTabToNewWindow"]);
+    expect(visibleSlots(slotsOf("View"), {}, true).at(-1)).toBe("toggleFieldHighlights");
+    expect(visibleSlots(slotsOf("Edit"), {}, true)).toEqual(slotsOf("Edit"));
+  });
+
   it("leaves every other menu as laid out", () => {
     for (const [menu, slots] of menuLayout.filter(([name]) => !["File", "Pages", "Tools"].includes(name))) {
       expect(visibleSlots(slots, {}), menu).toEqual(slots);

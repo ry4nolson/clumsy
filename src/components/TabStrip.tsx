@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { FileCode2, FileLock, FileText, House, LoaderCircle, Plus, X } from "lucide-react";
 import type { TabItem } from "../lib/tabs";
 
@@ -11,6 +11,9 @@ type TabStripProps = {
   draggedTabId: string | null;
   insertAt: number | null;
   newTabShortcut: string;
+  titlebar: boolean;
+  leading?: ReactNode;
+  trailing?: ReactNode;
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
   onNewTab: () => void;
@@ -39,6 +42,9 @@ export function TabStrip({
   draggedTabId,
   insertAt,
   newTabShortcut,
+  titlebar,
+  leading,
+  trailing,
   onSelect,
   onClose,
   onNewTab,
@@ -50,12 +56,14 @@ export function TabStrip({
       data-pane-strip={paneId}
       data-pane-id={paneId}
       style={{ gridColumn: column }}
+      data-tauri-drag-region={titlebar || undefined}
       onDoubleClick={(event) => {
-        if (event.target === event.currentTarget) {
+        if (!titlebar && event.target === event.currentTarget) {
           onNewTab();
         }
       }}
     >
+      {leading}
       <div className="tab-list" role="tablist" aria-label="Open documents">
         {tabs.map((tab, index) => {
           const active = tab.id === activeId;
@@ -104,6 +112,7 @@ export function TabStrip({
       <button type="button" className="icon-button tab-new" aria-label="New tab" title={`New tab (${newTabShortcut})`} onClick={onNewTab}>
         <Plus size={16} />
       </button>
+      {trailing}
     </div>
   );
 }
