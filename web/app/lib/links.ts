@@ -1,6 +1,7 @@
 export const GITHUB = "https://github.com/ry4nolson/clumsy";
 export const RELEASES = `${GITHUB}/releases`;
 export const DOWNLOAD = "/download";
+export const DOWNLOAD_WINDOWS = "/download/windows";
 export const CHECKOUT = "/checkout";
 export const SUPPORT_PRICE = "$5";
 export const ISSUES = `${GITHUB}/issues`;

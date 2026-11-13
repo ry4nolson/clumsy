@@ -1,5 +1,5 @@
 import type { Route } from "./+types/thanks";
-import { DOWNLOAD, GITHUB } from "~/lib/links";
+import { DOWNLOAD, DOWNLOAD_WINDOWS, GITHUB } from "~/lib/links";
 import { pageMeta } from "~/lib/meta";
 
 export function meta(_args: Route.MetaArgs) {
@@ -18,7 +18,10 @@ export default function Thanks() {
         </p>
         <div className="thanks__actions">
           <a className="btn btn--primary" href={DOWNLOAD}>
-            Download Clumsy.dmg
+            Download for Mac
+          </a>
+          <a className="btn btn--primary" href={DOWNLOAD_WINDOWS}>
+            Download for Windows
           </a>
           <a className="btn btn--secondary" href={GITHUB}>
             View on GitHub

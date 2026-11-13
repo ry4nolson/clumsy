@@ -27,4 +27,4 @@ npx netlify init
 npx netlify deploy --prod
 ```
 
-`netlify.toml` already sets the build command, publish directory, and the `/download` redirect.
+`netlify.toml` already sets the build command, publish directory, and the `/download` and `/download/windows` redirects.

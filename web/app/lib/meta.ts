@@ -1,5 +1,5 @@
 const DESCRIPTION =
-  "Clumsy is a small, fast PDF viewer for macOS. Tabs, search, highlights, comments, forms, digital signatures, page edits, and document comparison, saved straight back into the file. Markdown too.";
+  "Clumsy is a small, fast PDF viewer for Mac and Windows. Tabs, search, highlights, comments, forms, digital signatures, page edits, and document comparison, saved straight back into the file. Markdown too.";
 
 export function pageMeta(title: string, description = DESCRIPTION) {
   const image = `${__SITE_URL__}/og-image.png`;
