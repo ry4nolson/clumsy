@@ -154,8 +154,70 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  publish:
+  windows:
     needs: build
+    runs-on: windows-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the staged build
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: release-build
+
+      - name: Apply the release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R release-build/metadata/. .
+          rm -rf release-build
+
+      - name: Build installer
+        run: pnpm tauri build --bundles nsis
+
+      - name: Stage the installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$DIST_DIR"
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "$DIST_DIR/Clumsy-setup.exe"
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: ${{ env.DIST_DIR }}/Clumsy-setup.exe
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    needs: [build, windows]
     runs-on: macos-15
     env:
       VERSION: ${{ needs.build.outputs.version }}
@@ -225,6 +287,13 @@ jobs:
             codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           fi
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+
+      - name: Download the Windows installer
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: ${{ env.DIST_DIR }}
 
       - name: Notarize app zip
         if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
@@ -374,6 +443,7 @@ jobs:
             ${{ env.DIST_DIR }}/Clumsy.zip
             ${{ env.DIST_DIR }}/Clumsy.dmg
             ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
+            ${{ env.DIST_DIR }}/Clumsy-setup.exe
             ${{ env.DIST_DIR }}/latest.json
           body_path: /tmp/release_notes.md
         env:
