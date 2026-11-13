@@ -19,6 +19,7 @@ pnpm licenses                  # regenerate public/third-party-licenses.txt (als
 ```
 
 - Node 20.19+ is required by Vite 8 (Node 22 recommended). pnpm is pinned through `packageManager` in `package.json`.
+- Windows builds from a Mac: `scripts/build-windows.sh` cross-compiles the unsigned x64 NSIS installer with `cargo-xwin` into `src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/`. One-time setup: `brew install nsis llvm lld`, `rustup target add x86_64-pc-windows-msvc`, `cargo install --locked cargo-xwin`. The script sets `LC_ALL=en_US.UTF-8` because Homebrew's `makensis` dies with `std::bad_alloc` while generating language tables under any other locale.
 - Universal builds (`--target universal-apple-darwin`) need rustup's toolchain with `x86_64-apple-darwin` installed. Homebrew's `cargo` can't cross-compile, so put `~/.cargo/bin` first in `PATH` for those builds.
 
 ## Layout
