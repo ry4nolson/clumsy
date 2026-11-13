@@ -387,3 +387,62 @@ describe("markup", () => {
     expectIn(worker, /data\.quadPoints = getQuadPoints\(dict, null\)/);
   });
 });
+
+describe("form scripting", () => {
+  const sandbox = app.read("node_modules/pdfjs-dist/build/pdf.sandbox.mjs");
+  const [support] = sandbox.split("const code = [");
+
+  it("the viewer only asks its scripting manager for setDocument", () => {
+    expect(sorted(managerCalls(viewer, "scriptingManager"))).toEqual(["setDocument"]);
+    expectIn(viewer, /get enableScripting\(\) \{\s*return !!this\._scriptingManager;/);
+  });
+
+  it("pdf.js's own manager still looks fields up in the whole window, which is why Clumsy has its own", () => {
+    const manager = classSource(viewer, "PDFScriptingManager");
+    expectIn(manager, 'document.querySelector(`[data-element-id="${elementId}"]`)');
+    expectIn(manager, "pdfDocument.getFieldObjects(), pdfDocument.getCalculationOrderIds(), pdfDocument.getJSActions()");
+    expectIn(manager, /appInfo: \{\s*platform: navigator\.platform,\s*language: navigator\.language\s*\},\s*docInfo: \{\s*\.\.\.docProperties,\s*actions: docActions/);
+    expectIn(manager, /name: "PageOpen",\s*pageNumber,\s*actions/);
+  });
+
+  it("the sandbox reaches the page only through the window members the worker provides", () => {
+    expectIn(sandbox, "return new Sandbox(window, module);");
+    expectIn(sandbox, "`${wasmUrl}quickjs-eval.js`");
+    expectIn(sandbox, "export { QuickJSSandbox };");
+    const members = sorted(Array.from(support.matchAll(/this\.win\.([A-Za-z]+)/g), ([, member]) => member));
+    expect(members).toEqual(["CustomEvent", "URL", "alert", "clearInterval", "clearTimeout", "confirm", "console", "dispatchEvent", "prompt", "setInterval", "setTimeout"]);
+    const worker = app.read("src/workers/scripting.worker.ts");
+    for (const member of members) {
+      expectIn(worker, new RegExp(`^  ${member}[:,]`, "m"));
+    }
+    expectIn(support, /new this\.win\.CustomEvent\("updatefromsandbox", \{\s*detail: this\.importValueFromSandbox\(data\)/);
+  });
+
+  it("widgets send events over the event bus and take updates as DOM events", () => {
+    expectIn(display, 'this.linkService.eventBus?.dispatch("dispatcheventinsandbox", {');
+    expectIn(display, 'element.addEventListener("updatefromsandbox", jsEvent => {');
+    expectIn(display, /if \(!elementData\.focused \|\| !event\.relatedTarget\) \{\s*return;/);
+    expectIn(display, /name: "Keystroke",\s*value,\s*willCommit: true,\s*commitKey: 1,/);
+    expectIn(display, '[["change", "Validate"], ["change", "Action"]');
+  });
+
+  it("the sandbox asks questions, prints, and saves the way Clumsy answers them", () => {
+    for (const used of [
+      'return this._externalCall(\\"confirm\\", [cMsg]) ? 4 : 3;',
+      'command: \\"print\\"',
+      'case \\"SaveAs\\":',
+      'case \\"WillPrint\\":',
+      '![\\"DidPrint\\", \\"DidSave\\", \\"WillPrint\\", \\"WillSave\\"].includes(eventName)',
+    ]) {
+      expectIn(sandbox, used);
+    }
+    expectIn(display, /name: "Keystroke",\s*value,\s*change: data \|\| "",\s*willCommit: false,\s*selStart,\s*selEnd/);
+    expectIn(display, /formattedValue\(event\) \{\s*const \{\s*formattedValue\s*\} = event\.detail;\s*elementData\.formattedValue = formattedValue;/);
+  });
+
+  it("the sandbox handles the events Clumsy sends for Reset Form and its undo", () => {
+    for (const handled of ['id === \\"app\\" && baseEvent.name === \\"ResetForm\\"', 'if (name === \\"Action\\") {', 'case \\"Keystroke\\":', "if (event.willCommit) {\\n        this.runValidation(source, event);"]) {
+      expectIn(sandbox, handled);
+    }
+  });
+});

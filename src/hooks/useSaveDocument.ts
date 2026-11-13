@@ -137,6 +137,7 @@ export function useSaveDocument({ workspaceRef, handles, markdownHandles, update
       if (tab?.kind !== "document" || !handle) {
         return;
       }
+      await handle.viewer.editorUi?.scripting.runAction("WillSave");
       const saved = await handle.viewer.save();
       if (!saved) {
         return;
@@ -178,6 +179,7 @@ export function useSaveDocument({ workspaceRef, handles, markdownHandles, update
           : current;
       });
       recordRecentFile(path);
+      void handle.viewer.editorUi?.scripting.runAction("DidSave");
     } catch (error) {
       await showError(`Could not save.\n\n${error instanceof Error ? error.message : String(error)}`);
     } finally {

@@ -2,12 +2,14 @@ import { AnnotationEditorParamsType, SignatureExtractor } from "pdfjs-dist";
 import type { EventBus, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { createCommentManager, type CommentState } from "./commentManager";
 import { removedMessage } from "./comments";
+import { createFormScripting } from "./formScripting";
 import type { Markup } from "./markup";
 import { attachMarkup, type MarkupLayer } from "./markupLayer";
 import { readMarkupParams, styleOf } from "./markupParams";
 import { dateLabel, isMarkDescription } from "./marks";
 import { readMarkupOffThread } from "./pageEditWorker";
 import { passwordOf } from "./pdfjs";
+import { showError, showMessage } from "./platform";
 import { MAX_SAVED_SIGNATURES, SIGNATURES_KEY, clearLegacySignature, readLegacySignature, readSignatures, withSignature, withoutSignature, writeSignatures, type SavedSignature } from "./signatures";
 
 export const SIGNATURE_HEIGHT_IN_PAGE = 40;
@@ -166,7 +168,13 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
   const comments = createCommentManager(eventBus, linkService, { set, selected: () => state.selectedComment, undoBar: editorUndoBar });
   let markup: MarkupLayer | null = null;
 
+  const scripting = createFormScripting(eventBus, {
+    alert: (text) => showMessage(text, "Message from this form"),
+    stopped: () => void showError("This form's scripts stopped responding, so Clumsy turned them off. Calculated fields won't update until the document is reopened."),
+  });
+
   const attachViewer = (viewer: PDFViewer) => {
+    scripting.attachViewer(viewer);
     comments.attachViewer(viewer);
     markup = attachMarkup(viewer, eventBus, {
       addCommands: comments.addCommands,
@@ -325,7 +333,8 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
   signatureManager.loadSignatures();
 
   return {
-    viewerOptions: { editorUndoBar, altTextManager, signatureManager, commentManager: comments.commentManager },
+    viewerOptions: { editorUndoBar, altTextManager, signatureManager, commentManager: comments.commentManager, scriptingManager: scripting.manager },
+    scripting,
     attachViewer,
     get markup() {
       return markup;
@@ -351,6 +360,7 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       window.removeEventListener("storage", onStorage);
       markup?.dispose();
       comments.dispose();
+      scripting.dispose();
     },
   };
 }

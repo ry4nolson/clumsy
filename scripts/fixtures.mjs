@@ -241,6 +241,64 @@ function markdownDocument(targetBytes) {
   return `# Markdown stress test\n\n${sections.join("\n")}`;
 }
 
+async function calcDocument(openScript) {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const form = doc.getForm();
+  const page = doc.addPage([612, 792]);
+  const action = (code) => doc.context.obj({ S: "JavaScript", JS: PDFHexString.fromText(code) });
+  const text = (name, x, y, label, scripts = {}) => {
+    page.drawText(label, { x, y: y + 22, size: 8, font });
+    const field = form.createTextField(name);
+    field.addToPage(page, { x, y, width: 130, height: 18, font });
+    const entries = Object.entries(scripts).map(([event, code]) => [event, action(code)]);
+    if (entries.length) {
+      field.acroField.dict.set(PDFName.of("AA"), doc.context.obj(Object.fromEntries(entries)));
+    }
+    return field;
+  };
+  const money = { K: 'AFNumber_Keystroke(2, 0, 0, 0, "$", true);', F: 'AFNumber_Format(2, 0, 0, 0, "$", true);' };
+  const count = { K: 'AFNumber_Keystroke(0, 0, 0, 0, "", true);', F: 'AFNumber_Format(0, 0, 0, 0, "", true);' };
+  page.drawText("Order form with calculated totals", { x: 54, y: 740, size: 14, font });
+  const calculated = [1, 2, 3].map((row) => {
+    const y = 690 - row * 52;
+    const tooMany =
+      row === 3
+        ? `if (app.alert("Quantity 3 is more than 100. Clear it?", 2, 2) == 4) { event.rc = false; }`
+        : `app.alert("Quantity ${row} can't be more than 100."); event.rc = false;`;
+    text(`qty${row}`, 54, y, `Quantity ${row}`, { ...count, V: `if (Number(event.value) > 100) { ${tooMany} }` });
+    text(`price${row}`, 204, y, `Price ${row}`, money);
+    const line = text(`line${row}`, 354, y, `Line ${row}`, {
+      C: `event.value = Number(this.getField("qty${row}").value) * Number(this.getField("price${row}").value);`,
+      F: money.F,
+    });
+    line.enableReadOnly();
+    return line;
+  });
+  const total = text("total", 354, 482, "Total", { C: 'AFSimple_Calculate("SUM", ["line1", "line2", "line3"]);', F: money.F });
+  total.enableReadOnly();
+  text("date", 54, 482, "Date (mm/dd/yyyy)", { K: 'AFDate_KeystrokeEx("mm/dd/yyyy");', F: 'AFDate_FormatEx("mm/dd/yyyy");' });
+  text("opened", 204, 482, "Set by the open script");
+  text("saved", 54, 430, "Set when the file is saved or printed");
+  [
+    ["print", "Print", "this.print();"],
+    ["saveAs", "Save As", 'app.execMenuItem("SaveAs");'],
+  ].forEach(([name, label, code], index) => {
+    const button = form.createButton(name);
+    button.addToPage(label, page, { x: 204 + index * 150, y: 430, width: 130, height: 18, font });
+    button.acroField.getWidgets()[0].dict.set(PDFName.of("A"), action(code));
+  });
+  doc.catalog.set(
+    PDFName.of("AA"),
+    doc.context.obj({ WS: action('this.getField("saved").value = "will save";'), WP: action('this.getField("saved").value = "will print";') }),
+  );
+  form.acroForm.dict.set(PDFName.of("CO"), doc.context.obj([...calculated, total].map((field) => field.acroField.ref)));
+  if (openScript) {
+    doc.catalog.set(PDFName.of("OpenAction"), action(openScript));
+  }
+  return doc;
+}
+
 async function save(doc, name, options = {}) {
   const bytes = await doc.save({ useObjectStreams: false, ...options });
   return write(name, bytes);
@@ -381,6 +439,9 @@ async function main() {
   await save(await scannedDocument(300), "scanned-300.pdf");
   await save(await formDocument(25), "form-550.pdf");
   await save(await taggedDocument(20), "tagged-20.pdf");
+  await save(await calcDocument('this.getField("opened").value = "ready";'), "form-calc.pdf");
+  await save(await calcDocument("while (true) {}"), "hostile/script-loop.pdf");
+  await save(await calcDocument("app.setInterval(\"app.alert('Again')\", 20);"), "hostile/script-alerts.pdf");
 
   const dense = await textDocument(20, 5);
   dense.getPages().forEach((page) => {

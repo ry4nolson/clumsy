@@ -1,6 +1,7 @@
 mod context_menu;
 mod default_app;
 mod files;
+mod form_question;
 mod images;
 mod navigation;
 mod print;
@@ -382,6 +383,7 @@ pub fn run() {
         .manage(AllowedFolders::default())
         .manage(ReadOnlyPaths::default())
         .plugin(navigation::guard())
+        .register_asynchronous_uri_scheme_protocol(form_question::SCHEME, form_question::answer)
         .manage(Documents::default())
         .manage(QuitPrompt::default())
         .manage(Updates::default())

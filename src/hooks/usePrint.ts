@@ -85,6 +85,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
       return;
     }
     const pages = pagesToPrint(id, explicit?.length ? explicit : handle.selectedPages(), doc.numPages);
+    await viewer.editorUi?.scripting.runAction("WillPrint");
     const saved = await viewer.save().catch((error) => {
       if (viewer.pdfDocument === doc) {
         throw error;
@@ -99,6 +100,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
       send: (bytes) => printPdf(name, bytes),
       asImages: () => asImages(tabId, doc, () => viewer.save(), pages ?? allPages(doc.numPages)),
     });
+    void viewer.editorUi?.scripting.runAction("DidPrint");
     if (outcome === "unreadable") {
       await showError(unreadable(name));
     }

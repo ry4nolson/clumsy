@@ -124,7 +124,7 @@ export default function App() {
   const { recentFiles, openRecent } = useRecentFiles(openSource);
   const activeViewer = () => activeHandle()?.viewer;
   const viewControls = useViewControls(activeViewer);
-  const forms = useFormControls(activeViewer);
+  const forms = useFormControls(activeViewer, (id) => runCommandRef.current(id));
   const systemDark = useSystemDarkMode();
   const darkPages = darkPagesPreference === "on" || (darkPagesPreference === "auto" && systemDark);
 
@@ -366,7 +366,7 @@ export default function App() {
       invertImages: darkPagesImages === "invert",
       hasForm,
       isProtected,
-      fieldHighlights: forms.fieldHighlights,
+      fieldHighlights: forms.fieldHighlights, formScripts: forms.formScripts,
       ...viewMenuState,
     },
     recentFiles,

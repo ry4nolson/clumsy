@@ -115,6 +115,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "toggleDarkPages",
       "toggleInvertImages",
       "toggleFieldHighlights",
+      "toggleFormScripts",
       "-",
       { predefined: "Fullscreen" },
     ],
@@ -220,6 +221,7 @@ const checkCommands = new Set<CommandId>([
   "toggleInvertImages",
   "toggleCaretBrowsing",
   "toggleFieldHighlights",
+  "toggleFormScripts",
   ...Object.values(scrollModeCommands),
   ...Object.values(spreadModeCommands),
 ]);
@@ -238,6 +240,7 @@ export type MenuState = {
   hasForm: boolean;
   isProtected: boolean;
   fieldHighlights: boolean;
+  formScripts: boolean;
 } & ViewModes;
 
 export function checkedCommands(state: MenuState): Set<CommandId> {
@@ -248,6 +251,7 @@ export function checkedCommands(state: MenuState): Set<CommandId> {
     ["toggleInvertImages", state.invertImages],
     ["toggleCaretBrowsing", state.caretBrowsing],
     ["toggleFieldHighlights", state.fieldHighlights],
+    ["toggleFormScripts", state.formScripts],
     [scrollModeCommands[state.scrollMode], state.hasDocument],
     [spreadModeCommands[state.spreadMode], state.hasDocument],
   ];
