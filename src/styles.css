@@ -657,12 +657,38 @@ body {
 }
 
 .app-sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: 200px;
+  width: var(--sidebar-width, 200px);
+  min-width: 160px;
+  max-width: 60%;
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 6;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: transparent;
+}
+
+.sidebar-resizer:hover::before,
+.sidebar-resizer:active::before {
+  background: var(--accent);
 }
 
 .sidebar-tabs {

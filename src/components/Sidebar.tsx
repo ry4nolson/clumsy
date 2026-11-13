@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { SelectModifiers } from "../lib/pageSelection";
 import { Outline } from "./Outline";
+import { SidebarShell } from "./SidebarShell";
 import { Thumbnails } from "./Thumbnails";
 
 export type SidebarTab = "thumbnails" | "outline" | "changes" | "comments" | "signatures";
@@ -31,7 +32,7 @@ export function Sidebar(props: SidebarProps) {
   const missing = (props.tab === "changes" && !changes) || (props.tab === "comments" && !comments) || (props.tab === "signatures" && !signatures);
   const tab = missing ? "thumbnails" : props.tab;
   return (
-    <aside className="app-sidebar">
+    <SidebarShell>
       <div className="sidebar-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === "thumbnails"} onClick={() => onTab("thumbnails")}>
           Pages
@@ -79,6 +80,6 @@ export function Sidebar(props: SidebarProps) {
           <Outline pdfDocument={pdfDocument} onNavigate={onNavigate} onOpenUrl={onOpenUrl} />
         )}
       </div>
-    </aside>
+    </SidebarShell>
   );
 }

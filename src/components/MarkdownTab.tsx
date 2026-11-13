@@ -13,6 +13,7 @@ import type { MarkdownMode, MarkdownViewState } from "../lib/tabs";
 import { FindBar } from "./FindBar";
 import { MarkdownMap } from "./MarkdownMap";
 import { OutlineTree } from "./OutlineTree";
+import { SidebarShell } from "./SidebarShell";
 import "./Markdown.css";
 
 export type MarkdownSnapshot = { loaded: boolean; modified: boolean; findOpen: boolean; mode: MarkdownMode };
@@ -453,7 +454,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
       style={{ gridColumn: column, ["--md-zoom" as string]: zoom }}
     >
       {sidebarOpen && (
-        <aside className="app-sidebar">
+        <SidebarShell>
           <div className="sidebar-tabs" role="tablist">
             <button type="button" role="tab" aria-selected>
               Outline
@@ -466,7 +467,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
               <p className="sidebar-empty">This document has no headings.</p>
             )}
           </div>
-        </aside>
+        </SidebarShell>
       )}
       <main className="viewer-area markdown-area">
         {find.findOpen && (

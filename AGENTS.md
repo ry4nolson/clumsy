@@ -41,6 +41,7 @@ src/
     TabContents.tsx          renders every tab body (Start, PDF, Markdown) in its pane column
     OutlineTree.tsx          the collapsible outline list shared by PDF outlines and Markdown headings
     CompareBar.tsx           the bar over each side of a comparison: change summary, Previous/Next Change, linked scrolling, Swap, Export Report, End
+    SidebarShell.tsx         the sidebar's `<aside>` and its drag-to-resize edge, shared by PDF and Markdown tabs; the width is one `--sidebar-width` on `:root` per window (`clumsy.sidebarWidth`, `src/lib/sidebarWidth.ts`)
     ChangesList.tsx          the Changes sidebar tab: every change with its snippets, filterable by kind
     UpdateDialog.tsx         the Update sheet: release notes, Install Update with download progress, Restart Now
     EditorSheets.tsx         the pdf.js editor dialogs per tab (AltTextDialog, SignatureDialog, CommentDialog) and the undo bar
