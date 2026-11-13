@@ -22,12 +22,19 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  APP_PATH: src-tauri/target/universal-apple-darwin/release/bundle/macos/Clumsy.app
   DIST_DIR: dist-release
 
 jobs:
   build:
     runs-on: macos-15
+    env:
+      APP_PATH: src-tauri/target/universal-apple-darwin/release/bundle/macos/Clumsy.app
+    outputs:
+      sha: ${{ steps.handoff.outputs.sha }}
+      version: ${{ steps.handoff.outputs.version }}
+      previous_tag: ${{ steps.handoff.outputs.previous_tag }}
+      changelog_stamped: ${{ steps.handoff.outputs.changelog_stamped }}
+      signed: ${{ steps.handoff.outputs.signed }}
 
     steps:
       - name: Checkout code
@@ -121,12 +128,103 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
           lipo -archs "$APP_PATH/Contents/MacOS/clumsy"
 
-      - name: Package zip
+      - name: Stage the build for publishing
+        id: handoff
         run: |
           set -euo pipefail
-          mkdir -p "$DIST_DIR"
-          ditto -c -k --keepParent "$APP_PATH" "$DIST_DIR/Clumsy.zip"
-          echo "✓ $DIST_DIR/Clumsy.zip"
+          STAGE="$RUNNER_TEMP/release-build"
+          mkdir -p "$STAGE/metadata/src-tauri"
+          ditto -c -k --keepParent "$APP_PATH" "$STAGE/Clumsy.zip"
+          cp /tmp/changelog_notes.md "$STAGE/changelog_notes.md"
+          cp package.json CHANGELOG.md "$STAGE/metadata/"
+          cp src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock "$STAGE/metadata/src-tauri/"
+          {
+            echo "sha=$(git rev-parse HEAD)"
+            echo "version=$VERSION"
+            echo "previous_tag=$PREVIOUS_TAG"
+            echo "changelog_stamped=${CHANGELOG_STAMPED:-}"
+            echo "signed=$([ "$CODESIGN_IDENTITY" != "-" ] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload the staged build
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build
+          path: ${{ runner.temp }}/release-build
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: macos-15
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      PREVIOUS_TAG: ${{ needs.build.outputs.previous_tag }}
+      CHANGELOG_STAMPED: ${{ needs.build.outputs.changelog_stamped }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the staged build
+        uses: actions/download-artifact@v4
+        with:
+          name: release-build
+          path: ${{ runner.temp }}/release-build
+
+      - name: Import signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          if [ "${{ needs.build.outputs.signed }}" != "true" ] || [ -z "$CERTIFICATE_P12" ]; then
+            echo "No signing certificate configured, skipping"
+            echo "CODESIGN_IDENTITY=-" >> $GITHUB_ENV
+            exit 0
+          fi
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+
+          echo "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$KEYCHAIN_PATH" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          echo "CODESIGN_IDENTITY=Developer ID Application: Texas Beard Company LLC (M3C8F32WA5)" >> $GITHUB_ENV
+
+      - name: Unpack the staged build
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/release-build"
+          cp -R "$STAGE/metadata/." .
+          cp "$STAGE/changelog_notes.md" /tmp/changelog_notes.md
+          mkdir -p "$DIST_DIR" "$RUNNER_TEMP/app"
+          cp "$STAGE/Clumsy.zip" "$DIST_DIR/Clumsy.zip"
+          ditto -x -k "$STAGE/Clumsy.zip" "$RUNNER_TEMP/app"
+          APP_PATH="$RUNNER_TEMP/app/Clumsy.app"
+          if [ "$CODESIGN_IDENTITY" != "-" ]; then
+            codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          fi
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
       - name: Notarize app zip
         if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
