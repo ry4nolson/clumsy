@@ -14,4 +14,6 @@ TARGET="${1:-x86_64-pc-windows-msvc}"
 
 pnpm tauri build --runner cargo-xwin --target "$TARGET" --bundles nsis
 
-ls -lh "src-tauri/target/$TARGET/release/bundle/nsis/"*-setup.exe
+TARGET_DIR="$(cargo metadata --format-version 1 --no-deps --manifest-path src-tauri/Cargo.toml | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).target_directory")"
+
+ls -lh "$TARGET_DIR/$TARGET/release/bundle/nsis/"*-setup.exe
