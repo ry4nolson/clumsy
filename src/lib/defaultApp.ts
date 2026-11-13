@@ -2,6 +2,7 @@ export type DefaultAppStatus = {
   supported: boolean;
   isDefault: boolean;
   currentApp: string | null;
+  chromeInstalled: boolean;
 };
 
 export type DefaultAppKind = "pdf" | "markdown";

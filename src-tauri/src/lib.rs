@@ -338,6 +338,11 @@ fn default_app_status(app: AppHandle, kind: String) -> Result<default_app::Defau
 }
 
 #[tauri::command]
+fn open_chrome_pdf_settings() -> Result<(), String> {
+    default_app::open_chrome_pdf_settings()
+}
+
+#[tauri::command]
 fn make_default_app(app: AppHandle, kind: String) -> Result<default_app::DefaultAppStatus, String> {
     default_app::make_default(&default_app::document_kind(&kind)?, &app.config().identifier)
 }
@@ -451,6 +456,7 @@ pub fn run() {
             signatures::show_certificate,
             default_app_status,
             make_default_app,
+            open_chrome_pdf_settings,
             recent_files,
             record_recent_file,
             remove_recent_file,

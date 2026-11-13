@@ -329,11 +329,10 @@ export async function onFullscreenChange(handler: (fullscreen: boolean) => void)
 }
 
 export async function getDefaultAppStatus(kind: DefaultAppKind = "pdf"): Promise<DefaultAppStatus> {
-  if (!isDesktop) {
-    return { supported: false, isDefault: false, currentApp: null };
-  }
-  return invoke<DefaultAppStatus>("default_app_status", { kind });
+  return isDesktop ? invoke<DefaultAppStatus>("default_app_status", { kind }) : { supported: false, isDefault: false, currentApp: null, chromeInstalled: false };
 }
+
+export const openChromePdfSettings = () => invoke<void>("open_chrome_pdf_settings");
 
 export async function makeDefaultApp(kind: DefaultAppKind = "pdf") {
   return invoke<DefaultAppStatus>("make_default_app", { kind });

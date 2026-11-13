@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SNOOZE_MS, shouldPromptForDefault, type DefaultAppStatus } from "../src/lib/defaultApp";
 
-const notDefault: DefaultAppStatus = { supported: true, isDefault: false, currentApp: "Preview" };
+const notDefault: DefaultAppStatus = { supported: true, isDefault: false, currentApp: "Preview", chromeInstalled: false };
 const now = 1_000_000;
 
 describe("shouldPromptForDefault", () => {

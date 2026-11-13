@@ -6,7 +6,13 @@ pub struct DefaultAppStatus {
     pub supported: bool,
     pub is_default: bool,
     pub current_app: Option<String>,
+    pub chrome_installed: bool,
 }
+
+#[cfg(target_os = "macos")]
+const CHROME: &str = "com.google.Chrome";
+#[cfg(target_os = "macos")]
+const CHROME_PDF_SETTINGS: &str = "chrome://settings/content/pdfDocuments";
 
 pub struct DocumentKind {
     content_type: &'static str,
@@ -70,6 +76,11 @@ mod platform {
         }
     }
 
+    pub fn open_in(bundle_id: &str, url: &str) -> Result<(), String> {
+        let status = std::process::Command::new("/usr/bin/open").args(["-b", bundle_id, url]).status().map_err(|err| err.to_string())?;
+        if status.success() { Ok(()) } else { Err(format!("macOS couldn't open {url}")) }
+    }
+
     pub fn is_installed_bundle() -> bool {
         std::env::current_exe()
             .ok()
@@ -85,7 +96,13 @@ pub fn status(kind: &DocumentKind, bundle_id: &str) -> DefaultAppStatus {
         supported: platform::is_installed_bundle(),
         is_default: current.as_deref().is_some_and(|id| id.eq_ignore_ascii_case(bundle_id)),
         current_app: current.as_deref().map(|id| platform::app_name(id).unwrap_or_else(|| id.to_string())),
+        chrome_installed: kind.content_type == "com.adobe.pdf" && platform::app_name(CHROME).is_some(),
     }
+}
+
+#[cfg(target_os = "macos")]
+pub fn open_chrome_pdf_settings() -> Result<(), String> {
+    platform::open_in(CHROME, CHROME_PDF_SETTINGS)
 }
 
 #[cfg(target_os = "macos")]
@@ -109,7 +126,12 @@ pub fn is_installed_bundle() -> bool {
 
 #[cfg(not(target_os = "macos"))]
 pub fn status(_kind: &DocumentKind, _bundle_id: &str) -> DefaultAppStatus {
-    DefaultAppStatus { supported: false, is_default: false, current_app: None }
+    DefaultAppStatus { supported: false, is_default: false, current_app: None, chrome_installed: false }
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn open_chrome_pdf_settings() -> Result<(), String> {
+    Err("Opening Chrome's settings is only supported on macOS".into())
 }
 
 #[cfg(not(target_os = "macos"))]
