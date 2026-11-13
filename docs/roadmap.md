@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-07, at v0.13.1.
+Last updated 2026-11-13, at v0.15.2.
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -88,17 +88,35 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
   - Page edits and sticky notes work on password-protected files; the file keeps its password on Save. Owner-only files lose their restrictions when Clumsy rewrites them.
   - Clumsy doesn't ask again for a password it already has (reloads, undo, outside changes, tab moves).
 - **v0.13.1 toolbar dropdowns:** tool settings moved into dropdowns next to Highlight, Text, Draw, Sign, and Fill In; the toolbar stays on one row and overflows into a More menu.
+- **v0.14.0 markup (PR #15, plan in `docs/markup-plan.md`):**
+  - Shapes: rectangles, ellipses, revision clouds, lines, and arrows, with stroke, fill, thickness, and opacity.
+  - Stamps: review stamps with today's date, icons, and about 40 electrical plan symbols.
+  - Underline and Strikethrough, as Highlight modes or on selected text.
+  - Select, move, resize, nudge, restyle, and delete, all undoable, including the same kinds of markup from other apps.
+  - Saved as standard annotations with their own appearance streams, so they look the same everywhere.
+- **v0.14.1–0.14.2 full code review and signature fonts (PR #16):**
+  - 0.14.1: data-loss fixes. A document stays marked as edited when Save is cancelled or fails, when pages are extracted, and when a tab move fails; deleting markup after a save marks it edited. Plus about twenty correctness fixes across page edits, passwords, Markdown, find, and compare. Saving keeps Finder tags and other extended attributes. Update checks repeat every few hours.
+  - 0.14.2: sixteen handwriting fonts for typed signatures; the saved-signature list fills in right away.
+- **v0.15.0 digital signatures (plan in `docs/digital-signatures-plan.md`, contract in `docs/digital-signatures-contract.md`):**
+  - Validation: a status bar over signed documents, a Signatures sidebar tab, a details sheet with the certificate, timestamp, and revocation status, View Signed Version, and Trust Signer in Clumsy.
+  - Sign Digitally with an identity you already have (Keychain, smart card, security key), in a field, a corner, a drawn box, or invisibly. Timestamped, with revocation data embedded.
+  - Certify Document, Add Validation Data, and Seal with Timestamp.
+  - Anything that rewrites a signed PDF asks first, since it removes the signatures.
+
+- **v0.15.1–0.15.2 sidebar resize and the first Windows build (PRs #17–#20):**
+  - 0.15.1: the sidebar resizes by dragging its edge, with the width remembered.
+  - Windows: tabs in the title bar and the menu in a dropdown, a local cross-build script, and a Windows CI job.
+  - The release is split into build and publish jobs that run in parallel, builds the Windows installer, and attaches it. Downloads have plain names, and the website offers Windows.
 
 ## Next, in order
 
-1. **Markup: shapes, clouds, lines, arrows, strikethrough, underline, stamps.** Plan in `docs/markup-plan.md`. Ported from Adam's constructionlab drawing markup. Clumsy owns these annotations like sticky notes and writes them into the file with appearance streams, so they look the same everywhere. Spike `noView` first.
-2. **Form calculations.** pdf.js `enableScripting` in its sandbox. Check against the CSP (`wasm-unsafe-eval`, no `unsafe-eval`). Script-set values won't trip the typed-input detection `routeStep` relies on, so undo routing needs a look. Has to play nice with 0.10's Reset and Flatten.
-3. **Compress.** Downsample big images to get under email size limits.
-4. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
-5. **OCR with Apple's Vision framework.** Local, free, from Rust.
-6. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
+1. **Form calculations.** pdf.js `enableScripting` in its sandbox. Check against the CSP (`wasm-unsafe-eval`, no `unsafe-eval`). Script-set values won't trip the typed-input detection `routeStep` relies on, so undo routing needs a look. Has to play nice with 0.10's Reset and Flatten.
+2. **Compress.** Downsample big images to get under email size limits.
+3. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
+4. **OCR with Apple's Vision framework.** Local, free, from Rust.
+5. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
 
-Cleanup, whenever: split `styles.css` (2,204 lines), prune the merged remote branches. Not blocking anything.
+Cleanup, whenever: split `styles.css` (2,454 lines), prune the merged remote branches. Not blocking anything.
 
 ## Hardening pass (done)
 
@@ -111,7 +129,7 @@ Done:
 - **Rust IPC surface, webview security, and pdf.js coupling reviews:** merged to `main` after 0.10.8. pdf.js pinned exactly, with a contract test and `docs/pdfjs-upgrade.md`.
 
 Leftovers, not blocking:
-- **Housekeeping:** split `styles.css` (2,204 lines); prune the merged remote branches (`changelog-versioning`, `docs-new-features`, `feature/organize-pages`, `form-tools`, `images-in-and-out`, `page-labels-editor`, `pdfjs-parity-1`, `pdfjs-parity-fixes`, `vscode-shortcuts`) after confirming each is merged.
+- **Housekeeping:** split `styles.css` (2,454 lines); prune the remote branches. Git shows `code-review-fixes`, `markup`, `password-protect`, `print-phase-2`, `print-plan`, `split-release`, `windows-download`, and `windows-titlebar` as merged into `main`. `changelog-versioning`, `docs-new-features`, `feature/organize-pages`, `form-tools`, `images-in-and-out`, `page-labels-editor`, `pdfjs-parity-1`, `pdfjs-parity-fixes`, and `vscode-shortcuts` shipped but aren't ancestors of `main`, so confirm each before deleting. `fix/review-safety` isn't merged.
 - **Performance leads:** comparing two 1,200-page files holds about 1.2 GB in WebKit, mostly the text of every page. Every command on text-1200 used to block the main thread for about 95 ms; page edits are fixed by the worker, so check whether Undo and the palette still do.
 
 ## pdf.js parity
@@ -156,6 +174,9 @@ From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
 - Closing a tab mid-drawing logs one harmless unhandled rejection from pdf.js.
 - Picking any editing tool on a file with existing markup marks it edited, because pdf.js turns that markup into editors.
 - Restart sessions: edits made after a window answers but before the last one does aren't kept, and a crash before the windows finish restoring loses the session.
-- `styles.css` (2,204 lines) is over the 500-line rule.
+- `styles.css` (2,454 lines) is over the 500-line rule.
+- Comments on shapes, underlines, and strikeouts from other apps don't show a popup in Clumsy. They stay in the file (phase 2 of `docs/markup-plan.md`).
+- Unsaved shapes, stamps, and sticky notes don't appear in thumbnails or the Document Map until saved.
+- Digital signing is macOS-only, and encrypted files can't be signed.
 - Quick page edits on a 1,200-page file log "Transport destroyed" for pages pdf.js hadn't set up yet. pdf.js's own logging; the new version loads fine.
 - Clumsy requires macOS 15.4 or later.
