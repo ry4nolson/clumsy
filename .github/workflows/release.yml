@@ -244,13 +244,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$DIST_DIR"
-          cp src-tauri/target/release/bundle/nsis/*-setup.exe "$DIST_DIR/Clumsy-setup.exe"
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "$DIST_DIR/Clumsy-Windows-Installer.exe"
 
       - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
           name: release-windows
-          path: ${{ env.DIST_DIR }}/Clumsy-setup.exe
+          path: ${{ env.DIST_DIR }}/Clumsy-Windows-Installer.exe
           retention-days: 7
           if-no-files-found: error
 
@@ -324,7 +324,7 @@ jobs:
           cp -R "$RUNNER_TEMP/release-metadata/metadata/." .
           cp "$RUNNER_TEMP/release-metadata/changelog_notes.md" /tmp/changelog_notes.md
           mkdir -p "$DIST_DIR" "$RUNNER_TEMP/app"
-          cp "$STAGE/Clumsy.zip" "$DIST_DIR/Clumsy.zip"
+          cp "$STAGE/Clumsy.zip" "$DIST_DIR/Clumsy-MacOS-Universal.zip"
           ditto -x -k "$STAGE/Clumsy.zip" "$RUNNER_TEMP/app"
           APP_PATH="$RUNNER_TEMP/app/Clumsy.app"
           if [ "$CODESIGN_IDENTITY" != "-" ]; then
@@ -347,7 +347,7 @@ jobs:
           APPLE_TEAM_ID: M3C8F32WA5
         run: |
           echo "==> Submitting zip for notarization..."
-          xcrun notarytool submit "$DIST_DIR/Clumsy.zip" \
+          xcrun notarytool submit "$DIST_DIR/Clumsy-MacOS-Universal.zip" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
@@ -366,8 +366,8 @@ jobs:
           done
 
           echo "==> Re-creating zip with stapled ticket..."
-          rm -f "$DIST_DIR/Clumsy.zip"
-          ditto -c -k --keepParent "$APP_PATH" "$DIST_DIR/Clumsy.zip"
+          rm -f "$DIST_DIR/Clumsy-MacOS-Universal.zip"
+          ditto -c -k --keepParent "$APP_PATH" "$DIST_DIR/Clumsy-MacOS-Universal.zip"
 
       - name: Create signed update archive
         if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
@@ -387,7 +387,7 @@ jobs:
       - name: Create DMG
         run: |
           brew install create-dmg
-          ./scripts/create-dmg.sh "$APP_PATH" "$DIST_DIR/Clumsy.dmg"
+          ./scripts/create-dmg.sh "$APP_PATH" "$DIST_DIR/Clumsy-MacOS-Universal.dmg"
 
       - name: Sign and notarize DMG
         if: env.CODESIGN_IDENTITY != '' && env.CODESIGN_IDENTITY != '-'
@@ -396,10 +396,10 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: M3C8F32WA5
         run: |
-          codesign --force --sign "$CODESIGN_IDENTITY" "$DIST_DIR/Clumsy.dmg"
+          codesign --force --sign "$CODESIGN_IDENTITY" "$DIST_DIR/Clumsy-MacOS-Universal.dmg"
 
           echo "==> Submitting DMG for notarization..."
-          xcrun notarytool submit "$DIST_DIR/Clumsy.dmg" \
+          xcrun notarytool submit "$DIST_DIR/Clumsy-MacOS-Universal.dmg" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
@@ -407,7 +407,7 @@ jobs:
 
           echo "==> Stapling notarization ticket to DMG..."
           for attempt in 1 2 3; do
-            if xcrun stapler staple "$DIST_DIR/Clumsy.dmg"; then
+            if xcrun stapler staple "$DIST_DIR/Clumsy-MacOS-Universal.dmg"; then
               break
             fi
             if [ "$attempt" = 3 ]; then
@@ -422,8 +422,8 @@ jobs:
         with:
           name: Clumsy
           path: |
-            ${{ env.DIST_DIR }}/Clumsy.zip
-            ${{ env.DIST_DIR }}/Clumsy.dmg
+            ${{ env.DIST_DIR }}/Clumsy-MacOS-Universal.zip
+            ${{ env.DIST_DIR }}/Clumsy-MacOS-Universal.dmg
             ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
 
       - name: Write release notes
@@ -484,10 +484,10 @@ jobs:
           name: Clumsy v${{ env.VERSION }}
           target_commitish: ${{ env.RELEASE_SHA }}
           files: |
-            ${{ env.DIST_DIR }}/Clumsy.zip
-            ${{ env.DIST_DIR }}/Clumsy.dmg
+            ${{ env.DIST_DIR }}/Clumsy-MacOS-Universal.zip
+            ${{ env.DIST_DIR }}/Clumsy-MacOS-Universal.dmg
             ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
-            ${{ env.DIST_DIR }}/Clumsy-setup.exe
+            ${{ env.DIST_DIR }}/Clumsy-Windows-Installer.exe
             ${{ env.DIST_DIR }}/latest.json
           body_path: /tmp/release_notes.md
         env:

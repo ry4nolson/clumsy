@@ -10,8 +10,13 @@ NODE_VERSION = "22"
 command = "react-router dev"
 
 [[redirects]]
+from = "/download/windows"
+to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy-Windows-Installer.exe"
+status = 302
+
+[[redirects]]
 from = "/download"
-to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy.dmg"
+to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy-MacOS-Universal.dmg"
 status = 302
 
 [[headers]]

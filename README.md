@@ -57,7 +57,12 @@ Clumsy is a small, fast PDF (and Markdown) viewer. It opens PDFs in tabs and let
 
 ## Download
 
-Grab `Clumsy.dmg` from the [latest release](https://github.com/ry4nolson/clumsy/releases/latest). Builds are currently for macOS 15.4 or later: universal (Apple Silicon and Intel), signed, and notarized. Windows and Linux builds are planned. After that, Clumsy updates itself: it offers each new version and installs it in place.
+Grab a build from the [latest release](https://github.com/ry4nolson/clumsy/releases/latest):
+
+- **Mac:** `Clumsy-MacOS-Universal.dmg`, for macOS 15.4 or later on Apple Silicon and Intel, signed and notarized. After that, Clumsy updates itself: it offers each new version and installs it in place.
+- **Windows:** `Clumsy-Windows-Installer.exe`, for Windows 10 and 11. It isn't code-signed yet, so Windows warns before running it (More info, then Run anyway), and it doesn't update itself yet. Printing and digital signatures are Mac-only for now.
+
+Linux builds are planned.
 
 ## Development
 

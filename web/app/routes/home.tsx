@@ -6,7 +6,7 @@ import { SignatureSpotlight } from "~/components/SignatureSpotlight";
 import { ThemeSlider } from "~/components/ThemeSlider";
 import { SCREENS, type ScreenId } from "~/lib/content";
 import { loadFeatures } from "~/lib/features.server";
-import { CHECKOUT, DOWNLOAD, GITHUB, SUPPORT_PRICE } from "~/lib/links";
+import { CHECKOUT, DOWNLOAD, DOWNLOAD_WINDOWS, GITHUB, SUPPORT_PRICE } from "~/lib/links";
 import { CACHE_HEADERS } from "~/lib/remote.server";
 import { useVersion } from "~/lib/useVersion";
 import { pageMeta } from "~/lib/meta";
@@ -18,7 +18,7 @@ export function loader() {
 export const headers: Route.HeadersFunction = () => CACHE_HEADERS;
 
 export function meta(_args: Route.MetaArgs) {
-  return pageMeta("Clumsy · A small, fast PDF (and Markdown) viewer for Mac");
+  return pageMeta("Clumsy · A small, fast PDF (and Markdown) viewer for Mac and Windows");
 }
 
 function Showcase() {
@@ -113,11 +113,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="hero__actions">
             <SupportButton />
             <a className="btn btn--secondary" href={DOWNLOAD}>
-              Free download
+              Download for Mac
+            </a>
+            <a className="btn btn--secondary" href={DOWNLOAD_WINDOWS}>
+              Download for Windows
             </a>
           </div>
           <p className="hero__note">
-            Free and open source · v{version} · Apple Silicon and Intel
+            Free and open source · v{version} · macOS and Windows
           </p>
           <p className="hero__note hero__note--tight">
             The {SUPPORT_PRICE} is optional. Same app either way.
@@ -231,9 +234,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 Get Clumsy {version}
               </h2>
               <p className="section__body">
-                One universal build for Apple Silicon and Intel, signed and
-                notarized. After that, Clumsy updates itself: it offers each new
-                version and installs it in place. Windows and Linux are planned.
+                On Mac, one universal build for Apple Silicon and Intel, signed
+                and notarized. After that, Clumsy updates itself: it offers each
+                new version and installs it in place.
+              </p>
+              <p className="section__body">
+                On Windows, an installer for Windows 10 and 11. It&apos;s new
+                and not code-signed yet, so Windows warns before running it:
+                choose More info, then Run anyway. It doesn&apos;t update itself
+                yet, and printing and digital signatures are Mac-only for now.
+                Linux is planned.
               </p>
               <p className="section__body">
                 Clumsy is free and always will be, and the source is on GitHub.
@@ -250,7 +260,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <div className="download__actions">
               <SupportButton />
               <a className="btn btn--secondary" href={DOWNLOAD}>
-                Free download
+                Download for Mac
+              </a>
+              <a className="btn btn--secondary" href={DOWNLOAD_WINDOWS}>
+                Download for Windows
               </a>
               <a className="btn btn--ghost" href={`${GITHUB}/releases/latest`}>
                 All release files
