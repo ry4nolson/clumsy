@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-14, at v0.16.2.
+Last updated 2026-11-14, at v0.16.2 (measurement added as next).
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -127,9 +127,10 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
 
 ## Next, in order
 
-1. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
-2. **OCR with Apple's Vision framework.** Local, free, from Rust.
-3. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
+1. **Measurement.** Plan in `docs/measurement-plan.md`. Set a page's scale (presets or calibrate from a known distance), then measure length, path, and area as real PDF measurement annotations (`/IT` dimension intents, `/Measure`, `/VP`), so Bluebeam and Acrobat read the values. Includes a Measurements sidebar with totals and CSV export. Asked for by FSG's construction side, and it's plain TypeScript, so it works on Windows too. Spike against a real Bluebeam takeoff first.
+2. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
+3. **OCR with Apple's Vision framework.** Local, free, from Rust. Moved behind measurement on 2026-11-14 because it would be Mac-only; worth checking for a cross-platform engine before building it.
+4. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
 
 Cleanup, whenever: split `styles.css` (2,454 lines), prune the merged remote branches. Not blocking anything.
 
@@ -154,7 +155,7 @@ Goal: every feature pdf.js 6.4.299 offers is reachable in Clumsy.
 Done: everything from the old "viewer flags and wiring" list (0.4.1), comments, signatures (moved onto pdf.js's `SignatureEditor`), alt text, and the undo bar (0.9.0), and print (0.11.0, through PDFKit rather than pdf.js's print service). `enableDetailCanvas` stays off on purpose; AGENTS.md explains the image-restore conflict.
 
 Left:
-- **Document Properties, Attachments, Layers, XFA.** Next item 1.
+- **Document Properties, Attachments, Layers, XFA.** Next item 2.
 - **Presentation mode.** Full screen, one page at a time, arrow keys and click to advance.
 - **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
