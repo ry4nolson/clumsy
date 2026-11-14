@@ -5,13 +5,13 @@ describe("checkout", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("asks Stripe for one of the configured price, returning to this site", () => {
-    const form = checkoutForm("https://clumsyapp.netlify.app", "price_123");
+    const form = checkoutForm("https://getclumsy.app", "price_123");
     expect(Object.fromEntries(form)).toEqual({
       mode: "payment",
       "line_items[0][price]": "price_123",
       "line_items[0][quantity]": "1",
-      success_url: "https://clumsyapp.netlify.app/thanks",
-      cancel_url: "https://clumsyapp.netlify.app/#download",
+      success_url: "https://getclumsy.app/thanks",
+      cancel_url: "https://getclumsy.app/#download",
     });
   });
 
