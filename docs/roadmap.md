@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-13, at v0.15.2.
+Last updated 2026-11-14, at v0.16.2.
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -108,9 +108,22 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
   - Windows: tabs in the title bar and the menu in a dropdown, a local cross-build script, and a Windows CI job.
   - The release is split into build and publish jobs that run in parallel, builds the Windows installer, and attaches it. Downloads have plain names, and the website offers Windows.
 
-Unreleased: Compress. File > Compress… shrinks a PDF's images (JPEG and lossless, gray and RGB) to 200, 150, or 96 dpi at the size each is actually drawn, shows the size before and after, and applies as one undoable page edit.
+- **v0.16.0 form calculations (PR #21):**
+  - A PDF's own scripts (totals, number and date formats, validation) run in pdf.js's QuickJS sandbox, one worker per document, through Clumsy's own scripting manager scoped to each viewer. A watchdog turns off a script that hangs.
+  - Script Print and Save As (only after the user has clicked or typed in that viewer), yes/no questions through the `formask` protocol, will-save and will-print actions, and View > Run Form Scripts to turn it all off.
+  - Windows fixes: no browser menu on the tab bar and toolbar, and saving to shared or network drives that can't flush.
+- **v0.16.1 Chrome hint:** after Clumsy becomes the default PDF app, it points out that Chrome still opens PDFs itself and offers Open Chrome Settings (`chrome://settings/content/pdfDocuments`).
+- **v0.16.2 Compress (PR #22):**
+  - File > Compress… shrinks a PDF's images (JPEG and lossless, gray and RGB) to 200, 150, or 96 dpi (High quality, Balanced, Smallest) at the size each is actually drawn, shows the size before and after, and applies as one undoable page edit.
+  - PR #23 added `scripts/check-changelog.mjs`: CI and the release fail when a released changelog section gains entries.
 
-Unreleased: form calculations. A PDF's own scripts (totals, number and date formats, validation) run in pdf.js's QuickJS sandbox, one worker per document, with a watchdog that turns off a script that hangs. Script print and Save As, yes/no questions, will-save and will-print actions, and View > Run Form Scripts.
+## Website and distribution
+
+- The site is https://getclumsy.app (`web/`). README, docs, and the repo homepage point there.
+- The site's tour is the infomercial video (`docs/media/clumsy-infomercial.mp4`), updated for digital signatures, form math, Windows, and Compress.
+- Optional $5 support checkout through Stripe. FSG is credited on the site and in About.
+- `/download` and `/download/windows` redirect to the latest release's `Clumsy-MacOS-Universal.dmg` (signed and notarized) and `Clumsy-Windows-Installer.exe` (unsigned, no in-app updates).
+- Install snag seen 2026-11-14: Chrome held a fresh DMG download as `Unconfirmed NNNNNN.crdownload` behind its "not commonly downloaded" warning, and double-clicking that file in Finder fails. The fix is Keep in chrome://downloads. It's download reputation for a new domain and file, and should fade as downloads grow. Worth a line on the download page if it keeps coming up.
 
 ## Next, in order
 
@@ -141,7 +154,7 @@ Goal: every feature pdf.js 6.4.299 offers is reachable in Clumsy.
 Done: everything from the old "viewer flags and wiring" list (0.4.1), comments, signatures (moved onto pdf.js's `SignatureEditor`), alt text, and the undo bar (0.9.0), and print (0.11.0, through PDFKit rather than pdf.js's print service). `enableDetailCanvas` stays off on purpose; AGENTS.md explains the image-restore conflict.
 
 Left:
-- **Document Properties, Attachments, Layers, XFA.** Next item 2.
+- **Document Properties, Attachments, Layers, XFA.** Next item 1.
 - **Presentation mode.** Full screen, one page at a time, arrow keys and click to advance.
 - **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
