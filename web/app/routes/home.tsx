@@ -6,7 +6,7 @@ import { SignatureSpotlight } from "~/components/SignatureSpotlight";
 import { ThemeSlider } from "~/components/ThemeSlider";
 import { SCREENS, type ScreenId } from "~/lib/content";
 import { loadFeatures } from "~/lib/features.server";
-import { CHECKOUT, DOWNLOAD, DOWNLOAD_WINDOWS, GITHUB, SUPPORT_PRICE } from "~/lib/links";
+import { CHECKOUT, GITHUB, INSTALL, INSTALL_WINDOWS, SUPPORT_PRICE } from "~/lib/links";
 import { CACHE_HEADERS } from "~/lib/remote.server";
 import { useVersion } from "~/lib/useVersion";
 import { pageMeta } from "~/lib/meta";
@@ -112,10 +112,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </p>
           <div className="hero__actions">
             <SupportButton />
-            <a className="btn btn--secondary" href={DOWNLOAD}>
+            <a className="btn btn--secondary" href={INSTALL}>
               Download for Mac
             </a>
-            <a className="btn btn--secondary" href={DOWNLOAD_WINDOWS}>
+            <a className="btn btn--secondary" href={INSTALL_WINDOWS}>
               Download for Windows
             </a>
           </div>
@@ -259,10 +259,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
             <div className="download__actions">
               <SupportButton />
-              <a className="btn btn--secondary" href={DOWNLOAD}>
+              <a className="btn btn--secondary" href={INSTALL}>
                 Download for Mac
               </a>
-              <a className="btn btn--secondary" href={DOWNLOAD_WINDOWS}>
+              <a className="btn btn--secondary" href={INSTALL_WINDOWS}>
                 Download for Windows
               </a>
               <a className="btn btn--ghost" href={`${GITHUB}/releases/latest`}>

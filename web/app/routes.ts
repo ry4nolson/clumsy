@@ -5,4 +5,5 @@ export default [
   route("changelog", "routes/changelog.tsx"),
   route("checkout", "routes/checkout.ts"),
   route("thanks", "routes/thanks.tsx"),
+  route("install/:platform?", "routes/install.tsx"),
 ] satisfies RouteConfig;

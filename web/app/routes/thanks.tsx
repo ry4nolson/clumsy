@@ -1,5 +1,5 @@
 import type { Route } from "./+types/thanks";
-import { DOWNLOAD, DOWNLOAD_WINDOWS, GITHUB } from "~/lib/links";
+import { GITHUB, INSTALL, INSTALL_WINDOWS } from "~/lib/links";
 import { pageMeta } from "~/lib/meta";
 
 export function meta(_args: Route.MetaArgs) {
@@ -17,10 +17,10 @@ export default function Thanks() {
           Clumsy free, open source, and moving. Stripe will email your receipt.
         </p>
         <div className="thanks__actions">
-          <a className="btn btn--primary" href={DOWNLOAD}>
+          <a className="btn btn--primary" href={INSTALL}>
             Download for Mac
           </a>
-          <a className="btn btn--primary" href={DOWNLOAD_WINDOWS}>
+          <a className="btn btn--primary" href={INSTALL_WINDOWS}>
             Download for Windows
           </a>
           <a className="btn btn--secondary" href={GITHUB}>
