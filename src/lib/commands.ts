@@ -14,6 +14,7 @@ export type CommandId =
   | "exportSelectedPagesAsImages"
   | "print"
   | "printSelectedPages"
+  | "compressPdf"
   | "setPassword"
   | "removePassword"
   | "compareWithFile"
@@ -171,6 +172,7 @@ export const commands: Command[] = [
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
   { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true },
+  { id: "compressPdf", label: "Compress…", menu: "File", combos: [], needsDocument: true },
   { id: "setPassword", label: "Set Password…", menu: "File", combos: [], needsDocument: true },
   { id: "removePassword", label: "Remove Password", menu: "File", combos: [], needsDocument: true, needsProtection: true },
   { id: "print", label: "Print…", menu: "File", combos: ["mod+p"], needsDocument: true, markdown: true, needsPrinting: true },

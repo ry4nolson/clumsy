@@ -1,3 +1,4 @@
+import type { CompressProgress, CompressSettings } from "./compressPlan";
 import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
 import { PageEditError, type PageEdit } from "./pageEditPlan";
@@ -13,6 +14,7 @@ export type PageEditJob =
   | { op: "readMarkup"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
   | { op: "combine"; files: Uint8Array[] }
+  | { op: "compress"; bytes: Uint8Array; settings: CompressSettings; password?: string }
   | { op: "scanSignatures"; bytes: Uint8Array; password?: string }
   | { op: "prepareSignature"; bytes: Uint8Array; options: PrepareSignatureOptions }
   | { op: "appendDss"; bytes: Uint8Array; material: ValidationMaterial }
@@ -33,7 +35,7 @@ export type PageEditResult = {
 
 export type PageEditFailure = { message: string; pageEdit: boolean };
 
-export type PageEditResponse = { result: PageEditResult } | { failure: PageEditFailure };
+export type PageEditResponse = { result: PageEditResult } | { failure: PageEditFailure } | { progress: CompressProgress };
 
 export const buffersOf = (arrays: Array<Uint8Array | undefined>) => [
   ...new Set(arrays.flatMap((array) => (array?.buffer instanceof ArrayBuffer ? [array.buffer] : []))),
@@ -44,6 +46,7 @@ export function jobBuffers(job: PageEditJob) {
     case "edit":
       return buffersOf([job.bytes, job.edit.kind === "insert" ? job.edit.data : undefined]);
     case "extract":
+    case "compress":
     case "decrypt":
     case "encrypt":
     case "annotations":

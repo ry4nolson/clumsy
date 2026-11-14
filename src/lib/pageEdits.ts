@@ -1,4 +1,6 @@
 import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
+import type { CompressProgress, CompressSettings } from "./compressPlan";
+import { canvasCodec } from "./imageCodec";
 import { failureOf, resultBuffers, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
@@ -6,6 +8,7 @@ import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSo
 import { readMarkup } from "./markupPdf";
 import { writeAnnotationsReporting } from "./notesPdf";
 import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
+import { compressImages } from "./pdfCompress";
 import { flattenForm } from "./pdfForm";
 import { scanSignatures } from "./pdfSignatures";
 import { appendDss, prepareDocTimestamp, prepareSignature } from "./pdfSignWrite";
@@ -100,6 +103,12 @@ export async function decryptPdf(bytes: Uint8Array, password = "") {
   return save(await load(bytes, password));
 }
 
+export async function compressPdf(bytes: Uint8Array, settings: CompressSettings, password?: string, onProgress?: (progress: CompressProgress) => void, codec = canvasCodec) {
+  const doc = await load(bytes, password);
+  await compressImages(doc, settings, codec, onProgress);
+  return save(doc);
+}
+
 export async function encryptPdf(bytes: Uint8Array, password: string) {
   const doc = await load(bytes, password);
   collectGarbage(doc);
@@ -137,7 +146,7 @@ export async function combinePdfs(files: Uint8Array[]) {
   return save(doc);
 }
 
-export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> {
+export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: CompressProgress) => void): Promise<PageEditResult> {
   switch (job.op) {
     case "edit": {
       const inserted = job.edit.kind === "insert" ? await pageCount(job.edit.data) : 0;
@@ -146,6 +155,8 @@ export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> 
     }
     case "extract":
       return { bytes: await extractPages(job.bytes, job.pages, job.password) };
+    case "compress":
+      return { bytes: await compressPdf(job.bytes, job.settings, job.password, onProgress) };
     case "decrypt":
       return { bytes: await decryptPdf(job.bytes, job.password) };
     case "encrypt":
@@ -173,9 +184,9 @@ export async function runPageEditJob(job: PageEditJob): Promise<PageEditResult> 
   }
 }
 
-export async function answerPageEditJob(job: PageEditJob): Promise<[PageEditResponse, ArrayBuffer[]]> {
+export async function answerPageEditJob(job: PageEditJob, onProgress?: (progress: CompressProgress) => void): Promise<[PageEditResponse, ArrayBuffer[]]> {
   try {
-    const result = await runPageEditJob(job);
+    const result = await runPageEditJob(job, onProgress);
     return [{ result }, resultBuffers(result)];
   } catch (error) {
     return [{ failure: failureOf(error) }, []];

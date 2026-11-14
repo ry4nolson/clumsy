@@ -1,3 +1,4 @@
+import type { CompressProgress, CompressSettings } from "./compressPlan";
 import { errorFrom, jobBuffers, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
 import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
@@ -6,14 +7,23 @@ import type { PrepareSignatureOptions, PreparedSignature, SignatureScan, Validat
 
 const STOPPED = "The page edit stopped unexpectedly.";
 
-export function runInWorker(spawn: () => Worker, job: PageEditJob) {
+type RunOptions = { onProgress?: (progress: CompressProgress) => void; signal?: AbortSignal };
+
+export class WorkerStoppedError extends Error {}
+
+export function runInWorker(spawn: () => Worker, job: PageEditJob, { onProgress, signal }: RunOptions = {}) {
   return new Promise<PageEditResult>((resolve, reject) => {
     const worker = spawn();
+    signal?.addEventListener("abort", () => fail(new WorkerStoppedError()), { once: true });
     const fail = (error: Error) => {
       worker.terminate();
       reject(error);
     };
     worker.onmessage = (event: MessageEvent<PageEditResponse>) => {
+      if ("progress" in event.data) {
+        onProgress?.(event.data.progress);
+        return;
+      }
       worker.terminate();
       if ("result" in event.data) {
         resolve(event.data.result);
@@ -60,6 +70,9 @@ export async function writeAnnotationsOffThread(bytes: Uint8Array, notes: Sticky
 export const readMarkupOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "readMarkup", bytes, password })).markup ?? [];
 
 export const passwordRoleOffThread = async (bytes: Uint8Array, password: string) => (await runInWorker(spawn, { op: "role", bytes, password })).role ?? null;
+
+export const compressPdfOffThread = async (bytes: Uint8Array, settings: CompressSettings, password: string | undefined, options: RunOptions) =>
+  (await runInWorker(spawn, { op: "compress", bytes, settings, password }, options)).bytes;
 
 export const combinePdfsOffThread = async (files: Uint8Array[]) => (await runInWorker(spawn, { op: "combine", files })).bytes;
 

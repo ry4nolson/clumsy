@@ -19,6 +19,7 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - Saving to a shared or network drive on Windows that reported "A device attached to the system is not functioning"
 
 ### Added
+- **Compress.** File > Compress makes a PDF smaller by shrinking its images, for files that are too big to email. Pick High quality, Balanced, or Smallest and see the size before and after before anything changes. Text and line drawings stay sharp, it can be undone, and nothing is written until you save
 - **Form calculations.** Forms that add up totals, format numbers, money, and dates, or check what you type now do so as you fill them in. A form's scripts run on their own, away from your files and the rest of the app, and a script that gets stuck is turned off instead of freezing the window. A form's own Print and Save buttons work, its yes or no questions are asked, and anything it does just before saving or printing happens. View > Run Form Scripts turns all of this off
 
 ## [0.15.1] - 2026-11-13
