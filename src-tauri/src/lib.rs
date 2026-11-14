@@ -150,6 +150,13 @@ async fn pick_images(app: AppHandle, window: Window, include_pdfs: bool) -> Vec<
     picked.into_iter().filter_map(|path| chosen_to_read(&app, path)).collect()
 }
 
+#[cfg(mobile)]
+#[tauri::command]
+async fn pick_folder() -> Option<String> {
+    None
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 async fn pick_folder(app: AppHandle, window: Window) -> Option<String> {
     let folder = file_dialog(&window).set_can_create_directories(true).blocking_pick_folder()?.into_path().ok()?;
@@ -376,10 +383,10 @@ fn take_pending_files(state: tauri::State<'_, PendingFiles>) -> Vec<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_opener::init());
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    let app = builder
         .manage(PendingFiles::default())
         .manage(RecentFiles::default())
         .manage(FocusTracker::default())

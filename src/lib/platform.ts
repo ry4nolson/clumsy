@@ -40,6 +40,10 @@ export const NOT_WRITABLE = "not-writable";
 
 export const isDesktop = isTauri();
 
+export const isMobile = /Android|iPhone|iPad/.test(navigator.userAgent);
+
+const picksInBrowser = !isDesktop || isMobile;
+
 export function fileNameFromPath(path: string) {
   return path.split(/[\\/]/).pop() || path;
 }
@@ -126,7 +130,7 @@ async function pickFileInBrowser() {
 }
 
 export async function pickPdf(): Promise<PdfSource | null> {
-  if (!isDesktop) {
+  if (picksInBrowser) {
     const file = await pickFileInBrowser();
     return file ? readPdfFromFile(file) : null;
   }
@@ -135,7 +139,7 @@ export async function pickPdf(): Promise<PdfSource | null> {
 }
 
 export async function pickDocument(): Promise<DocumentSource | null> {
-  if (!isDesktop) {
+  if (picksInBrowser) {
     const file = (await pickFilesInBrowser("application/pdf,.pdf,text/markdown,.md,.markdown", false))[0];
     return !file ? null : isMarkdownName(file.name) ? readMarkdownFromFile(file) : readPdfFromFile(file);
   }
@@ -144,7 +148,7 @@ export async function pickDocument(): Promise<DocumentSource | null> {
 }
 
 export async function pickPdfs(): Promise<Array<Promise<PdfSource>>> {
-  if (!isDesktop) {
+  if (picksInBrowser) {
     return (await pickFilesInBrowser("application/pdf,.pdf", true)).map(readPdfFromFile);
   }
   return (await invoke<string[]>("pick_pdfs")).map(readPdfFromPath);
@@ -284,6 +288,8 @@ export async function openExternal(url: string) {
 }
 
 export const isMac = navigator.userAgent.includes("Mac");
+
+export const hasAppMenu = isDesktop && !isMobile;
 
 export const hasOverlayTitlebar = isDesktop && isMac;
 
