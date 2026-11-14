@@ -896,6 +896,74 @@ pre {
   margin-top: 2rem;
 }
 
+.install {
+  padding-top: calc(var(--nav-h) + 4rem);
+}
+
+.install__inner {
+  max-width: 44rem;
+}
+
+.install__icon {
+  margin-bottom: 1.5rem;
+}
+
+.install__steps {
+  display: grid;
+  gap: 1rem;
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.install__step {
+  position: relative;
+  padding: 1.25rem 1.5rem 1.25rem 4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  counter-increment: step;
+}
+
+.install__step::before {
+  content: counter(step);
+  position: absolute;
+  top: 1.2rem;
+  left: 1.25rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--gradient);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.install__step-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.install__step-body {
+  margin: 0;
+  color: var(--ink-muted);
+  line-height: 1.55;
+}
+
+.install__more {
+  margin-top: 2rem;
+  color: var(--ink-faint);
+}
+
+.install__more a {
+  color: var(--ink-muted);
+  text-decoration-color: var(--coral);
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 760px) {
   .download {
     grid-template-columns: 1fr;
