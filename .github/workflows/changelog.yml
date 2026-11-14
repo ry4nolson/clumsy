@@ -1,0 +1,31 @@
+name: Changelog
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'CHANGELOG.md'
+      - 'scripts/check-changelog.mjs'
+      - '.github/workflows/changelog.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  entries:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the merge result
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check new entries are under Unreleased
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          git show FETCH_HEAD:CHANGELOG.md > "$RUNNER_TEMP/base-changelog.md"
+          node scripts/check-changelog.mjs "$RUNNER_TEMP/base-changelog.md"
