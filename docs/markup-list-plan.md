@@ -30,7 +30,7 @@ Review status uses the PDF spec's own mechanism, which Acrobat and Bluebeam both
 
 ## Author
 
-Rows show `/T` when an annotation has it. Clumsy doesn't write `/T` today, so its own markup shows no author. Add a "Your name" field (`clumsy.authorName`) at the top of the markup list, empty by default. When set, new Clumsy markup, sticky notes, and state replies get `/T`, and pdf.js's editors get it through their own author parameter if 6.4.299 has one (spike). Decision 2.
+Rows show `/T` when an annotation has it. Clumsy doesn't write `/T` today, so its own markup shows no author. Add a "Your name" field (`clumsy.authorName`) at the top of the markup list, empty by default. When set, new Clumsy markup, sticky notes, and state replies get `/T`, and pdf.js's editors get it through their own author parameter if 6.4.299 has one (spike).
 
 ## The tab
 
@@ -81,12 +81,12 @@ Rows show `/T` when an annotation has it. Clumsy doesn't write `/T` today, so it
 - annotations-5000: the tab opens and scrolls without freezing the window. Note the times in `docs/perf-baseline.md`.
 - Windows build: the same.
 
-## Decisions for Ryan
+## Decisions (2026-11-14)
 
-1. **Markups tab next to Comments, Comments left alone.** Lean: yes for now. Comments is a mode, and the list is a ledger. Fold Comments in later if they feel redundant.
-2. **Author name is opt-in, empty by default.** Lean: yes. Writing the Mac's full name into files people send out shouldn't happen silently.
-3. **Status through the spec's review state replies,** not a Clumsy-only key. Lean: yes, it's what makes statuses round-trip with Acrobat and Bluebeam.
-4. **The summary PDF waits for phase 2.** Lean: yes, CSV and copy cover the punch list first.
+1. **Markups tab next to Comments, Comments left alone.** Decided: yes for now. Comments is a mode, and the list is a ledger. Fold Comments in later if they feel redundant.
+2. **Author name is opt-in, empty by default.** Decided: yes. Writing the Mac's full name into files people send out shouldn't happen silently.
+3. **Status through the spec's review state replies,** not a Clumsy-only key. Decided: yes, it's what makes statuses round-trip with Acrobat and Bluebeam.
+4. **The summary PDF waits for phase 2.** Decided: yes, CSV and copy cover the punch list first.
 
 ## Done when
 

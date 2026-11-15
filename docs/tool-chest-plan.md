@@ -36,7 +36,7 @@ type SavedTool = {
 ## Using a saved tool
 
 - **Tool Chest sidebar tab**, next to Pages and Outline, always available on a PDF tab. Saved tools by group, each with a swatch drawn by `markupDrawing` so it looks like what it makes. Click arms it. The armed one is highlighted until another tool is picked.
-- **Arming** sets the underlying tool through the paths that already exist (`setMarkupTool`, the stamp tool, the text modes, the measure tools, or pdf.js's editor modes with `switchannotationeditorparams`) with the saved style as a one-time override. It doesn't overwrite `clumsy.markupParams`, so your everyday style survives using a preset. Decision 1.
+- **Arming** sets the underlying tool through the paths that already exist (`setMarkupTool`, the stamp tool, the text modes, the measure tools, or pdf.js's editor modes with `switchannotationeditorparams`) with the saved style as a one-time override. It doesn't overwrite `clumsy.markupParams`, so your everyday style survives using a preset.
 - **Command Palette:** each saved tool appears as "Tool: Drywall", so a big chest is fast from the keyboard. The first nine also get ⌃1 through ⌃9 if those combos are free (check `commands.ts`; ⌘1–⌘8 are tabs).
 - **Right-click tools row:** saved tools can be added to the context menu's palette like built-in tools (`contextTools` accepts `saved:<id>`). The palette's icon is the base tool's SF Symbol, and the name shows as its tooltip.
 
@@ -54,7 +54,7 @@ type SavedTool = {
 
 ## Starter set
 
-A first-run chest so the panel isn't empty: review stamps (Approved, Rejected, For Review), a red revision cloud, a yellow highlight, and once measurement ships, Length and Area in ft-in. Clearing it is one menu item. Decision 2.
+A first-run chest so the panel isn't empty: review stamps (Approved, Rejected, For Review), a red revision cloud, a yellow highlight, and once measurement ships, Length and Area in ft-in. Clearing it is one menu item.
 
 ## Code
 
@@ -90,12 +90,12 @@ A first-run chest so the panel isn't empty: review stamps (Approved, Rejected, F
 - Properties beyond style, like a measurement's trade or a markup's status, once the markup list has status.
 - A team chest kept in a shared folder and re-read on change.
 
-## Decisions for Ryan
+## Decisions (2026-11-14)
 
-1. **Using a saved tool leaves your everyday style alone.** Lean: yes. Otherwise one click on "Drywall" turns every later rectangle blue.
-2. **Ship a starter set.** Lean: yes, small, and easy to clear.
-3. **Sidebar tab rather than a toolbar popover.** Lean: sidebar. A chest grows past what a popover holds, and Bluebeam users expect a panel.
-4. **File extension `.clumsytools`.** Lean: yes, plain JSON inside, so it's diffable and hand-editable.
+1. **Using a saved tool leaves your everyday style alone.** Decided: yes. Otherwise one click on "Drywall" turns every later rectangle blue.
+2. **Ship a starter set.** Decided: yes, small, and easy to clear.
+3. **Sidebar tab rather than a toolbar popover.** Decided: sidebar. A chest grows past what a popover holds, and Bluebeam users expect a panel.
+4. **File extension `.clumsytools`.** Decided: yes, plain JSON inside, so it's diffable and hand-editable.
 
 ## Done when
 
