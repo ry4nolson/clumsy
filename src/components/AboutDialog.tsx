@@ -17,14 +17,15 @@ import { FsgLogo } from "./FsgLogo";
 import { parseChangelog } from "../lib/changelog";
 import type { DefaultAppStatus } from "../lib/defaultApp";
 import { promptForDefaultApp } from "../lib/defaultAppPrompt";
-import { getDefaultAppStatus, openExternal } from "../lib/platform";
+import { deviceLabels } from "../lib/device";
+import { device, getDefaultAppStatus, isMobile, openExternal } from "../lib/platform";
 import type { UpdateInstall } from "../hooks/useUpdateInstall";
 import { appVersion, isInstalling, repoUrl, useUpdateCheck } from "../lib/updates";
 import { ChangelogList } from "./ChangelogList";
 import { LicensesView } from "./LicensesView";
 import { InstallProgress } from "./UpdateDialog";
 
-const platformLabel = navigator.userAgent.includes("Windows") ? "Windows x64" : navigator.userAgent.includes("Mac") ? "macOS Universal" : "Linux";
+const platformLabel = deviceLabels[device];
 
 export type AboutTab = "about" | "changelog" | "licenses";
 
@@ -233,7 +234,7 @@ export function AboutDialog({ request, updateInstall, onRestart, onClose }: Abou
                   <span>{status.message}</span>
                 </>
               )}
-              {status.state !== "checking" && !isInstalling(install) && install.state !== "installed" && (
+              {!isMobile && status.state !== "checking" && !isInstalling(install) && install.state !== "installed" && (
                 <button
                   type="button"
                   className="link-button"

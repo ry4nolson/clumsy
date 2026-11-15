@@ -4,8 +4,9 @@ import { buildComparison, changeRect, otherSide, overlaysFor, type Comparison, t
 import { tokenPage } from "../lib/diffTokens";
 import { diffInWorker } from "../lib/diffWorker";
 import { documentText } from "../lib/pdfText";
+import { downloadPdf } from "../lib/download";
 import { openErrorDetail } from "../lib/openErrors";
-import { downloadPdf, isDesktop, pickPdf, pickSavePath, showError, writePdf, type PdfSource } from "../lib/platform";
+import { isDesktop, pickPdf, pickSavePath, showError, writePdf, type PdfSource } from "../lib/platform";
 import { changeAtLocation, syncLocation } from "../lib/scrollSync";
 import { createPaneId, type DocTab } from "../lib/tabs";
 import { scrollsVertically } from "../lib/viewModes";

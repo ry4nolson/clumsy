@@ -1,4 +1,4 @@
-import { installBodyBytes, installBytesEncoding, installPromiseTry, installRegExpEscape, installUrlParse } from "./webviewPolyfills";
+import { installBodyBytes, installBytesEncoding, installCssRound, installPromiseTry, installRegExpEscape, installUrlParse } from "./webviewPolyfills";
 
 type JoinableIterator = Iterator<unknown> & { join?: (separator?: string) => string };
 
@@ -279,3 +279,4 @@ installRegExpEscape();
 installPromiseTry();
 installUrlParse();
 installBodyBytes();
+installCssRound();

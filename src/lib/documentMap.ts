@@ -1,10 +1,11 @@
+import { startsCompact } from "./drawer";
 export type PageBox = { top: number; left?: number; width: number; height: number };
 export type MapRect = { top: number; left: number; width: number; height: number };
 export type MapArea = { width: number; height: number };
 export type MapLayout = { pages: MapRect[]; width: number; height: number; viewerStops: number[]; mapStops: number[] };
 export type ViewerScroll = { scrollTop: number; clientHeight: number; scrollHeight: number };
 
-export const MAP_MAX_WIDTH = 96;
+export const MAP_MAX_WIDTH = startsCompact ? 52 : 96;
 export const MAP_PADDING = 3;
 export const MAP_GAP = 1;
 export const MIN_PAGE_WIDTH = 18;

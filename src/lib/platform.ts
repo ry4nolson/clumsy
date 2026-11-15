@@ -7,6 +7,8 @@ import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tau
 import { ask, message } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { DefaultAppKind, DefaultAppStatus } from "./defaultApp";
+import { deviceFrom } from "./device";
+import { invokeWithBytes } from "./ipcBytes";
 import { flattenMenu, type DocumentMenuId, type DocumentMenuSpec, type FlatEntry } from "./documentMenu";
 import { isExternalUrl } from "./markdownLinks";
 import type { RecentEntry } from "./recent";
@@ -40,9 +42,17 @@ export const NOT_WRITABLE = "not-writable";
 
 export const isDesktop = isTauri();
 
-export const isMobile = /Android|iPhone|iPad/.test(navigator.userAgent);
+export const device = deviceFrom(navigator.userAgent, navigator.maxTouchPoints);
 
-const picksInBrowser = !isDesktop || isMobile;
+export const isMobile = device === "android" || device === "ios";
+
+const picksInBrowser = !isDesktop;
+
+const usesDocumentProvider = isDesktop && device === "android";
+
+const pickProvided = (markdown: boolean, multiple: boolean) => invoke<string[]>("pick_documents", { markdown, multiple });
+
+const createProvided = (suggestedName: string) => invoke<string | null>("create_document", { suggestedName });
 
 export function fileNameFromPath(path: string) {
   return path.split(/[\\/]/).pop() || path;
@@ -89,20 +99,12 @@ export async function writeMarkdown(path: string, source: Pick<MarkdownSource, "
   if (expectedStamp) {
     headers["x-expected-stamp"] = expectedStamp;
   }
-  return invoke<string>("write_markdown", encodeText(source.text, source.format), { headers });
+  return invokeWithBytes<string>("write_markdown", encodeText(source.text, source.format), headers);
 }
 
 export async function pickMarkdownSavePath(suggestedName: string) {
-  return invoke<string | null>("pick_markdown_save_path", { suggestedName: ensureMarkdownExtension(suggestedName) });
-}
-
-export function downloadMarkdown(name: string, source: Pick<MarkdownSource, "text" | "format">) {
-  const url = URL.createObjectURL(new Blob([encodeText(source.text, source.format) as BlobPart], { type: "text/markdown" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = ensureMarkdownExtension(name);
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const name = ensureMarkdownExtension(suggestedName);
+  return usesDocumentProvider ? createProvided(name) : invoke<string | null>("pick_markdown_save_path", { suggestedName: name });
 }
 
 export async function readLinkedImage(document: string, src: string) {
@@ -134,7 +136,7 @@ export async function pickPdf(): Promise<PdfSource | null> {
     const file = await pickFileInBrowser();
     return file ? readPdfFromFile(file) : null;
   }
-  const selected = await invoke<string | null>("pick_pdf");
+  const selected = usesDocumentProvider ? (await pickProvided(false, false))[0] : await invoke<string | null>("pick_pdf");
   return selected ? readPdfFromPath(selected) : null;
 }
 
@@ -143,7 +145,7 @@ export async function pickDocument(): Promise<DocumentSource | null> {
     const file = (await pickFilesInBrowser("application/pdf,.pdf,text/markdown,.md,.markdown", false))[0];
     return !file ? null : isMarkdownName(file.name) ? readMarkdownFromFile(file) : readPdfFromFile(file);
   }
-  const selected = await invoke<string | null>("pick_document");
+  const selected = usesDocumentProvider ? (await pickProvided(true, false))[0] : await invoke<string | null>("pick_document");
   return selected ? readDocumentFromPath(selected) : null;
 }
 
@@ -151,7 +153,7 @@ export async function pickPdfs(): Promise<Array<Promise<PdfSource>>> {
   if (picksInBrowser) {
     return (await pickFilesInBrowser("application/pdf,.pdf", true)).map(readPdfFromFile);
   }
-  return (await invoke<string[]>("pick_pdfs")).map(readPdfFromPath);
+  return (usesDocumentProvider ? await pickProvided(false, true) : await invoke<string[]>("pick_pdfs")).map(readPdfFromPath);
 }
 
 export type ContextMenuItem = { label: string; enabled?: boolean; run: () => void } | "-";
@@ -213,7 +215,7 @@ export async function writePdf(path: string, data: Uint8Array, expectedStamp?: s
   if (expectedStamp) {
     headers["x-expected-stamp"] = expectedStamp;
   }
-  return invoke<string>("write_pdf", data, { headers });
+  return invokeWithBytes<string>("write_pdf", data, headers);
 }
 
 export type PrintOutcome = "shown" | "unreadable" | "busy";
@@ -227,7 +229,8 @@ export async function printWebview(name: string) {
 }
 
 export async function pickSavePath(suggestedName: string) {
-  return invoke<string | null>("pick_save_path", { suggestedName: ensurePdfExtension(suggestedName) });
+  const name = ensurePdfExtension(suggestedName);
+  return usesDocumentProvider ? createProvided(name) : invoke<string | null>("pick_save_path", { suggestedName: name });
 }
 
 export async function confirmOverwrite(name: string) {
@@ -238,15 +241,6 @@ export async function confirmOverwrite(name: string) {
 export async function confirmOwnerPassword(name: string) {
   const prompt = `“${name}” was opened with its owner password, so Clumsy can't keep the password other people use to open it. After saving, only the password you typed will open this PDF.`;
   return ask(prompt, { title: "Replace the open password?", kind: "warning", okLabel: "Save", cancelLabel: "Cancel" });
-}
-
-export function downloadPdf(name: string, data: Uint8Array) {
-  const url = URL.createObjectURL(new Blob([data as BlobPart], { type: "application/pdf" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = ensurePdfExtension(name);
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export async function confirmDiscard(names: string[]) {
@@ -271,7 +265,7 @@ export const showMessage = (text: string, title: string) => showError(text, titl
 
 export async function setWindowTitle(title: string) {
   document.title = title;
-  if (isDesktop) {
+  if (hasAppMenu) {
     await getCurrentWindow().setTitle(title);
   }
 }
@@ -287,7 +281,9 @@ export async function openExternal(url: string) {
   }
 }
 
-export const isMac = navigator.userAgent.includes("Mac");
+export const isMac = device === "mac";
+
+export const usesMacKeys = isMac || device === "ios";
 
 export const hasAppMenu = isDesktop && !isMobile;
 
@@ -325,7 +321,7 @@ export async function showCertificate(fingerprintOrDer: string | Uint8Array) {
 }
 
 export async function onFullscreenChange(handler: (fullscreen: boolean) => void) {
-  if (!isDesktop) {
+  if (!hasAppMenu) {
     return () => {};
   }
   const window = getCurrentWindow();
@@ -482,13 +478,13 @@ export async function onFileDrop(handler: (files: DroppedFile[], point: DropPoin
 }
 
 export async function closeWindow() {
-  if (isDesktop) {
+  if (hasAppMenu) {
     await getCurrentWindow().close();
   }
 }
 
 export async function onCloseRequested(isDirty: () => boolean, documentNames: () => string[]) {
-  if (!isDesktop) {
+  if (!hasAppMenu) {
     const handler = (event: BeforeUnloadEvent) => {
       if (isDirty()) {
         event.preventDefault();

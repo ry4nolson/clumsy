@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Code, FolderOpen, Minus, Moon, PanelLeft, Plus, RotateCw, Save, Search, Sun } from "lucide-react";
+import { Code, EllipsisVertical, FolderOpen, Minus, Moon, PanelLeft, Plus, RotateCw, Save, Search, Sun } from "lucide-react";
 import { shortcutFor, type CommandId } from "../lib/commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
-import { isMac } from "../lib/platform";
+import { usesMacKeys } from "../lib/platform";
 import type { MarkdownMode } from "../lib/tabs";
 import { useToolbarOverflow } from "../hooks/useToolbarOverflow";
 import { IconButton } from "./IconButton";
@@ -47,11 +47,12 @@ type ToolbarProps = {
   onRotate: () => void;
   onToggleFind: () => void;
   onToggleDarkPages: () => void;
+  onOpenCommands?: () => void;
   onToggleSource: () => void;
 };
 
 const withShortcut = (label: string, id: CommandId) => {
-  const shortcut = shortcutFor(id, isMac);
+  const shortcut = shortcutFor(id, usesMacKeys);
   return shortcut ? `${label} (${shortcut})` : label;
 };
 
@@ -197,6 +198,11 @@ export function Toolbar(props: ToolbarProps) {
         <IconButton title={withShortcut("Find", "find")} active={props.findOpen} disabled={!hasFile} onClick={props.onToggleFind}>
           <Search size={18} />
         </IconButton>
+        {props.onOpenCommands && (
+          <IconButton title="All commands" onClick={props.onOpenCommands}>
+            <EllipsisVertical size={18} />
+          </IconButton>
+        )}
       </div>
     </header>
   );

@@ -112,3 +112,35 @@ export function installPromiseTry(target: PromiseStatics = Promise as PromiseSta
     return new this((resolve) => resolve(callback(...args)));
   });
 }
+
+const ROUNDED = /^round\((?:down|up|nearest|to-zero)\s*,\s*(.+?)\s*,\s*(?:var\([^()]*\)|[^,()]+)\s*\)$/;
+
+export function roundToCalc(value: string) {
+  const match = ROUNDED.exec(value.trim());
+  return match ? `calc(${match[1]})` : value;
+}
+
+type InlineStyle = { getPropertyValue(name: string): string; setProperty(name: string, value: string): void };
+
+export function unroundSize(style: InlineStyle) {
+  for (const name of ["width", "height"]) {
+    const value = style.getPropertyValue(name);
+    if (value.startsWith("round(")) {
+      style.setProperty(name, roundToCalc(value));
+    }
+  }
+}
+
+export function installCssRound(root: Node | undefined = globalThis.document?.documentElement, supported = globalThis.CSS?.supports?.("width", "round(down, 1px, 1px)") ?? true) {
+  if (!root || supported) {
+    return;
+  }
+  new MutationObserver((records) => {
+    for (const { target } of records) {
+      const style = (target as Partial<ElementCSSInlineStyle>).style;
+      if (style) {
+        unroundSize(style);
+      }
+    }
+  }).observe(root, { subtree: true, attributes: true, attributeFilter: ["style"] });
+}

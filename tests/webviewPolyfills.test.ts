@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { base64ToBytes, bytesToBase64, bytesToHex, escapeRegExp, installBodyBytes, installBytesEncoding, installPromiseTry, installRegExpEscape, installUrlParse } from "../src/lib/webviewPolyfills";
+import { base64ToBytes, bytesToBase64, bytesToHex, escapeRegExp, installBodyBytes, installBytesEncoding, installPromiseTry, installRegExpEscape, installUrlParse, roundToCalc, unroundSize } from "../src/lib/webviewPolyfills";
 
 describe("bytesToHex", () => {
   it("writes two lowercase digits per byte", () => {
@@ -96,5 +96,25 @@ describe("installBodyBytes", () => {
     installBodyBytes([prototype]);
     const body = { arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
     await expect((prototype.bytes as (this: typeof body) => Promise<Uint8Array>).call(body)).resolves.toEqual(new Uint8Array([1, 2, 3]));
+  });
+});
+
+describe("roundToCalc", () => {
+  it("turns pdf.js's rounded layer sizes into plain calc()", () => {
+    expect(roundToCalc("round(down, var(--total-scale-factor) * 612px, var(--scale-round-x))")).toBe("calc(var(--total-scale-factor) * 612px)");
+    expect(roundToCalc("round(down, calc(1.5 * 792px), 1px)")).toBe("calc(calc(1.5 * 792px))");
+    expect(roundToCalc("100px")).toBe("100px");
+  });
+});
+
+describe("unroundSize", () => {
+  it("rewrites only rounded widths and heights", () => {
+    const values = new Map([
+      ["width", "round(down, var(--total-scale-factor) * 612px, var(--scale-round-x))"],
+      ["height", "40px"],
+    ]);
+    const style = { getPropertyValue: (name: string) => values.get(name) ?? "", setProperty: (name: string, value: string) => values.set(name, value) };
+    unroundSize(style);
+    expect(Object.fromEntries(values)).toEqual({ width: "calc(var(--total-scale-factor) * 612px)", height: "40px" });
   });
 });

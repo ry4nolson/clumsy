@@ -1,5 +1,6 @@
 mod context_menu;
 mod default_app;
+mod documents;
 mod files;
 mod form_question;
 mod images;
@@ -10,6 +11,7 @@ mod recent;
 mod session;
 mod signatures;
 mod updates;
+mod uploads;
 mod windows;
 
 use std::fs;
@@ -68,7 +70,14 @@ fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
         return;
     }
     allow_paths(app, &paths);
-    lock(&app.state::<PendingFiles>().0).extend(paths.iter().map(|path| path.to_string_lossy().into_owned()));
+    announce(app, paths.iter().map(|path| path.to_string_lossy().into_owned()).collect());
+}
+
+pub(crate) fn announce(app: &AppHandle, paths: Vec<String>) {
+    if paths.is_empty() {
+        return;
+    }
+    lock(&app.state::<PendingFiles>().0).extend(paths);
     if let Some(window) = app.state::<FocusTracker>().target(app) {
         let _ = window.emit_to(window.label(), "files-opened", ());
         let _ = window.set_focus();
@@ -197,7 +206,7 @@ async fn pick_markdown_save_path(app: AppHandle, window: Window, suggested_name:
 #[tauri::command]
 async fn read_pdf(app: AppHandle, path: String) -> Result<Response, String> {
     let path = readable_path(&app, &path, is_pdf)?;
-    fs::read(&path)
+    documents::read(&app, &path)
         .map(Response::new)
         .map_err(|err| format!("Could not read {}: {err}", path.display()))
 }
@@ -205,7 +214,7 @@ async fn read_pdf(app: AppHandle, path: String) -> Result<Response, String> {
 #[tauri::command]
 async fn read_markdown(app: AppHandle, path: String) -> Result<Response, String> {
     let path = readable_path(&app, &path, is_markdown)?;
-    fs::read(&path)
+    documents::read(&app, &path)
         .map(Response::new)
         .map_err(|err| format!("Could not read {}: {err}", path.display()))
 }
@@ -235,14 +244,14 @@ async fn open_linked_file(app: AppHandle, document: String, href: String) -> Res
 #[tauri::command]
 async fn read_image(app: AppHandle, path: String) -> Result<Response, String> {
     let path = readable_path(&app, &path, is_image)?;
-    fs::read(&path)
+    documents::read(&app, &path)
         .map(Response::new)
         .map_err(|err| format!("Could not read {}: {err}", path.display()))
 }
 
 #[tauri::command]
 async fn file_stamp(app: AppHandle, path: String) -> Result<Option<String>, String> {
-    Ok(files::stamp(&readable_path(&app, &path, is_document)?))
+    Ok(documents::stamp(&app, &readable_path(&app, &path, is_document)?))
 }
 
 pub(crate) fn header<'a>(request: &'a Request<'_>, name: &str) -> Option<&'a str> {
@@ -260,13 +269,11 @@ async fn write_markdown(app: AppHandle, request: Request<'_>) -> Result<String, 
 }
 
 fn write_document(app: &AppHandle, request: &Request<'_>, kind: fn(&std::path::Path) -> bool) -> Result<String, String> {
-    let InvokeBody::Raw(bytes) = request.body() else {
-        return Err("Expected raw document bytes".into());
-    };
+    let bytes = uploads::body(app, request)?;
     let encoded = header(request, "x-path").ok_or("Missing destination path")?;
     let decoded = percent_decode_str(encoded).decode_utf8().map_err(|err| err.to_string())?;
     let path = allowed_path(app, &decoded, kind).map_err(|err| if readable_path(app, &decoded, kind).is_ok() { files::NOT_WRITABLE.into() } else { err })?;
-    files::write_atomically(&path, bytes, header(request, "x-expected-stamp"))
+    documents::write(app, &path, &bytes, header(request, "x-expected-stamp"))
 }
 
 #[tauri::command]
@@ -355,39 +362,18 @@ fn make_default_app(app: AppHandle, kind: String) -> Result<default_app::Default
 }
 
 #[tauri::command]
-async fn recent_files(app: AppHandle) -> Vec<recent::RecentEntry> {
-    app.state::<RecentFiles>().entries(&app)
-}
-
-#[tauri::command]
-async fn record_recent_file(app: AppHandle, path: String) {
-    if allowed_path(&app, &path, is_document).is_ok() {
-        app.state::<RecentFiles>().add(&app, &path);
-    }
-}
-
-#[tauri::command]
-async fn remove_recent_file(app: AppHandle, path: String) {
-    app.state::<RecentFiles>().remove(&app, &path);
-}
-
-#[tauri::command]
-async fn clear_recent_files(app: AppHandle) {
-    app.state::<RecentFiles>().clear(&app);
-}
-
-#[tauri::command]
 fn take_pending_files(state: tauri::State<'_, PendingFiles>) -> Vec<String> {
     std::mem::take(&mut *lock(&state.0))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_opener::init());
+    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_opener::init()).plugin(documents::init());
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     let app = builder
         .manage(PendingFiles::default())
+        .manage(uploads::Uploads::default())
         .manage(RecentFiles::default())
         .manage(FocusTracker::default())
         .manage(Transfers::default())
@@ -464,12 +450,16 @@ pub fn run() {
             default_app_status,
             make_default_app,
             open_chrome_pdf_settings,
-            recent_files,
-            record_recent_file,
-            remove_recent_file,
-            clear_recent_files,
+            recent::recent_files,
+            recent::record_recent_file,
+            recent::remove_recent_file,
+            recent::clear_recent_files,
             stash_transfer,
-            take_transfer
+            take_transfer,
+            documents::pick_documents,
+            documents::create_document,
+            uploads::upload_chunk,
+            uploads::discard_upload
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -479,6 +469,10 @@ pub fn run() {
         if let tauri::RunEvent::Opened { urls } = _event {
             let paths = urls.into_iter().filter_map(|url| url.to_file_path().ok()).collect();
             queue_files(_app, paths);
+        }
+        #[cfg(target_os = "android")]
+        if let tauri::RunEvent::Opened { urls } = _event {
+            documents::opened(_app, urls);
         }
     });
 }

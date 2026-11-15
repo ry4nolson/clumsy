@@ -78,9 +78,9 @@ impl RecentFiles {
                 RecentEntry {
                     path: entry.path.clone(),
                     name: path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default(),
-                    location: display_location(path, home.as_deref()),
+                    location: if crate::documents::is_provided(path) { String::new() } else { display_location(path, home.as_deref()) },
                     opened_at: entry.opened_at,
-                    exists: path.is_file(),
+                    exists: crate::documents::exists(path),
                 }
             })
             .collect()
@@ -123,6 +123,28 @@ impl RecentFiles {
         }
         let _ = crate::files::write_file(&store, json.as_bytes(), true);
     }
+}
+
+#[tauri::command]
+pub async fn recent_files(app: AppHandle) -> Vec<RecentEntry> {
+    app.state::<RecentFiles>().entries(&app)
+}
+
+#[tauri::command]
+pub async fn record_recent_file(app: AppHandle, path: String) {
+    if crate::allowed_path(&app, &path, crate::files::is_document).is_ok() {
+        app.state::<RecentFiles>().add(&app, &path);
+    }
+}
+
+#[tauri::command]
+pub async fn remove_recent_file(app: AppHandle, path: String) {
+    app.state::<RecentFiles>().remove(&app, &path);
+}
+
+#[tauri::command]
+pub async fn clear_recent_files(app: AppHandle) {
+    app.state::<RecentFiles>().clear(&app);
 }
 
 #[cfg(test)]

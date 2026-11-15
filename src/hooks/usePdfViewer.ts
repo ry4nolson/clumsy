@@ -7,6 +7,7 @@ import { paintDiffPage, paintDiffPages, type DiffViewer } from "../lib/diffLayer
 import { createEditorManagers, type EditorManagers } from "../lib/editorManagers";
 import type { ViewState } from "../lib/documentWindows";
 import { attachHandTool, type HandTool } from "../lib/handTool";
+import { attachZoomGestures } from "../lib/zoomGestures";
 import { restoreImages, restoreRenderedImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
 import { publishPageCanvas } from "../lib/pageCanvases";
@@ -231,18 +232,7 @@ export function usePdfViewer() {
       editHistoryRef.current.canUndo = !!details.hasSomethingToUndo;
       editHistoryRef.current.canRedo = !!details.hasSomethingToRedo;
     });
-    const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) {
-        return;
-      }
-      event.preventDefault();
-      viewer.updateScale({
-        drawingDelay: 400,
-        scaleFactor: Math.exp(-event.deltaY / 100),
-        origin: [event.clientX, event.clientY],
-      });
-    };
-    container.addEventListener("wheel", onWheel, { passive: false });
+    const stopZoomGestures = attachZoomGestures(container, (scaleFactor, origin) => viewer.updateScale({ drawingDelay: 400, scaleFactor, origin }));
     const onFormInput = (event: Event) => {
       if ((event.target as HTMLElement | null)?.closest?.(".annotationLayer")) {
         editHistoryRef.current.changed = true;
@@ -274,7 +264,7 @@ export function usePdfViewer() {
       linkService.setDocument(null, null);
       teardown.abort();
       resizeObserver.disconnect();
-      container.removeEventListener("wheel", onWheel);
+      stopZoomGestures();
       container.removeEventListener("input", onFormInput, true);
       container.removeEventListener("change", onFormInput, true);
       hand.dispose();

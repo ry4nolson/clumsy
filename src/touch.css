@@ -1,0 +1,353 @@
+:root.touch {
+  font-size: 15px;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+:root.touch body {
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+}
+
+:root.touch .viewer-container {
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+}
+
+:root.touch .toolbar {
+  min-height: 56px;
+  padding: 6px 8px;
+}
+
+:root.touch .icon-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+}
+
+:root.touch .icon-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+:root.touch .tool-split,
+:root.touch .tool-split .icon-button {
+  border-radius: 22px 0 0 22px;
+}
+
+:root.touch .tool-split {
+  border-radius: 22px;
+}
+
+:root.touch .tool-split .icon-button {
+  width: 40px;
+}
+
+:root.touch .tool-split-toggle {
+  width: 24px;
+  height: 44px;
+  border-radius: 0 22px 22px 0;
+}
+
+:root.touch :is(.icon-button, .tool-split-toggle, .tab, .button, .welcome-action, .welcome-recent li):hover:not(:active, [aria-pressed="true"], .primary) {
+  background: transparent;
+}
+
+:root.touch :is(.icon-button, .tool-split-toggle, .tab-select, .button, .welcome-action, .recent-open, .sidebar-tabs button, .tool-menu-item):active:not(:disabled) {
+  background: var(--active);
+}
+
+:root.touch .page-nav input,
+:root.touch .toolbar select {
+  height: 38px;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+:root.touch .page-nav input {
+  width: 56px;
+}
+
+:root.touch .workspace {
+  grid-template-rows: 46px minmax(0, 1fr);
+}
+
+:root.touch .workspace.titlebar {
+  grid-template-rows: 46px auto minmax(0, 1fr);
+}
+
+:root.touch .tab-strip {
+  height: 46px;
+}
+
+:root.touch .tab-select {
+  padding-left: 14px;
+  font-size: 14px;
+}
+
+:root.touch .tab-close {
+  width: 36px;
+  height: 36px;
+  margin-right: 4px;
+  border-radius: 18px;
+}
+
+:root.touch .tab .tab-close svg {
+  opacity: 0.7;
+}
+
+:root.touch .tab.modified .tab-close svg {
+  opacity: 0;
+}
+
+:root.touch .tab.modified .tab-close .tab-dot {
+  opacity: 1;
+}
+
+:root.touch .tab-new {
+  width: 40px;
+  height: 40px;
+}
+
+:root.touch .sidebar-tabs button {
+  height: 38px;
+  border-radius: 19px;
+}
+
+:root.touch .sidebar-resizer {
+  width: 20px;
+}
+
+:root.touch .outline-row {
+  min-height: 40px;
+}
+
+:root.touch .outline-toggle {
+  width: 32px;
+  height: 32px;
+}
+
+:root.touch .button {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 21px;
+}
+
+:root.touch .button.small {
+  height: 36px;
+}
+
+:root.touch .link-button {
+  min-height: 36px;
+}
+
+:root.touch .welcome-action {
+  padding: 13px 12px;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+:root.touch .recent-open {
+  min-height: 48px;
+}
+
+:root.touch .findbar {
+  top: 8px;
+  right: 8px;
+  left: 8px;
+  padding: 6px;
+  border-radius: 28px;
+}
+
+:root.touch .findbar input[type="search"],
+:root.touch .findbar input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  font-size: 16px;
+}
+
+:root.touch .tool-menu {
+  padding: 14px;
+  border-radius: 16px;
+}
+
+:root.touch .tool-menu-item {
+  min-height: 44px;
+}
+
+:root.touch input[type="range"] {
+  height: 32px;
+}
+
+:root.touch .dialog.sheet {
+  margin: auto;
+  border-radius: 24px;
+}
+
+:root.touch .quick-pick-input {
+  height: 48px;
+  font-size: 16px;
+}
+
+:root.touch .quick-pick-list li {
+  min-height: 48px;
+  padding: 10px 14px;
+}
+
+:root.touch .quick-pick-hint {
+  display: none;
+}
+
+@media (max-width: 699px) {
+  :root.touch .app-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    width: min(82vw, 320px);
+    max-width: none;
+    box-shadow: var(--shadow);
+  }
+
+  :root.touch .app-sidebar::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 100%;
+    width: 100vw;
+    background: rgb(0 0 0 / 0.35);
+  }
+
+  :root.touch .sidebar-resizer {
+    display: none;
+  }
+
+  :root.touch .toolbar {
+    padding: 6px 2px;
+  }
+
+  :root.touch .toolbar-group {
+    padding: 0 2px;
+    gap: 0;
+  }
+
+  :root.touch .toolbar .icon-button:is([aria-label^="Open"], [aria-label$=" pages"]) {
+    display: none;
+  }
+
+  :root.touch .page-nav input {
+    width: 48px;
+  }
+
+  :root.touch .tab {
+    width: 160px;
+    min-width: 96px;
+  }
+
+  :root.touch .findbar {
+    flex-wrap: wrap;
+    border-radius: 20px;
+  }
+}
+
+:root.touch .tab-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px 0 14px;
+  border: none;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+}
+
+:root.touch .tab-switcher .tab-title {
+  flex: 1;
+  text-align: left;
+}
+
+:root.touch .tab-switcher svg {
+  flex-shrink: 0;
+}
+
+:root.touch .tab-count {
+  min-width: 24px;
+  padding: 2px 6px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+:root.touch .tab-menu {
+  position: fixed;
+  inset: auto 8px auto 8px;
+  margin: 0;
+  display: none;
+  flex-direction: column;
+  width: auto;
+  max-height: 70vh;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+:root.touch .tab-menu:popover-open {
+  display: flex;
+}
+
+:root.touch .tab-menu-item {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+}
+
+:root.touch .tab-menu-item.active {
+  background: var(--active);
+}
+
+:root.touch .tab-menu-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 6px 0 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 15px;
+  text-align: left;
+}
+
+:root.touch .tab-menu-select svg {
+  flex-shrink: 0;
+}
+
+:root.touch .tab-menu-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 24px;
+  background: none;
+  color: var(--text-muted);
+}
+
+:root.touch .tab-menu-close:active {
+  background: var(--active);
+}
+
+:root.touch .tab-menu-close .tab-dot {
+  opacity: 1;
+}

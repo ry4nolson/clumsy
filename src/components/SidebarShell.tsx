@@ -1,4 +1,5 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { closeDrawer } from "../lib/drawer";
 import { DEFAULT_SIDEBAR_WIDTH, SIDEBAR_WIDTH_KEY, clampSidebarWidth, parseSidebarWidth, readSidebarWidth, writeSidebarWidth } from "../lib/sidebarWidth";
 
 const applyWidth = (width: number) => document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
@@ -46,7 +47,7 @@ export function SidebarShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <aside className="app-sidebar">
+    <aside className="app-sidebar" onClick={(event) => event.target === event.currentTarget && closeDrawer()}>
       {children}
       <div
         className="sidebar-resizer"

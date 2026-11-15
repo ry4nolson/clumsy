@@ -1,10 +1,9 @@
 import { useCallback, useRef } from "react";
+import { downloadMarkdown, downloadPdf } from "../lib/download";
 import {
   CHANGED_ON_DISK,
   confirmOverwrite,
   confirmOwnerPassword,
-  downloadMarkdown,
-  downloadPdf,
   fileNameFromPath,
   isDesktop,
   NOT_WRITABLE,
