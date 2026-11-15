@@ -18,7 +18,7 @@ import { parseChangelog } from "../lib/changelog";
 import type { DefaultAppStatus } from "../lib/defaultApp";
 import { promptForDefaultApp } from "../lib/defaultAppPrompt";
 import { deviceLabels } from "../lib/device";
-import { device, getDefaultAppStatus, isMobile, openExternal } from "../lib/platform";
+import { canInstallUpdates, device, getDefaultAppStatus, isMobile, openExternal } from "../lib/platform";
 import type { UpdateInstall } from "../hooks/useUpdateInstall";
 import { appVersion, isInstalling, repoUrl, useUpdateCheck } from "../lib/updates";
 import { ChangelogList } from "./ChangelogList";
@@ -199,7 +199,7 @@ export function AboutDialog({ request, updateInstall, onRestart, onClose }: Abou
                 <>
                   <CircleArrowDown size={14} className="tone-available" />
                   <strong>v{status.latest} available</strong>
-                  {install.state === "failed" ? (
+                  {install.state === "failed" || !canInstallUpdates ? (
                     <>
                       <button
                         type="button"
@@ -211,9 +211,11 @@ export function AboutDialog({ request, updateInstall, onRestart, onClose }: Abou
                       >
                         Download
                       </button>
-                      <button type="button" className="link-button" onClick={installUpdate}>
-                        Try again
-                      </button>
+                      {canInstallUpdates && (
+                        <button type="button" className="link-button" onClick={installUpdate}>
+                          Try again
+                        </button>
+                      )}
                     </>
                   ) : (
                     <button type="button" className="button primary small" disabled={isInstalling(install)} onClick={installUpdate}>

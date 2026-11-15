@@ -293,7 +293,11 @@ export const canPrint = isDesktop && (isMac || device === "android");
 
 export const canSignDigitally = isDesktop && isMac;
 
-export const canSetDefaultApp = isDesktop && isMac;
+export const isLinux = isDesktop && device === "other";
+
+export const canSetDefaultApp = isDesktop && (isMac || isLinux);
+
+export const canInstallUpdates = isDesktop && isMac;
 
 export { isTimestampFailure } from "./signatureEnvelope";
 

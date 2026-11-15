@@ -74,6 +74,19 @@ fn queue_files(app: &AppHandle, paths: Vec<PathBuf>) {
     announce(app, paths.iter().map(|path| path.to_string_lossy().into_owned()).collect());
 }
 
+fn launch_paths(args: impl IntoIterator<Item = String>, cwd: &std::path::Path) -> Vec<PathBuf> {
+    args.into_iter().skip(1).map(|arg| cwd.join(arg)).collect()
+}
+
+#[cfg(any(target_os = "linux", windows))]
+fn launched_again(app: &AppHandle, args: Vec<String>, cwd: &std::path::Path) {
+    queue_files(app, launch_paths(args, cwd));
+    if let Some(window) = app.state::<FocusTracker>().target(app) {
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
 pub(crate) fn announce(app: &AppHandle, paths: Vec<String>) {
     if paths.is_empty() {
         return;
@@ -372,6 +385,8 @@ pub fn run() {
     let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init()).plugin(tauri_plugin_opener::init()).plugin(documents::init()).plugin(print::init());
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    #[cfg(any(target_os = "linux", windows))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| launched_again(app, args, std::path::Path::new(&cwd))));
     let app = builder
         .manage(PendingFiles::default())
         .manage(uploads::Uploads::default())
@@ -404,8 +419,7 @@ pub fn run() {
             recent.load(app.handle());
             allow_recent(app.handle(), &recent.paths());
             if !session::load(app.handle()) {
-                let args = std::env::args().skip(1).map(PathBuf::from).collect();
-                queue_files(app.handle(), args);
+                queue_files(app.handle(), launch_paths(std::env::args(), &std::env::current_dir().unwrap_or_default()));
             }
             Ok(())
         })
@@ -480,7 +494,15 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::discard_prompt;
+    use super::{discard_prompt, launch_paths};
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn resolves_launch_arguments_against_the_folder_they_were_typed_in() {
+        let args = ["clumsy", "notes.md", "/tmp/a.pdf"].map(String::from);
+        assert_eq!(launch_paths(args, Path::new("/home/me")), [PathBuf::from("/home/me/notes.md"), PathBuf::from("/tmp/a.pdf")]);
+        assert!(launch_paths(["clumsy".to_string()], Path::new("/home/me")).is_empty());
+    }
 
     #[test]
     fn names_the_documents_that_would_be_discarded() {

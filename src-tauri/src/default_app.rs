@@ -17,13 +17,15 @@ const CHROME_PDF_SETTINGS: &str = "chrome://settings/content/pdfDocuments";
 pub struct DocumentKind {
     #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     content_type: &'static str,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    mime: &'static str,
     label: &'static str,
 }
 
 pub fn document_kind(kind: &str) -> Result<DocumentKind, String> {
     match kind {
-        "pdf" => Ok(DocumentKind { content_type: "com.adobe.pdf", label: "PDF" }),
-        "markdown" => Ok(DocumentKind { content_type: "net.daringfireball.markdown", label: "Markdown" }),
+        "pdf" => Ok(DocumentKind { content_type: "com.adobe.pdf", mime: "application/pdf", label: "PDF" }),
+        "markdown" => Ok(DocumentKind { content_type: "net.daringfireball.markdown", mime: "text/markdown", label: "Markdown" }),
         _ => Err(format!("Unknown document kind {kind}")),
     }
 }
@@ -125,7 +127,7 @@ pub fn is_installed_bundle() -> bool {
     false
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub fn status(_kind: &DocumentKind, _bundle_id: &str) -> DefaultAppStatus {
     DefaultAppStatus { supported: false, is_default: false, current_app: None, chrome_installed: false }
 }
@@ -135,9 +137,97 @@ pub fn open_chrome_pdf_settings() -> Result<(), String> {
     Err("Opening Chrome's settings is only supported on macOS".into())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub fn make_default(kind: &DocumentKind, _bundle_id: &str) -> Result<DefaultAppStatus, String> {
     Err(format!("Setting the default {} app is only supported on macOS", kind.label))
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn entry_name(desktop_entry: &str) -> Option<String> {
+    desktop_entry
+        .lines()
+        .skip_while(|line| line.trim() != "[Desktop Entry]")
+        .skip(1)
+        .take_while(|line| !line.trim_start().starts_with('['))
+        .find_map(|line| line.strip_prefix("Name=").map(|name| name.trim().to_string()))
+        .filter(|name| !name.is_empty())
+}
+
+#[cfg(target_os = "linux")]
+mod platform {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    pub const DESKTOP_ENTRY: &str = "Clumsy.desktop";
+
+    fn application_dirs() -> Vec<PathBuf> {
+        let own = std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")));
+        let shared = std::env::var("XDG_DATA_DIRS").ok().filter(|dirs| !dirs.is_empty()).unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+        own.into_iter().chain(shared.split(':').map(PathBuf::from)).map(|dir| dir.join("applications")).collect()
+    }
+
+    fn desktop_entry(name: &str) -> Option<PathBuf> {
+        application_dirs().into_iter().map(|dir| dir.join(name)).find(|path| path.is_file())
+    }
+
+    fn xdg_mime(args: &[&str]) -> Option<String> {
+        let output = Command::new("xdg-mime").args(args).output().ok()?;
+        output.status.success().then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+
+    pub fn is_installed() -> bool {
+        desktop_entry(DESKTOP_ENTRY).is_some()
+    }
+
+    pub fn current_handler(mime: &str) -> Option<String> {
+        xdg_mime(&["query", "default", mime]).filter(|entry| !entry.is_empty())
+    }
+
+    pub fn set_handler(mime: &str) -> Result<(), String> {
+        xdg_mime(&["default", DESKTOP_ENTRY, mime]).map(|_| ()).ok_or_else(|| "xdg-mime couldn't change the default app".to_string())
+    }
+
+    pub fn app_name(entry: &str) -> String {
+        desktop_entry(entry)
+            .and_then(|path| std::fs::read_to_string(path).ok())
+            .and_then(|text| super::entry_name(&text))
+            .unwrap_or_else(|| entry.trim_end_matches(".desktop").to_string())
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn status(kind: &DocumentKind, _bundle_id: &str) -> DefaultAppStatus {
+    let current = platform::current_handler(kind.mime);
+    DefaultAppStatus {
+        supported: platform::is_installed(),
+        is_default: current.as_deref() == Some(platform::DESKTOP_ENTRY),
+        current_app: current.as_deref().map(platform::app_name),
+        chrome_installed: false,
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn make_default(kind: &DocumentKind, bundle_id: &str) -> Result<DefaultAppStatus, String> {
+    if !platform::is_installed() {
+        return Err(format!("Install Clumsy from its .deb or .rpm package to make it the default {} app", kind.label));
+    }
+    platform::set_handler(kind.mime)?;
+    Ok(status(kind, bundle_id))
+}
+
+#[cfg(test)]
+mod entry_tests {
+    use super::entry_name;
+
+    #[test]
+    fn reads_an_app_name_from_its_desktop_entry() {
+        let entry = "[Desktop Entry]\nType=Application\nName=Document Viewer\nName[de]=Dokumentenbetrachter\nExec=evince %U\n\n[Desktop Action new]\nName=New Window\n";
+        assert_eq!(entry_name(entry).as_deref(), Some("Document Viewer"));
+        assert_eq!(entry_name("[Desktop Action new]\nName=New Window\n"), None);
+        assert_eq!(entry_name("[Desktop Entry]\nExec=thing\n[Other]\nName=Nope\n"), None);
+    }
 }
 
 #[cfg(all(test, target_os = "macos"))]

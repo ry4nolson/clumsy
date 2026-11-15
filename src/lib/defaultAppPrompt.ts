@@ -1,6 +1,6 @@
 import { message } from "@tauri-apps/plugin-dialog";
 import { defaultAppWords, type DefaultAppKind, type DefaultAppStatus } from "./defaultApp";
-import { makeDefaultApp, openChromePdfSettings } from "./platform";
+import { isMac, makeDefaultApp, openChromePdfSettings } from "./platform";
 
 export type DefaultAppChoice = "made" | "declined" | "never" | "already" | "failed";
 
@@ -9,6 +9,10 @@ const NOT_NOW = "Not Now";
 const NEVER = "Don't Ask Again";
 const OPEN_CHROME = "Open Chrome Settings";
 const DONE = "Done";
+
+const WHERE = isMac ? "in Finder" : "in your file manager";
+const SYSTEM = isMac ? "macOS" : "Your system";
+const CHANGE_LATER = isMac ? "You can change this anytime from Finder’s Get Info window." : "You can change this anytime in your system’s default apps settings.";
 
 const CHROME_TIP = "Chrome still opens PDFs in its own tab when you click a link or a download. To send them to Clumsy, choose Download PDFs in Chrome’s PDF settings.";
 
@@ -32,12 +36,12 @@ export async function promptForDefaultApp(status: DefaultAppStatus, source: "lau
   const { label, files, file } = defaultAppWords[kind];
   if (status.isDefault) {
     if (source === "manual") {
-      await confirmDefault(status, `Clumsy opens your ${files}`, `Double-clicking ${file} in Finder already opens it in Clumsy.`);
+      await confirmDefault(status, `Clumsy opens your ${files}`, `Double-clicking ${file} ${WHERE} already opens it in Clumsy.`);
     }
     return "already";
   }
   const current = status.currentApp ? `${files} currently open in ${status.currentApp}. ` : "";
-  const answer = await message(`${current}Make Clumsy the app that opens ${files} when you double-click them in Finder?`, {
+  const answer = await message(`${current}Make Clumsy the app that opens ${files} when you double-click them ${WHERE}?`, {
     title: `Make Clumsy your default ${label} app?`,
     kind: "info",
     buttons: source === "launch" ? { yes: MAKE_DEFAULT, no: NEVER, cancel: NOT_NOW } : { ok: MAKE_DEFAULT, cancel: NOT_NOW },
@@ -51,9 +55,9 @@ export async function promptForDefaultApp(status: DefaultAppStatus, source: "lau
   try {
     const result = await makeDefaultApp(kind);
     if (!result.isDefault) {
-      throw new Error(`macOS still opens ${files} with ${result.currentApp ?? "another app"}.`);
+      throw new Error(`${SYSTEM} still opens ${files} with ${result.currentApp ?? "another app"}.`);
     }
-    await confirmDefault(result, `Clumsy opens your ${files}`, `Double-clicking ${file} in Finder now opens it here. You can change this anytime from Finder’s Get Info window.`);
+    await confirmDefault(result, `Clumsy opens your ${files}`, `Double-clicking ${file} ${WHERE} now opens it here. ${CHANGE_LATER}`);
     return "made";
   } catch (error) {
     await message(error instanceof Error ? error.message : String(error), { title: `Couldn’t change the default ${label} app`, kind: "error" });
