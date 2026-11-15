@@ -24,7 +24,7 @@ ISO 32000-1 §12.9 covers this. Clumsy writes what it describes, and doesn't inv
 - `/X`, a number format array that converts PDF points to real units.
 - `/D` for distances and `/A` for areas.
 
-Each number format is `/Type /NumberFormat /U (ft) /C <factor>`, plus how to show the value. Decimals use `/D 100` (two places). Fractions use `/F /F /D 16` (sixteenths). Chained formats handle feet and inches: the first converts points to feet, and the second converts the leftover fraction of a foot to inches (`/U (in) /C 12`, fractions). Worked example, 1/8" = 1'-0": one point is 1/72 in on paper, so it's (1/72) ÷ (1/8) = 0.1111 ft, and `/X [<< /U (ft) /C 0.1111 ... >> << /U (in) /C 12 /F /F /D 16 >>]`.
+Each number format is `/Type /NumberFormat /U (ft) /C <factor>`, plus how to show the value. Decimals use `/D 100` (two places). Fractions use `/F /F /D 16` (sixteenths). Only `/X`'s first `/C` converts from points. `/D`'s first `/C` converts from X's units, and `/A`'s converts from X's units squared (ISO 32000-1 Table 261). So the points-to-feet factor goes in `/X` alone, and the feet-and-inches chain goes in `/D`: the first element truncates to whole feet (`/F /T`), and the second converts the leftover fraction of a foot to inches (`/U (in) /C 12`, fractions). Worked example, 1/8" = 1'-0": one point is 1/72 in on paper, so it's (1/72) ÷ (1/8) = 0.1111 ft. Then `/X [<< /U (ft) /C 0.1111 /D 100 >>]`, `/D [<< /U (ft) /C 1 /F /T >> << /U (in) /C 12 /F /F /D 16 >>]`, and `/A [<< /U (sq ft) /C 1 /D 100 >>]`.
 
 **Page scale** goes in the page's `/VP` (viewport array): one viewport whose `/BBox` is the page's crop box, carrying the measure dictionary. That's how the scale survives Save and shows up in other apps for the next measurement. A page with a title block and two details at different scales gets one viewport per detail (phase 2).
 
@@ -80,7 +80,7 @@ A **Measurements** tab, shown while a Measure tool is on or the document has any
 ## Reading other apps' files
 
 - `kindOf` maps `/Line` with `/IT /LineDimension` and no leaders, `/PolyLine` with `/IT /PolyLineDimension`, and `/Polygon` with `/IT /PolygonDimension` to the measure kinds. `isMeasurement` stops excluding those and keeps excluding leadered lines.
-- `isClaimedShape` claims Polygon (7) and PolyLine (8) with an `/IT` measure intent, so pdf.js makes no popups or editors for them. Other polygons and polylines stay pdf.js's. Polygon clouds are a separate markup phase 2 item.
+- `isClaimedShape` claims Polygon (7) and PolyLine (8) with an `/IT` measure intent (pdf.js's `data.it`, so it's decided in the render wrapper), so pdf.js makes no popups or editors for them. Other polygons and polylines stay pdf.js's. Polygon clouds are a separate markup phase 2 item.
 - The value comes from the geometry and the annotation's own `/Measure`, never from parsing `/Contents`. That's what keeps a moved vertex and its caption in step. When an annotation has no `/Measure`, it uses the page's `/VP`, then full size, and the list says which.
 - Everything else (other `/BS`, `/RC`, `/T`, `/Popup`, custom Bluebeam keys) stays untouched on rewrite, the existing markup rule.
 
@@ -92,6 +92,16 @@ Run this in the container against 6.4.299 and a real Bluebeam takeoff file befor
 2. **A file `measurePdf.ts` writes** reopens in pdf.js with the appearance drawn, and pdf-lib reads every key back.
 3. **Claiming Polygon and PolyLine** in the annotation layer wrapper doesn't trip pdf.js's editors when an editing mode starts (same check as `/Clumsy:` stamps), and `noView` hides their canvas copy once edited.
 4. **Bluebeam's own keys** on measurements (its `/BSIColumnData` and friends): note which exist, so rewrites keep them and the plan knows what Count needs.
+
+### Spike results (2026-11-14)
+
+Items 2 and 3 are done, and item 1 is done from the spec. Bluebeam's half of item 1, and all of item 4, still need a Bluebeam-saved takeoff. None was on this Mac.
+
+- **Semantics (spec).** `/D` and `/A` are relative to `/X`'s units, not to points. The worked example above is corrected to match. A reader formats a distance as points × X's first `/C`, then through `/D`'s chain. In the chain, each element's `/C` multiplies the previous element's leftover fraction, and `/F /T` on the feet element is what passes the remainder on to inches. Clumsy still computes its own captions (with the 12' 0" carry), so other readers' rounding only matters when they re-format from `/Measure`.
+- **Round trip.** A pdf-lib file with a page `/VP` and a `/Line` + `/LineDimension`, a `/PolyLine` + `/PolyLineDimension`, and a `/Polygon` + `/PolygonDimension`, each with its own `/Measure`, `/Contents`, and `/AP`, reopens in pdf.js 6.4.299 with `subtype`, `it`, `vertices` (Float32Array), `lineCoordinates`, `contentsObj`, and `hasAppearance` all present. The appearance draws in pdf.js and in PDFKit (Quick Look), and pdf-lib reads back every key, `/AP /BBox` = `/Rect`. The values check out: 33' 11 15/16", 56' 8", and 740.74 sq ft at 1/8" = 1'-0".
+- **Claiming.** pdf.js puts `/IT` on every annotation's data as `data.it`, set in the base `Annotation` constructor. So `isClaimedShape` can claim types 7 and 8 by `it` right in the render wrapper, with no worker read. Only FreeText, Ink, Highlight, and Stamp ever set `isEditable` in the worker. The editor layer only asks `getAnnotationsByType` for its own editor types. So claimed polygons and polylines can never become editors. `getAnnotationsByType(new Set([7, 8]))` returns them with `it`, which is enough for the sidebar to know a document has measurements without reading the file with pdf-lib.
+- **noView.** `{ noView: true }` in storage for a Polygon's id drops it from the operator list (3 annotations drawn → 2). That's the same worker check `hideAnnotations` already relies on, so nothing changes there for the new subtypes.
+- **Real `/VP` in the wild.** A merged set of construction drawings (CAD plots, then PDFsam) has `/VP` on 47 of 157 pages. They look like `/BBox [36 36 1187 755]`, `/R ( )`, and `/X [<< /U ( ) /C 0.35278 >>]` (millimeters of paper per point). `/D` and `/A` are `<< /U ( ) /C 1 >>`, and none of the number formats has `/Type`. So `measurePdf.ts`'s reader can't require `/Type /NumberFormat`, and it has to treat a viewport with a blank `/U` (or a blank `/R`) as **no scale set**. Otherwise every CAD sheet would claim a "1 pt = 0.35 ( )" scale and skip the Set Scale question. A viewport's `/BBox` can also be smaller than the crop box. When a point falls outside every viewport, the page counts as unscaled for it.
 
 ## Tests (Linux container)
 
