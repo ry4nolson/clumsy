@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
-import { hasWindowControls } from "../lib/documentWindows";
+import { hasMenuButton, hasWindowControls } from "../lib/documentWindows";
 import { MAX_PANES, type Pane } from "../lib/workspace";
 import type { TabItem } from "../lib/tabs";
 import { TabStrip } from "./TabStrip";
@@ -220,10 +220,10 @@ export function PaneGrid({
 
   return (
     <>
-      {!hasWindowControls && toolbar}
+      {!hasMenuButton && toolbar}
       <div
         ref={gridRef}
-        className={`workspace${split ? " split" : ""}${hasWindowControls ? " titlebar" : ""}${drag?.active ? " dragging-tab" : ""}${resizing ? " resizing" : ""}`}
+        className={`workspace${split ? " split" : ""}${hasMenuButton ? " titlebar" : ""}${drag?.active ? " dragging-tab" : ""}${resizing ? " resizing" : ""}`}
         style={{ gridTemplateColumns: columns }}
         onPointerDownCapture={(event) => {
           const paneId = (event.target as HTMLElement).closest<HTMLElement>("[data-pane-id]")?.dataset.paneId;
@@ -244,7 +244,7 @@ export function PaneGrid({
               insertAt={target?.kind === "pane" && target.paneId === pane.id ? target.index : null}
               newTabShortcut={newTabShortcut}
               titlebar={hasWindowControls}
-              leading={hasWindowControls && index === 0 && <MenuButton onOpen={onMenu} />}
+              leading={hasMenuButton && index === 0 && <MenuButton onOpen={onMenu} />}
               trailing={hasWindowControls && index === panes.length - 1 && <WindowControls />}
               onSelect={onSelectTab}
               onClose={onCloseTab}
@@ -266,7 +266,7 @@ export function PaneGrid({
             )}
           </Fragment>
         ))}
-        {hasWindowControls && toolbar}
+        {hasMenuButton && toolbar}
         {children}
         {overlay}
         {drag?.active && (

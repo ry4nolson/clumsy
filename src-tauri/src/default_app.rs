@@ -15,6 +15,7 @@ const CHROME: &str = "com.google.Chrome";
 const CHROME_PDF_SETTINGS: &str = "chrome://settings/content/pdfDocuments";
 
 pub struct DocumentKind {
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     content_type: &'static str,
     label: &'static str,
 }

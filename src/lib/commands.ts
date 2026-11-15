@@ -142,6 +142,7 @@ export type Command = {
   needsPrinting?: boolean;
   needsDigitalSigning?: boolean;
   needsDesktop?: boolean;
+  needsDefaultApp?: boolean;
 };
 
 const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) => ({
@@ -151,11 +152,13 @@ const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) =
   combos: [`mod+${index}`],
 }));
 
+export const revealLabel = typeof navigator !== "undefined" && navigator.userAgent.includes("Mac") ? "Show in Finder" : "Show in Folder";
+
 export const commands: Command[] = [
   { id: "about", label: "About Clumsy", menu: "Clumsy", combos: [] },
   { id: "checkUpdates", label: "Check for Updates…", menu: "Clumsy", combos: [], needsDesktop: true },
-  { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [], needsDesktop: true },
-  { id: "makeDefaultMarkdown", label: "Make Clumsy the Default Markdown App…", menu: "Clumsy", combos: [], needsDesktop: true },
+  { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [], needsDesktop: true, needsDefaultApp: true },
+  { id: "makeDefaultMarkdown", label: "Make Clumsy the Default Markdown App…", menu: "Clumsy", combos: [], needsDesktop: true, needsDefaultApp: true },
   { id: "quit", label: "Quit Clumsy", menu: "Clumsy", combos: ["mod+q"], needsDesktop: true },
 
   { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+n", "mod+t"] },
@@ -172,7 +175,7 @@ export const commands: Command[] = [
   { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true, markdown: true },
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
-  { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true, needsDesktop: true },
+  { id: "revealInFinder", label: revealLabel, menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true, needsDesktop: true },
   { id: "compressPdf", label: "Compress…", menu: "File", combos: [], needsDocument: true },
   { id: "setPassword", label: "Set Password…", menu: "File", combos: [], needsDocument: true },
   { id: "removePassword", label: "Remove Password", menu: "File", combos: [], needsDocument: true, needsProtection: true },
@@ -300,12 +303,14 @@ export type CommandContext = {
   canPrint?: boolean;
   canSignDigitally?: boolean;
   desktopShell?: boolean;
+  canSetDefaultApp?: boolean;
 };
 
-export type PlatformAbilities = Pick<CommandContext, "canPrint" | "canSignDigitally" | "desktopShell">;
+export type PlatformAbilities = Pick<CommandContext, "canPrint" | "canSignDigitally" | "desktopShell" | "canSetDefaultApp">;
 
-export const platformSupports = (command: Command, { canPrint = false, canSignDigitally = false, desktopShell = true }: PlatformAbilities) =>
-  (!command.needsPrinting || canPrint) && (!command.needsDigitalSigning || canSignDigitally) && (!command.needsDesktop || desktopShell);
+export const platformSupports = (command: Command, { canPrint = false, canSignDigitally = false, desktopShell = true, canSetDefaultApp = false }: PlatformAbilities) =>
+  (!command.needsPrinting || canPrint) && (!command.needsDigitalSigning || canSignDigitally) && (!command.needsDesktop || desktopShell) &&
+  (!command.needsDefaultApp || canSetDefaultApp);
 
 export function documentAvailable(command: Command, { hasDocument, hasMarkdown = false }: Pick<CommandContext, "hasDocument" | "hasMarkdown">) {
   if (command.needsMarkdown) {

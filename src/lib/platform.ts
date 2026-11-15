@@ -293,6 +293,8 @@ export const canPrint = isDesktop && (isMac || device === "android");
 
 export const canSignDigitally = isDesktop && isMac;
 
+export const canSetDefaultApp = isDesktop && isMac;
+
 export { isTimestampFailure } from "./signatureEnvelope";
 
 export async function verifySignatures(bytes: Uint8Array, items: VerifyItem[], dss: DssData | null): Promise<SignatureVerdict[]> {

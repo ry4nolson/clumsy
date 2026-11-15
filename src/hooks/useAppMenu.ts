@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
-import { hasWindowControls, onWindowFocused, ownsAppMenu } from "../lib/documentWindows";
+import { hasMenuButton, onWindowFocused, ownsAppMenu } from "../lib/documentWindows";
 import { installAppMenu, type AppMenu, type MenuState } from "../lib/menu";
-import { canPrint, canSignDigitally, clearRecentFiles, hasAppMenu } from "../lib/platform";
+import { canPrint, canSetDefaultApp, canSignDigitally, clearRecentFiles, hasAppMenu } from "../lib/platform";
 import type { RecentEntry } from "../lib/recent";
 
 type AppMenuCallbacks = {
@@ -25,8 +25,8 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: MenuState, recent
       onCommand: (id) => callbacksRef.current.onCommand(id),
       onOpenRecent: (entry) => callbacksRef.current.onOpenRecent(entry),
       onClearRecent: () => clearRecentFiles(),
-      platform: { canPrint, canSignDigitally },
-      popup: hasWindowControls,
+      platform: { canPrint, canSignDigitally, canSetDefaultApp },
+      popup: hasMenuButton,
       ownsAppMenu,
     })
       .then((menu) => {

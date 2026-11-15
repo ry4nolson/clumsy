@@ -3,7 +3,7 @@ import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { emitTo } from "@tauri-apps/api/event";
 import { WebviewWindow, getAllWebviewWindows, getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
-import { isDesktop, markdownSource, readDocumentFromPath, type DocumentSource } from "./platform";
+import { hasAppMenu, isDesktop, isMac, markdownSource, readDocumentFromPath, type DocumentSource } from "./platform";
 import type { NavHistory } from "./navHistory";
 import { parseProtection, serializeProtection, type Protection } from "./protection";
 import type { AnyViewState } from "./tabs";
@@ -43,6 +43,8 @@ export type SessionWindow = { panes: SessionPane[]; focusedPane: number; bounds?
 const CASCADE = 28;
 
 export const hasWindowControls = isDesktop && navigator.userAgent.includes("Windows");
+
+export const hasMenuButton = hasAppMenu && !isMac;
 
 export const minimizeWindow = () => getCurrentWindow().minimize();
 

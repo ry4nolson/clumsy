@@ -348,8 +348,72 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  linux:
+    needs: version
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev rpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata
+
+      - name: Apply the release version
+        run: cp -R "$RUNNER_TEMP/release-metadata/metadata/." .
+
+      - name: Build packages
+        run: pnpm tauri build --bundles deb,rpm,appimage
+
+      - name: Stage the packages
+        run: |
+          set -euo pipefail
+          mkdir -p "$DIST_DIR"
+          cp src-tauri/target/release/bundle/appimage/*.AppImage "$DIST_DIR/Clumsy-Linux-x64.AppImage"
+          cp src-tauri/target/release/bundle/deb/*.deb "$DIST_DIR/Clumsy-Linux-x64.deb"
+          cp src-tauri/target/release/bundle/rpm/*.rpm "$DIST_DIR/Clumsy-Linux-x64.rpm"
+
+      - name: Upload the packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: ${{ env.DIST_DIR }}/Clumsy-Linux-x64.*
+          retention-days: 7
+          if-no-files-found: error
+
   publish:
-    needs: [version, build, windows, android]
+    needs: [version, build, windows, android, linux]
     runs-on: macos-15
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -438,6 +502,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-android
+          path: ${{ env.DIST_DIR }}
+
+      - name: Download the Linux packages
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: release-linux
           path: ${{ env.DIST_DIR }}
 
       - name: Notarize app zip
@@ -590,6 +661,9 @@ jobs:
             ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
             ${{ env.DIST_DIR }}/Clumsy-Windows-Installer.exe
             ${{ env.DIST_DIR }}/Clumsy-Android.apk
+            ${{ env.DIST_DIR }}/Clumsy-Linux-x64.AppImage
+            ${{ env.DIST_DIR }}/Clumsy-Linux-x64.deb
+            ${{ env.DIST_DIR }}/Clumsy-Linux-x64.rpm
             ${{ env.DIST_DIR }}/latest.json
           body_path: /tmp/release_notes.md
         env:

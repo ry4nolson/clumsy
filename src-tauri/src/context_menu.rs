@@ -6,6 +6,7 @@ const MAX_DEPTH: usize = 2;
 const LABEL_LIMIT: usize = 80;
 const TEXT_LIMIT: usize = 8192;
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 const SYMBOLS: &[&str] = &[
     "cursorarrow",
     "hand.raised",
@@ -77,6 +78,7 @@ pub struct MenuSpec {
     pub sections: Vec<Section>,
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn symbol_name(name: &str) -> Option<&'static str> {
     SYMBOLS.iter().copied().find(|symbol| *symbol == name)
 }

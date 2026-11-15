@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Linux.** Clumsy now runs on Linux (x64), as an AppImage, a `.deb`, or an `.rpm`. Like the Windows build, it doesn't update itself yet, and printing and digital signatures are Mac-only for now
+
 ## [0.17.0] - 2026-11-15
 
 ### Added

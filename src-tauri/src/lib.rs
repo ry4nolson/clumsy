@@ -6,6 +6,7 @@ mod form_question;
 mod images;
 mod navigation;
 mod print;
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 mod print_layout;
 mod recent;
 mod session;
