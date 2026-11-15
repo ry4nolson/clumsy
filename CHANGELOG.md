@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-15
+
 ### Added
 - **Android (experimental).** Clumsy now builds for Android phones and tablets as `Clumsy-Android.apk`: open, mark up, fill in, save, and print PDFs and Markdown files, with a phone layout, pinch to zoom, and a bar for highlighting selected text. There are no in-app updates on Android yet
 
