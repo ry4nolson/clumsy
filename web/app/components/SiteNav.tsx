@@ -30,7 +30,10 @@ export default function SiteNav() {
           <a className="nav__link nav__link--wide" href="/#tour">
             Tour
           </a>
-          <Link className="nav__link" to="/changelog">
+          <Link className="nav__link" to="/guides">
+            Guides
+          </Link>
+          <Link className="nav__link nav__link--wide" to="/changelog">
             Changelog
           </Link>
           <a className="nav__link nav__link--wide" href={GITHUB}>

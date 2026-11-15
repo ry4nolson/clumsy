@@ -38,3 +38,13 @@ export const SCREENS = [
 ] as const;
 
 export type ScreenId = (typeof SCREENS)[number]["id"];
+
+export const SHOTS = {
+  reading: { width: 1220, height: 960 },
+  compare: { width: 1300, height: 960 },
+  sign: { width: 1220, height: 960 },
+  markdown: { width: 1220, height: 960 },
+  photos: { width: 1220, height: 960 },
+} as const;
+
+export type ShotId = keyof typeof SHOTS;

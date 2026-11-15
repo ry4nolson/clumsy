@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import type { Route } from "./+types/home";
 import { SignatureSpotlight } from "~/components/SignatureSpotlight";
@@ -147,7 +147,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </h2>
             <p className="section__body">
               Reading, markup, forms, digital signatures, page edits, and comparisons,
-              in a viewer that opens before you finish double-clicking.
+              in a viewer that opens before you finish double-clicking.{" "}
+              <Link to="/guides">The guides</Link> walk through each one.
             </p>
           </div>
 

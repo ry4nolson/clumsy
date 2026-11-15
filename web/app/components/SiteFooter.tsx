@@ -43,6 +43,7 @@ export default function SiteFooter() {
             </p>
           </div>
           <nav className="site-footer__links" aria-label="Footer">
+            <Link to="/guides">Guides</Link>
             <Link to="/changelog">Changelog</Link>
             <a href={RELEASES}>Releases</a>
             <a href={GITHUB}>GitHub</a>

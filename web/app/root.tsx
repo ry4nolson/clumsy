@@ -11,6 +11,7 @@ import type { Route } from "./+types/root";
 import stylesheet from "./app.css?url";
 import SiteFooter from "./components/SiteFooter";
 import SiteNav from "./components/SiteNav";
+import { PLATFORM_SCRIPT } from "./lib/platform";
 import { latestVersion } from "./lib/releases.server";
 import { CACHE_HEADERS } from "./lib/remote.server";
 
@@ -38,8 +39,9 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: PLATFORM_SCRIPT }} />
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0b0a0d" />

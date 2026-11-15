@@ -1,0 +1,114 @@
+{
+  "groups": [
+    {
+      "title": "Getting around",
+      "guides": [
+        {
+          "slug": "tabs-and-windows",
+          "title": "Tabs, split panes, and windows",
+          "summary": "Keep a dozen documents open, put two side by side, and drag a tab wherever you want it.",
+          "image": "reading",
+          "imageAlt": "Clumsy showing a PDF with page thumbnails and the Document Map"
+        },
+        {
+          "slug": "commands-and-shortcuts",
+          "title": "Command Palette and shortcuts",
+          "summary": "Every command is searchable, most have a key, and the right-click menu is yours to arrange."
+        },
+        {
+          "slug": "finding-things",
+          "title": "Find, Go Back, and the Document Map",
+          "summary": "Search with regular expressions, jump around a long file, and get back to where you were."
+        },
+        {
+          "slug": "reading-comfort",
+          "title": "Dark pages, scrolling, and zoom",
+          "summary": "Dark pages that leave photos alone, four ways to scroll, spreads, the Hand tool, and a caret for the keyboard."
+        }
+      ]
+    },
+    {
+      "title": "Marking up",
+      "guides": [
+        {
+          "slug": "highlights-and-comments",
+          "title": "Highlights, notes, and comments",
+          "summary": "Highlight, underline, strike through, type on the page, draw, and leave comments and sticky notes."
+        },
+        {
+          "slug": "shapes-and-stamps",
+          "title": "Shapes and stamps",
+          "summary": "Rectangles, clouds, and arrows for pointing at things. Review stamps and electrical symbols for drawings."
+        },
+        {
+          "slug": "forms",
+          "title": "Filling in forms",
+          "summary": "Tab through real form fields, drop checkmarks and dates on paper forms, and flatten the result."
+        },
+        {
+          "slug": "signatures",
+          "title": "Signing your name",
+          "summary": "Type it, draw it, or photograph it once. It goes on the page as sharp ink, and stays saved.",
+          "image": "sign",
+          "imageAlt": "Clumsy placing a saved signature on a PDF"
+        },
+        {
+          "slug": "digital-signatures",
+          "title": "Digital signatures",
+          "summary": "Check who signed a PDF and whether it still holds, and sign with a certificate you already have."
+        }
+      ]
+    },
+    {
+      "title": "Pages and files",
+      "guides": [
+        {
+          "slug": "page-edits",
+          "title": "Rearranging pages",
+          "summary": "Reorder, rotate, delete, extract, insert, and combine. All of it can be undone."
+        },
+        {
+          "slug": "photos-to-pdf",
+          "title": "Photos to PDF",
+          "summary": "Drop images on the window and each one becomes a page, right side up, at full quality.",
+          "image": "photos",
+          "imageAlt": "Clumsy with a new PDF made from dropped photos"
+        },
+        {
+          "slug": "compare",
+          "title": "Comparing two PDFs",
+          "summary": "Two versions side by side with every added, removed, and changed word marked on both.",
+          "image": "compare",
+          "imageAlt": "Clumsy comparing two versions of a PDF side by side"
+        },
+        {
+          "slug": "compress-export-print",
+          "title": "Compress, export, and print",
+          "summary": "Shrink a scan before emailing it, turn pages into images, and print with your markup on the page."
+        },
+        {
+          "slug": "passwords",
+          "title": "Passwords",
+          "summary": "Set, change, or remove the password a PDF needs to open."
+        }
+      ]
+    },
+    {
+      "title": "Everything else",
+      "guides": [
+        {
+          "slug": "markdown",
+          "title": "Markdown files",
+          "summary": "Markdown opens formatted, with an outline and a minimap. The source is one shortcut away.",
+          "image": "markdown",
+          "imageAlt": "Clumsy showing a rendered Markdown file with its outline and minimap"
+        },
+        {
+          "slug": "saving-and-updates",
+          "title": "Saving, reloading, and updates",
+          "summary": "What Clumsy writes to your file, what happens when another app changes it, and how updates arrive."
+        }
+      ]
+    }
+  ]
+}

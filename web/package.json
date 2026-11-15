@@ -15,6 +15,7 @@
   "dependencies": {
     "@react-router/node": "^8.5.1",
     "isbot": "^5.2.2",
+    "markdown-it": "^15.0.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router": "^8.5.1"
@@ -23,6 +24,7 @@
     "@netlify/vite-plugin": "^3.0.1",
     "@netlify/vite-plugin-react-router": "^4.0.0",
     "@react-router/dev": "^8.5.1",
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
