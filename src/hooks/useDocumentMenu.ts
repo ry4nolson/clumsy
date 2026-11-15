@@ -5,7 +5,7 @@ import { documentMenu, pageSection, targetPages, type DocumentMenuId, type Docum
 import { isExternalUrl } from "../lib/markdownLinks";
 import { readMarkupParams } from "../lib/markupParams";
 import { stepNav, type NavDirection } from "../lib/navHistory";
-import { canPrint, isDesktop, showDocumentMenu } from "../lib/platform";
+import { canPrint, isDesktop, isMobile, showDocumentMenu } from "../lib/platform";
 import { nativeMenuTargets } from "../lib/shellMenu";
 import type { PdfViewerApi } from "./usePdfViewer";
 
@@ -68,7 +68,7 @@ export function useDocumentMenu(
     const onContextMenu = (event: MouseEvent) => {
       const target = event.target as Element;
       const link = linkAt(target);
-      if (!isDesktop) {
+      if (!isDesktop || isMobile) {
         if (target.closest("a[href]") && !link) {
           event.preventDefault();
         }

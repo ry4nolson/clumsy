@@ -1,5 +1,7 @@
 export type ZoomBy = (scaleFactor: number, origin: [number, number]) => void;
 
+type PanBy = (left: number, top: number) => void;
+
 type Point = { clientX: number; clientY: number };
 
 const PINCH_THRESHOLD = 0.01;
@@ -33,34 +35,93 @@ export function pinchSteps(scale: number) {
   return scale <= 1 / STEP_RATIO ? -1 : 0;
 }
 
-function attachPinch(target: EventTarget, accepts: (target: EventTarget | null) => boolean, zoomBy: ZoomBy, signal: AbortSignal) {
-  const options = { passive: false, signal };
+export function panBetween(previous: [number, number], current: [number, number]): [number, number] {
+  return [previous[0] - current[0], previous[1] - current[1]];
+}
+
+function attachPinch(target: EventTarget, accepts: (target: EventTarget | null) => boolean, zoomBy: ZoomBy, signal: AbortSignal, panBy?: PanBy) {
+  const options = { passive: false, capture: true, signal };
+  const fingers = new Map<number, Point>();
   let span = 0;
-  const onStart = (event: TouchEvent) => {
-    span = event.touches.length === 2 && accepts(event.target) ? pinchSpan(event.touches[0], event.touches[1]) : 0;
+  let center: [number, number] = [0, 0];
+  let touchDriven = false;
+
+  const begin = (first: Point, second: Point, origin: EventTarget | null) => {
+    span = accepts(origin) ? pinchSpan(first, second) : 0;
+    center = pinchCenter(first, second);
+  };
+  const follow = (first: Point, second: Point, pans: boolean) => {
+    const next = pinchCenter(first, second);
+    if (pans) {
+      panBy?.(...panBetween(center, next));
+    }
+    center = next;
+    const current = pinchSpan(first, second);
+    const factor = pinchFactor(span, current);
+    if (factor) {
+      span = current;
+      zoomBy(factor, next);
+    }
+  };
+
+  const onTouchStart = (event: TouchEvent) => {
+    touchDriven = true;
+    span = 0;
+    if (event.touches.length === 2) {
+      begin(event.touches[0], event.touches[1], event.target);
+    }
     if (span) {
       event.preventDefault();
     }
   };
-  const onMove = (event: TouchEvent) => {
+  const onTouchMove = (event: TouchEvent) => {
     if (!span || event.touches.length !== 2) {
       return;
     }
-    event.preventDefault();
-    const current = pinchSpan(event.touches[0], event.touches[1]);
-    const factor = pinchFactor(span, current);
-    if (factor) {
-      span = current;
-      zoomBy(factor, pinchCenter(event.touches[0], event.touches[1]));
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    follow(event.touches[0], event.touches[1], event.cancelable);
+  };
+  const onTouchEnd = (event: TouchEvent) => {
+    span = 0;
+    touchDriven = event.touches.length > 0;
+  };
+
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.pointerType !== "touch") {
+      return;
+    }
+    fingers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+    if (fingers.size === 2 && !touchDriven) {
+      const [first, second] = fingers.values();
+      begin(first, second, event.target);
     }
   };
-  const end = () => {
-    span = 0;
+  const onPointerMove = (event: PointerEvent) => {
+    if (!fingers.has(event.pointerId)) {
+      return;
+    }
+    fingers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+    if (span && fingers.size === 2 && !touchDriven) {
+      const [first, second] = fingers.values();
+      follow(first, second, true);
+    }
   };
-  target.addEventListener("touchstart", onStart as EventListener, options);
-  target.addEventListener("touchmove", onMove as EventListener, options);
-  target.addEventListener("touchend", end, options);
-  target.addEventListener("touchcancel", end, options);
+  const onPointerEnd = (event: PointerEvent) => {
+    if (fingers.delete(event.pointerId) && !touchDriven) {
+      span = 0;
+    }
+  };
+
+  target.addEventListener("touchstart", onTouchStart as EventListener, options);
+  target.addEventListener("touchmove", onTouchMove as EventListener, options);
+  target.addEventListener("touchend", onTouchEnd as EventListener, options);
+  target.addEventListener("touchcancel", onTouchEnd as EventListener, options);
+  target.addEventListener("pointerdown", onPointerDown as EventListener, options);
+  target.addEventListener("pointermove", onPointerMove as EventListener, options);
+  target.addEventListener("pointerup", onPointerEnd as EventListener, options);
+  target.addEventListener("pointercancel", onPointerEnd as EventListener, options);
 }
 
 export function attachZoomGestures(container: HTMLElement, zoomBy: ZoomBy) {
@@ -76,7 +137,10 @@ export function attachZoomGestures(container: HTMLElement, zoomBy: ZoomBy) {
     },
     { passive: false, signal: listening.signal },
   );
-  attachPinch(container, () => true, zoomBy, listening.signal);
+  attachPinch(container, () => true, zoomBy, listening.signal, (left, top) => {
+    container.scrollLeft += left;
+    container.scrollTop += top;
+  });
   return () => listening.abort();
 }
 

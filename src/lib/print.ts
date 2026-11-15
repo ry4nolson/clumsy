@@ -6,6 +6,7 @@ import type { PrintOutcome } from "./platform";
 export type PrintOps = {
   extract: (bytes: Uint8Array, pages: number[], password?: string) => Promise<Uint8Array>;
   decrypt: (bytes: Uint8Array, password?: string) => Promise<Uint8Array>;
+  flatten?: (bytes: Uint8Array, pages: number[] | null, password?: string) => Promise<Uint8Array>;
 };
 
 export type PrintSteps = PrintOps & {
@@ -36,6 +37,9 @@ export function pagesToPrint(id: CommandId, selected: number[], pageCount: numbe
 }
 
 export async function printableBytes(bytes: Uint8Array, pages: number[] | null, decryptWith: string | null, ops: PrintOps) {
+  if (ops.flatten) {
+    return ops.flatten(bytes, pages, decryptWith ?? undefined);
+  }
   if (pages) {
     return ops.extract(bytes, pages, decryptWith ?? undefined);
   }

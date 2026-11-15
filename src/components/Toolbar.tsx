@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Code, EllipsisVertical, FolderOpen, Minus, Moon, PanelLeft, Plus, RotateCw, Save, Search, Sun } from "lucide-react";
+import { Code, EllipsisVertical, FolderOpen, Minus, Moon, PanelLeft, Plus, Redo2, RotateCw, Save, Search, Sun, Undo2 } from "lucide-react";
 import { shortcutFor, type CommandId } from "../lib/commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { usesMacKeys } from "../lib/platform";
@@ -47,7 +47,7 @@ type ToolbarProps = {
   onRotate: () => void;
   onToggleFind: () => void;
   onToggleDarkPages: () => void;
-  onOpenCommands?: () => void;
+  onTouchCommand?: (id: "commandPalette" | "undo" | "redo") => void;
   onToggleSource: () => void;
 };
 
@@ -167,6 +167,16 @@ export function Toolbar(props: ToolbarProps) {
       )}
 
       <div className="toolbar-group end" data-tauri-drag-region>
+        {props.onTouchCommand && hasFile && (
+          <>
+            <IconButton title="Undo" onClick={() => props.onTouchCommand?.("undo")}>
+              <Undo2 size={18} />
+            </IconButton>
+            <IconButton title="Redo" onClick={() => props.onTouchCommand?.("redo")}>
+              <Redo2 size={18} />
+            </IconButton>
+          </>
+        )}
         {markdownMode && (
           <IconButton title={withShortcut("Markdown source", "toggleMarkdownSource")} active={markdownMode === "source"} onClick={props.onToggleSource}>
             <Code size={18} />
@@ -198,8 +208,8 @@ export function Toolbar(props: ToolbarProps) {
         <IconButton title={withShortcut("Find", "find")} active={props.findOpen} disabled={!hasFile} onClick={props.onToggleFind}>
           <Search size={18} />
         </IconButton>
-        {props.onOpenCommands && (
-          <IconButton title="All commands" onClick={props.onOpenCommands}>
+        {props.onTouchCommand && (
+          <IconButton title="All commands" onClick={() => props.onTouchCommand?.("commandPalette")}>
             <EllipsisVertical size={18} />
           </IconButton>
         )}

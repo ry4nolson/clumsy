@@ -221,7 +221,7 @@ export async function writePdf(path: string, data: Uint8Array, expectedStamp?: s
 export type PrintOutcome = "shown" | "unreadable" | "busy";
 
 export async function printPdf(name: string, data: Uint8Array) {
-  return invoke<PrintOutcome>("print_pdf", data, { headers: { "x-name": encodeURIComponent(name) } });
+  return invokeWithBytes<PrintOutcome>("print_pdf", data, { "x-name": encodeURIComponent(name) });
 }
 
 export async function printWebview(name: string) {
@@ -289,7 +289,7 @@ export const hasAppMenu = isDesktop && !isMobile;
 
 export const hasOverlayTitlebar = isDesktop && isMac;
 
-export const canPrint = isDesktop && isMac;
+export const canPrint = isDesktop && (isMac || device === "android");
 
 export const canSignDigitally = isDesktop && isMac;
 

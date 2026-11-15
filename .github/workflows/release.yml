@@ -262,8 +262,94 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  android:
+    needs: version
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata
+
+      - name: Apply the release version
+        run: cp -R "$RUNNER_TEMP/release-metadata/metadata/." .
+
+      - name: Point the build at the Android NDK
+        run: echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+
+      - name: Configure signing
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          KEYSTORE="$RUNNER_TEMP/clumsy.jks"
+          if [ -n "$ANDROID_KEYSTORE" ]; then
+            echo "$ANDROID_KEYSTORE" | base64 --decode > "$KEYSTORE"
+          else
+            echo "::warning::No Android signing key configured; this APK is signed with a throwaway key, so it can't be installed over an earlier copy"
+            ANDROID_KEYSTORE_PASSWORD="throwaway"
+            ANDROID_KEY_ALIAS="clumsy"
+            keytool -genkeypair -keystore "$KEYSTORE" -storepass "$ANDROID_KEYSTORE_PASSWORD" -keypass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Clumsy"
+          fi
+          printf 'storeFile=%s\npassword=%s\nkeyAlias=%s\n' "$KEYSTORE" "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_ALIAS" > src-tauri/gen/android/keystore.properties
+
+      - name: Build APK
+        run: pnpm tauri android build --target aarch64 --apk
+
+      - name: Stage the APK
+        run: |
+          set -euo pipefail
+          mkdir -p "$DIST_DIR"
+          cp src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk "$DIST_DIR/Clumsy-Android.apk"
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          path: ${{ env.DIST_DIR }}/Clumsy-Android.apk
+          retention-days: 7
+          if-no-files-found: error
+
   publish:
-    needs: [version, build, windows]
+    needs: [version, build, windows, android]
     runs-on: macos-15
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -345,6 +431,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: release-windows
+          path: ${{ env.DIST_DIR }}
+
+      - name: Download the Android APK
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: release-android
           path: ${{ env.DIST_DIR }}
 
       - name: Notarize app zip
@@ -496,6 +589,7 @@ jobs:
             ${{ env.DIST_DIR }}/Clumsy-MacOS-Universal.dmg
             ${{ env.DIST_DIR }}/Clumsy.app.tar.gz
             ${{ env.DIST_DIR }}/Clumsy-Windows-Installer.exe
+            ${{ env.DIST_DIR }}/Clumsy-Android.apk
             ${{ env.DIST_DIR }}/latest.json
           body_path: /tmp/release_notes.md
         env:

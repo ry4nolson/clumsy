@@ -6,7 +6,9 @@ import { attachCaretBrowsing, type CaretBrowsing } from "../lib/caretBrowsing";
 import { paintDiffPage, paintDiffPages, type DiffViewer } from "../lib/diffLayer";
 import { createEditorManagers, type EditorManagers } from "../lib/editorManagers";
 import type { ViewState } from "../lib/documentWindows";
+import { isTouchDevice } from "../lib/drawer";
 import { attachHandTool, type HandTool } from "../lib/handTool";
+import { attachTapToEdit } from "../lib/touchEdit";
 import { attachZoomGestures } from "../lib/zoomGestures";
 import { restoreImages, restoreRenderedImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
@@ -228,10 +230,16 @@ export function usePdfViewer() {
         setModes((current) => ({ ...current, spreadMode }));
       }
     });
+    eventBus.on("switchannotationeditormode", ({ mode, editId }: { mode: number; editId?: string }) => {
+      if (isTouchDevice && editId) {
+        viewer.annotationEditorMode = { mode, editId };
+      }
+    });
     eventBus.on("editingstateschanged", ({ details }: { details: { hasSomethingToUndo?: boolean; hasSomethingToRedo?: boolean } }) => {
       editHistoryRef.current.canUndo = !!details.hasSomethingToUndo;
       editHistoryRef.current.canRedo = !!details.hasSomethingToRedo;
     });
+    attachTapToEdit(container, teardown.signal);
     const stopZoomGestures = attachZoomGestures(container, (scaleFactor, origin) => viewer.updateScale({ drawingDelay: 400, scaleFactor, origin }));
     const onFormInput = (event: Event) => {
       if ((event.target as HTMLElement | null)?.closest?.(".annotationLayer")) {
@@ -250,7 +258,11 @@ export function usePdfViewer() {
       if (!width || !height || size === lastSize) {
         return;
       }
+      const keyboardOnly = isTouchDevice && lastSize.startsWith(`${width}x`);
       lastSize = size;
+      if (keyboardOnly) {
+        return;
+      }
       const preset = viewer.currentScaleValue;
       if (viewer.pdfDocument && presetScales.has(preset)) {
         viewer.currentScaleValue = preset;

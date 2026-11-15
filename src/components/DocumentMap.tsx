@@ -5,6 +5,7 @@ import { usePreviewImages } from "../hooks/usePreviewImages";
 import { mergeMarks, rotateRect } from "../lib/diffRects";
 import { previewRender } from "../lib/imageRestore";
 import { copyRenderedPage } from "../lib/pageCanvases";
+import { startsCompact } from "../lib/drawer";
 import { MAP_MAX_WIDTH, MAP_PADDING, layoutMap, scrollForSlider, sliderFor, visibleRange, type MapArea, type MapRect, type PageBox, type ViewerScroll } from "../lib/documentMap";
 import { createRenderQueue, type RenderQueue } from "../lib/renderQueue";
 
@@ -154,7 +155,8 @@ type DocumentMapProps = {
   fixedWidth: boolean;
 };
 
-export function DocumentMap({ pdfDocument, containerRef, paused, restoreImages, currentPage, rotation, selection, marks, fixedWidth }: DocumentMapProps) {
+export function DocumentMap({ pdfDocument, containerRef, paused, restoreImages, currentPage, rotation, selection, marks, fixedWidth: wrapped }: DocumentMapProps) {
+  const fixedWidth = wrapped || startsCompact;
   const mapRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);

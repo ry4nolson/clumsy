@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pinchCenter, pinchFactor, pinchSpan, pinchSteps, wheelFactor } from "../src/lib/zoomGestures";
+import { panBetween, pinchCenter, pinchFactor, pinchSpan, pinchSteps, wheelFactor } from "../src/lib/zoomGestures";
 
 describe("zoom gestures", () => {
   it("zooms in when the wheel scrolls up and out when it scrolls down", () => {
@@ -31,5 +31,10 @@ describe("zoom gestures", () => {
     expect(pinchSteps(0.8)).toBe(-1);
     expect(pinchSteps(1.1)).toBe(0);
     expect(pinchSteps(0.9)).toBe(0);
+  });
+
+  it("scrolls the opposite way to the fingers", () => {
+    expect(panBetween([200, 300], [180, 340])).toEqual([20, -40]);
+    expect(panBetween([200, 300], [200, 300])).toEqual([0, 0]);
   });
 });

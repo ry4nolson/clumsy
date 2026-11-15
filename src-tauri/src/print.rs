@@ -1,8 +1,6 @@
 use percent_encoding::percent_decode_str;
-use tauri::ipc::{InvokeBody, Request};
-#[cfg(target_os = "macos")]
-use tauri::Manager;
-use tauri::{Webview, Window};
+use tauri::ipc::Request;
+use tauri::{Manager, Webview, Window};
 
 const NAME_LIMIT: usize = 200;
 const FALLBACK_NAME: &str = "Document";
@@ -25,16 +23,13 @@ fn clean_job_name(decoded: &str) -> String {
     if trimmed.is_empty() { FALLBACK_NAME.into() } else { trimmed.into() }
 }
 
-fn print_body(body: &InvokeBody) -> Result<&[u8], String> {
-    match body {
-        InvokeBody::Raw(bytes) if !bytes.is_empty() => Ok(bytes),
-        _ => Err("Expected raw PDF bytes".into()),
-    }
+fn print_body(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    if bytes.is_empty() { Err("Expected raw PDF bytes".into()) } else { Ok(bytes.to_vec()) }
 }
 
 #[tauri::command]
 pub async fn print_pdf(window: Window, request: Request<'_>) -> Result<String, String> {
-    let bytes = print_body(request.body())?.to_vec();
+    let bytes = print_body(&crate::uploads::body(window.app_handle(), &request)?)?;
     let name = job_name(crate::header(&request, "x-name"));
     show_print_panel(window, bytes, name).await
 }
@@ -72,7 +67,13 @@ async fn show_webview_print_panel(webview: Webview, name: String) -> Result<Stri
     Ok(outcome)
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "android")]
+async fn show_webview_print_panel(webview: Webview, name: String) -> Result<String, String> {
+    let app = webview.app_handle().clone();
+    tauri::async_runtime::spawn_blocking(move || android::print_webview(&app, &name)).await.map_err(|err| err.to_string())?
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "android")))]
 async fn show_webview_print_panel(_webview: Webview, _name: String) -> Result<String, String> {
     Err("Printing isn't available on this platform yet".into())
 }
@@ -92,9 +93,66 @@ async fn show_print_panel(window: Window, bytes: Vec<u8>, name: String) -> Resul
         .map_err(|_| "The print panel didn't open".to_string())?
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "android")]
+async fn show_print_panel(window: Window, bytes: Vec<u8>, name: String) -> Result<String, String> {
+    let app = window.app_handle().clone();
+    tauri::async_runtime::spawn_blocking(move || android::print(&app, &bytes, &name)).await.map_err(|err| err.to_string())?
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "android")))]
 async fn show_print_panel(_window: Window, _bytes: Vec<u8>, _name: String) -> Result<String, String> {
     Err("Printing isn't available on this platform yet".into())
+}
+
+#[cfg(target_os = "android")]
+pub fn init() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    tauri::plugin::Builder::new("print")
+        .setup(|app, api| {
+            app.manage(android::Printer(api.register_android_plugin("com.ry4nolson.clumsy", "PrintPlugin")?));
+            Ok(())
+        })
+        .build()
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn init() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    tauri::plugin::Builder::new("print").build()
+}
+
+#[cfg(target_os = "android")]
+mod android {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use serde::Deserialize;
+    use serde_json::{Value, json};
+    use tauri::plugin::PluginHandle;
+    use tauri::{AppHandle, Manager, Wry};
+
+    pub struct Printer(pub PluginHandle<Wry>);
+
+    #[derive(Deserialize)]
+    struct Shown {
+        outcome: String,
+    }
+
+    fn call(app: &AppHandle, command: &str, payload: Value) -> Result<String, String> {
+        let shown: Shown = app.state::<Printer>().0.run_mobile_plugin(command, payload).map_err(|err| err.to_string())?;
+        Ok(shown.outcome)
+    }
+
+    pub fn print(app: &AppHandle, bytes: &[u8], name: &str) -> Result<String, String> {
+        let folder = app.path().app_cache_dir().map_err(|err| err.to_string())?.join("print");
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).map_err(|err| err.to_string())?;
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).map(|elapsed| elapsed.as_nanos()).unwrap_or_default();
+        let path = folder.join(format!("{stamp}.pdf"));
+        std::fs::write(&path, bytes).map_err(|err| err.to_string())?;
+        call(app, "document", json!({ "name": name, "path": path }))
+    }
+
+    pub fn print_webview(app: &AppHandle, name: &str) -> Result<String, String> {
+        call(app, "webview", json!({ "name": name }))
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -324,13 +382,11 @@ mod macos {
 #[cfg(test)]
 mod tests {
     use super::{clean_job_name, job_name, print_body};
-    use tauri::ipc::InvokeBody;
 
     #[test]
-    fn takes_only_raw_pdf_bytes() {
-        assert_eq!(print_body(&InvokeBody::Raw(b"%PDF-1.7".to_vec())), Ok(&b"%PDF-1.7"[..]));
-        assert!(print_body(&InvokeBody::Raw(Vec::new())).is_err());
-        assert!(print_body(&InvokeBody::Json(serde_json::json!({ "bytes": [37, 80] }))).is_err());
+    fn refuses_an_empty_body() {
+        assert_eq!(print_body(b"%PDF-1.7"), Ok(b"%PDF-1.7".to_vec()));
+        assert!(print_body(&[]).is_err());
     }
 
     #[test]

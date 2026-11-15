@@ -9,6 +9,7 @@ import { readMarkup } from "./markupPdf";
 import { writeAnnotationsReporting } from "./notesPdf";
 import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { compressImages } from "./pdfCompress";
+import { flattenForPrint } from "./pdfFlatten";
 import { flattenForm } from "./pdfForm";
 import { scanSignatures } from "./pdfSignatures";
 import { appendDss, prepareDocTimestamp, prepareSignature } from "./pdfSignWrite";
@@ -118,8 +119,7 @@ export async function encryptPdf(bytes: Uint8Array, password: string) {
   return doc.save({ rewrite: true, useObjectStreams: true, addDefaultPage: false, updateFieldAppearances: false });
 }
 
-export async function extractPages(bytes: Uint8Array, pages: number[], password?: string) {
-  const doc = await load(bytes, password);
+function keepPages(doc: PDFDocument, pages: number[]) {
   const refs = flattenPageTree(doc);
   const labels = readPageLabels(doc, refs.length);
   const keep = new Set(uniqueSorted(pages).filter((page) => page >= 0 && page < refs.length));
@@ -128,6 +128,22 @@ export async function extractPages(bytes: Uint8Array, pages: number[], password?
   }
   removePageRefs(doc, refs, new Set(refs.filter((_, index) => !keep.has(index))));
   relabelPages(doc, { refs, labels }, pageRefsOf(doc));
+}
+
+export async function extractPages(bytes: Uint8Array, pages: number[], password?: string) {
+  const doc = await load(bytes, password);
+  keepPages(doc, pages);
+  return save(doc);
+}
+
+export async function flattenedPdf(bytes: Uint8Array, pages: number[] | null, password?: string) {
+  const doc = await load(bytes, password);
+  if (pages) {
+    keepPages(doc, pages);
+  } else {
+    flattenPageTree(doc);
+  }
+  await flattenForPrint(doc);
   return save(doc);
 }
 
@@ -159,6 +175,8 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
       return { bytes: await compressPdf(job.bytes, job.settings, job.password, onProgress) };
     case "decrypt":
       return { bytes: await decryptPdf(job.bytes, job.password) };
+    case "flatten":
+      return { bytes: await flattenedPdf(job.bytes, job.pages, job.password) };
     case "encrypt":
       return { bytes: await encryptPdf(job.bytes, job.password) };
     case "annotations":

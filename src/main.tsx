@@ -6,7 +6,7 @@ import { blockWebviewMenu } from "./lib/shellMenu";
 import "./styles.css";
 import "./touch.css";
 
-if (!isMac) {
+if (!isMac && !isMobile) {
   blockWebviewMenu((copy) => void showContextMenu([{ label: "Copy", run: copy }]));
 }
 

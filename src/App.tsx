@@ -424,7 +424,7 @@ export default function App() {
               onRotate={() => viewer?.rotate(1)}
               onToggleFind={toggleFind}
               onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
-              onOpenCommands={isMobile ? () => runCommandRef.current("commandPalette") : undefined}
+              onTouchCommand={isMobile ? (id) => runCommandRef.current(id) : undefined}
               onToggleSource={() => activeMarkdown()?.toggleSource()}
             />
         }

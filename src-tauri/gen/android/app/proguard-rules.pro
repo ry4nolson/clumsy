@@ -18,4 +18,6 @@
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
-#-renamesourcefileattribute SourceFile-keep class com.ry4nolson.clumsy.DocumentsPlugin { *; }
+#-renamesourcefileattribute SourceFile
+
+-keep class com.ry4nolson.clumsy.** { *; }
