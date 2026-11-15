@@ -1,3 +1,5 @@
+import { installBodyBytes, installBytesEncoding, installCssRound, installPromiseTry, installRegExpEscape, installUrlParse } from "./webviewPolyfills";
+
 type JoinableIterator = Iterator<unknown> & { join?: (separator?: string) => string };
 
 type StreamPrototype = { getReader(): ReadableStreamDefaultReader<unknown>; [Symbol.asyncIterator]?: unknown };
@@ -272,3 +274,9 @@ installAbortSignalAny();
 installGetOrInsert(Map.prototype as unknown as UpsertPrototype);
 installGetOrInsert(WeakMap.prototype as unknown as UpsertPrototype, true);
 installSumPrecise();
+installBytesEncoding();
+installRegExpEscape();
+installPromiseTry();
+installUrlParse();
+installBodyBytes();
+installCssRound();

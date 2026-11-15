@@ -1,3 +1,5 @@
+#![cfg_attr(mobile, allow(dead_code, unused_imports))]
+
 use std::path::Path;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -6,6 +8,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
+#[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::default_app::is_installed_bundle;
@@ -57,6 +60,13 @@ fn install_blocker() -> Option<&'static str> {
     None
 }
 
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn install_update(_app: AppHandle, _progress: Channel<UpdateProgress>) -> Result<Option<String>, String> {
+    Err("Updates come from the app store on this device".into())
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn install_update(app: AppHandle, progress: Channel<UpdateProgress>) -> Result<Option<String>, String> {
     if let Some(reason) = install_blocker() {

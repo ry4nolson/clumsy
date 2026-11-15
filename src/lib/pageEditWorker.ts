@@ -53,6 +53,9 @@ export const extractPagesOffThread = async (bytes: Uint8Array, pages: number[], 
 
 export const decryptPdfOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "decrypt", bytes, password })).bytes;
 
+export const flattenedPdfOffThread = async (bytes: Uint8Array, pages: number[] | null, password?: string) =>
+  (await runInWorker(spawn, { op: "flatten", bytes, pages, password })).bytes;
+
 export const encryptPdfOffThread = async (bytes: Uint8Array, password: string) => (await runInWorker(spawn, { op: "encrypt", bytes, password })).bytes;
 
 const removedBy = new WeakMap<Uint8Array, number>();

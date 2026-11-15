@@ -41,6 +41,7 @@ import { useWorkspace } from "./hooks/useWorkspace";
 import { hasCaret, moveCaretToEdge } from "./lib/caret";
 import { commandById, documentAvailable, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
 import { openDocumentWindow, requestRestart } from "./lib/documentWindows";
+import { sidebarFits } from "./lib/drawer";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import { pickImage } from "./lib/imageFiles";
 import {
@@ -49,7 +50,8 @@ import {
   clearRecentFiles,
   closeWindow,
   hasOverlayTitlebar,
-  isMac,
+  usesMacKeys,
+  isMobile,
   onCloseRequested,
   onFileDrop,
   onFullscreenChange,
@@ -113,7 +115,7 @@ export default function App() {
 
   const [dropHover, setDropHover] = useState<"open" | "insert" | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", true);
+  const [sidebarOpen, setSidebarOpen] = usePersistentState("clumsy.sidebar", sidebarFits());
   const [sidebarTab, setSidebarTab] = usePersistentState<SidebarTab>("clumsy.sidebarTab", "thumbnails");
   const showSidebar = (tab: SidebarTab) => {
     setSidebarOpen(true);
@@ -211,8 +213,9 @@ export default function App() {
     comparing: comparison.comparing,
     canPrint,
     canSignDigitally,
+    desktopShell: !isMobile,
     documentMapAvailable: viewMenuState.documentMapAvailable,
-    isMac,
+    isMac: usesMacKeys,
     tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),
     recent: recentFiles ?? [],
     pages: hasDocument && activeSnapshot ? { labels: activeSnapshot.pageLabels, count: activeSnapshot.pagesCount } : null,
@@ -375,7 +378,7 @@ export default function App() {
     recentFiles,
   );
 
-  useKeyboardShortcuts(isMac, (id) => runCommandRef.current(id), (typing) => {
+  useKeyboardShortcuts(usesMacKeys, (id) => runCommandRef.current(id), (typing) => {
     if (markdownSnapshot?.findOpen) {
       activeMarkdown()?.closeFind();
     } else if (activeSnapshot?.findOpen) {
@@ -395,7 +398,7 @@ export default function App() {
         panes={workspace.panes}
         focusedPaneId={workspace.focusedPaneId}
         tabItems={tabItems}
-        newTabShortcut={shortcutFor("newTab", isMac) ?? ""}
+        newTabShortcut={shortcutFor("newTab", usesMacKeys) ?? ""}
         toolbar={
             <Toolbar
               titlebarInset={hasOverlayTitlebar && !fullscreen}
@@ -421,6 +424,7 @@ export default function App() {
               onRotate={() => viewer?.rotate(1)}
               onToggleFind={toggleFind}
               onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
+              onTouchCommand={isMobile ? (id) => runCommandRef.current(id) : undefined}
               onToggleSource={() => activeMarkdown()?.toggleSource()}
             />
         }
@@ -437,7 +441,7 @@ export default function App() {
         <TabContents
           workspace={workspace}
           welcome={{
-            shortcut: shortcutFor("open", isMac) ?? "",
+            shortcut: shortcutFor("open", usesMacKeys) ?? "",
             recent: recentFiles,
             onOpen: () => openSource(pickDocument()),
             onOpenRecent: openRecent,
@@ -495,7 +499,7 @@ export default function App() {
         onRestart={() => quitApp(true)}
         onClose={() => setInfoSheet(null)}
       />
-      <ShortcutsDialog open={infoSheet?.kind === "shortcuts"} isMac={isMac} onClose={() => setInfoSheet(null)} />
+      <ShortcutsDialog open={infoSheet?.kind === "shortcuts"} isMac={usesMacKeys} onClose={() => setInfoSheet(null)} />
       <StampPicker {...markupControls.picker} />
       <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>

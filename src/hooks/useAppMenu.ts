@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CommandId } from "../lib/commands";
 import { hasWindowControls, onWindowFocused, ownsAppMenu } from "../lib/documentWindows";
 import { installAppMenu, type AppMenu, type MenuState } from "../lib/menu";
-import { canPrint, canSignDigitally, clearRecentFiles, isDesktop } from "../lib/platform";
+import { canPrint, canSignDigitally, clearRecentFiles, hasAppMenu } from "../lib/platform";
 import type { RecentEntry } from "../lib/recent";
 
 type AppMenuCallbacks = {
@@ -17,7 +17,7 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: MenuState, recent
   callbacksRef.current = callbacks;
 
   useEffect(() => {
-    if (!isDesktop) {
+    if (!hasAppMenu) {
       return;
     }
     let cancelled = false;

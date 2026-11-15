@@ -2,10 +2,10 @@ import { ArrowLeftRight, ChevronDown, ChevronUp, FileDown, Link, Unlink, X } fro
 import type { CompareView } from "../hooks/useComparison";
 import { describeWords, summarizeChanges } from "../lib/changeSummary";
 import { shortcutFor, type CommandId } from "../lib/commands";
-import { isMac } from "../lib/platform";
+import { usesMacKeys } from "../lib/platform";
 
 const withShortcut = (label: string, id: CommandId) => {
-  const shortcut = shortcutFor(id, isMac);
+  const shortcut = shortcutFor(id, usesMacKeys);
   return shortcut ? `${label} (${shortcut})` : label;
 };
 

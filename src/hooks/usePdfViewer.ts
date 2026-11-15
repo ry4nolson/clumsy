@@ -6,7 +6,10 @@ import { attachCaretBrowsing, type CaretBrowsing } from "../lib/caretBrowsing";
 import { paintDiffPage, paintDiffPages, type DiffViewer } from "../lib/diffLayer";
 import { createEditorManagers, type EditorManagers } from "../lib/editorManagers";
 import type { ViewState } from "../lib/documentWindows";
+import { isTouchDevice } from "../lib/drawer";
 import { attachHandTool, type HandTool } from "../lib/handTool";
+import { attachTapToEdit } from "../lib/touchEdit";
+import { attachZoomGestures } from "../lib/zoomGestures";
 import { restoreImages, restoreRenderedImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
 import { publishPageCanvas } from "../lib/pageCanvases";
@@ -227,22 +230,17 @@ export function usePdfViewer() {
         setModes((current) => ({ ...current, spreadMode }));
       }
     });
+    eventBus.on("switchannotationeditormode", ({ mode, editId }: { mode: number; editId?: string }) => {
+      if (isTouchDevice && editId) {
+        viewer.annotationEditorMode = { mode, editId };
+      }
+    });
     eventBus.on("editingstateschanged", ({ details }: { details: { hasSomethingToUndo?: boolean; hasSomethingToRedo?: boolean } }) => {
       editHistoryRef.current.canUndo = !!details.hasSomethingToUndo;
       editHistoryRef.current.canRedo = !!details.hasSomethingToRedo;
     });
-    const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) {
-        return;
-      }
-      event.preventDefault();
-      viewer.updateScale({
-        drawingDelay: 400,
-        scaleFactor: Math.exp(-event.deltaY / 100),
-        origin: [event.clientX, event.clientY],
-      });
-    };
-    container.addEventListener("wheel", onWheel, { passive: false });
+    attachTapToEdit(container, teardown.signal);
+    const stopZoomGestures = attachZoomGestures(container, (scaleFactor, origin) => viewer.updateScale({ drawingDelay: 400, scaleFactor, origin }));
     const onFormInput = (event: Event) => {
       if ((event.target as HTMLElement | null)?.closest?.(".annotationLayer")) {
         editHistoryRef.current.changed = true;
@@ -260,7 +258,11 @@ export function usePdfViewer() {
       if (!width || !height || size === lastSize) {
         return;
       }
+      const keyboardOnly = isTouchDevice && lastSize.startsWith(`${width}x`);
       lastSize = size;
+      if (keyboardOnly) {
+        return;
+      }
       const preset = viewer.currentScaleValue;
       if (viewer.pdfDocument && presetScales.has(preset)) {
         viewer.currentScaleValue = preset;
@@ -274,7 +276,7 @@ export function usePdfViewer() {
       linkService.setDocument(null, null);
       teardown.abort();
       resizeObserver.disconnect();
-      container.removeEventListener("wheel", onWheel);
+      stopZoomGestures();
       container.removeEventListener("input", onFormInput, true);
       container.removeEventListener("change", onFormInput, true);
       hand.dispose();

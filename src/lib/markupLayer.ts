@@ -287,6 +287,11 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     if (drag && !drag.layer.isConnected) {
       drag = null;
     }
+    if (drag && event.pointerType === "touch" && event.pointerId !== drag.pointerId) {
+      const { pageIndex: abandoned } = drag;
+      drag = null;
+      return paint(abandoned);
+    }
     if (drag || event.button !== 0 || !view || !writable()) {
       return;
     }

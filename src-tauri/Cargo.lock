@@ -488,6 +488,7 @@ dependencies = [
 name = "clumsy"
 version = "0.16.2"
 dependencies = [
+ "base64 0.22.1",
  "cmpv2",
  "cms",
  "const-oid",

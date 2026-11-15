@@ -43,6 +43,7 @@ fn replace_prompt(names: &[String], folder: &str) -> String {
 }
 
 #[tauri::command]
+#[cfg_attr(mobile, allow(unused_variables))]
 pub async fn confirm_replace(app: AppHandle, window: Window, folder: String, names: Vec<String>) -> Result<bool, String> {
     let folder = PathBuf::from(folder);
     let folders = app.state::<AllowedFolders>();
@@ -55,14 +56,15 @@ pub async fn confirm_replace(app: AppHandle, window: Window, folder: String, nam
     }
     let existing_names: Vec<String> = existing.iter().filter_map(|path| path.file_name()).map(|name| name.to_string_lossy().into_owned()).collect();
     let folder_name = folder.file_name().map_or_else(|| folder.to_string_lossy(), |name| name.to_string_lossy());
-    let replace = app
+    let dialog = app
         .dialog()
         .message(replace_prompt(&existing_names, &folder_name))
         .title("Replace existing files?")
         .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom("Replace".into(), "Cancel".into()))
-        .parent(&window)
-        .blocking_show();
+        .buttons(MessageDialogButtons::OkCancelCustom("Replace".into(), "Cancel".into()));
+    #[cfg(desktop)]
+    let dialog = dialog.parent(&window);
+    let replace = dialog.blocking_show();
     if replace {
         folders.allow_replacing(&existing);
     }

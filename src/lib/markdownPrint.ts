@@ -5,10 +5,17 @@ function settleImages(root: HTMLElement, waitMs: number) {
   return Promise.race([Promise.all(images), new Promise((resolve) => setTimeout(resolve, waitMs))]);
 }
 
-export async function printArticle<T>(article: HTMLElement, print: () => Promise<T>, waitMs = IMAGE_WAIT_MS) {
+export const PAGE_MARGINS = "@page { margin: 0.5in; }";
+
+export async function printArticle<T>(article: HTMLElement, print: () => Promise<T>, waitMs = IMAGE_WAIT_MS, pageRule = "") {
   const root = document.createElement("div");
   root.className = "markdown-print";
   root.append(article);
+  if (pageRule) {
+    const style = document.createElement("style");
+    style.textContent = pageRule;
+    root.append(style);
+  }
   document.body.append(root);
   const page = document.documentElement.style;
   page.setProperty("--app-width", `${window.innerWidth}px`);

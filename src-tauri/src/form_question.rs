@@ -23,6 +23,7 @@ fn reply(status: StatusCode, body: &'static str) -> Response<Vec<u8>> {
         .unwrap_or_default()
 }
 
+#[cfg_attr(mobile, allow(unused_variables))]
 pub fn answer<R: Runtime>(context: UriSchemeContext<'_, R>, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
     let app = context.app_handle();
     let Some(question) = question_from(request.uri().path()) else {
@@ -31,13 +32,15 @@ pub fn answer<R: Runtime>(context: UriSchemeContext<'_, R>, request: Request<Vec
     let Some(window) = app.get_webview_window(context.webview_label()) else {
         return responder.respond(reply(StatusCode::NOT_FOUND, "no"));
     };
-    app.dialog()
+    let dialog = app
+        .dialog()
         .message(question)
         .title("Question from this form")
         .kind(MessageDialogKind::Info)
-        .buttons(MessageDialogButtons::OkCancelCustom("Yes".into(), "No".into()))
-        .parent(&window)
-        .show(move |yes| responder.respond(reply(StatusCode::OK, if yes { "yes" } else { "no" })));
+        .buttons(MessageDialogButtons::OkCancelCustom("Yes".into(), "No".into()));
+    #[cfg(desktop)]
+    let dialog = dialog.parent(&window);
+    dialog.show(move |yes| responder.respond(reply(StatusCode::OK, if yes { "yes" } else { "no" })));
 }
 
 #[cfg(test)]

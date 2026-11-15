@@ -5,6 +5,7 @@ import type { ImageFile } from "./imagePdf";
 import {
   fileNameFromPath,
   isDesktop,
+  isMobile,
   pickFilesInBrowser,
   readMarkdownFromFile,
   readMarkdownFromPath,
@@ -72,7 +73,7 @@ export function openedFile(file: DroppedFile): OpenedFile | null {
 export const openedFiles = (files: DroppedFile[]) => files.flatMap((file) => openedFile(file) ?? []);
 
 export async function pickImages(includePdfs = false): Promise<OpenedFile[]> {
-  if (!isDesktop) {
+  if (!isDesktop || isMobile) {
     const accept = [...(includePdfs ? ["application/pdf", ".pdf"] : []), ...Object.values(imageTypes), ...Object.keys(imageTypes).map((extension) => `.${extension}`)];
     return openedFiles(await pickFilesInBrowser(accept.join(","), true));
   }
@@ -80,7 +81,7 @@ export async function pickImages(includePdfs = false): Promise<OpenedFile[]> {
 }
 
 export async function pickImage(): Promise<File | null> {
-  if (!isDesktop) {
+  if (!isDesktop || isMobile) {
     return (await pickFilesInBrowser(placeableTypes.join(","), false))[0] ?? null;
   }
   const path = await invoke<string | null>("pick_image");

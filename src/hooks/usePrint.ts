@@ -4,17 +4,17 @@ import type { Progress } from "../components/ProgressView";
 import type { MarkdownHandle } from "../components/MarkdownTab";
 import type { CommandId } from "../lib/commands";
 import { hasOwnedChanges } from "../lib/markup";
-import { printArticle } from "../lib/markdownPrint";
+import { IMAGE_WAIT_MS, PAGE_MARGINS, printArticle } from "../lib/markdownPrint";
 import { NOTE_KEY_PREFIX } from "../lib/notes";
 import { ExportCancelledError } from "../lib/pageImages";
-import { decryptPdfOffThread, extractPagesOffThread } from "../lib/pageEditWorker";
+import { decryptPdfOffThread, extractPagesOffThread, flattenedPdfOffThread } from "../lib/pageEditWorker";
 import { loadPdf, passwordOf } from "../lib/pdfjs";
-import { canPrint, printPdf, printWebview, showError } from "../lib/platform";
+import { canPrint, isMobile, printPdf, printWebview, showError } from "../lib/platform";
 import { pagesToPrint, printCommands, printJobName, printWithFallback } from "../lib/print";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
-const printOps = { extract: extractPagesOffThread, decrypt: decryptPdfOffThread };
+const printOps = { extract: extractPagesOffThread, decrypt: decryptPdfOffThread, flatten: isMobile ? flattenedPdfOffThread : undefined };
 
 const unreadable = (name: string) => `Couldn't print “${name}”. The file couldn't be read for printing.`;
 
@@ -107,7 +107,7 @@ export function usePrint({ workspaceRef, handles, markdownHandles }: WorkspaceAp
   };
 
   const printMarkdown = async (handle: MarkdownHandle, name: string) => {
-    const outcome = await printArticle(await handle.printable(), () => printWebview(printJobName(name)));
+    const outcome = await printArticle(await handle.printable(), () => printWebview(printJobName(name)), IMAGE_WAIT_MS, isMobile ? PAGE_MARGINS : "");
     if (outcome === "unreadable") {
       await showError(unreadable(name));
     }

@@ -9,6 +9,7 @@ export type PageEditJob =
   | { op: "edit"; bytes: Uint8Array; edit: PageEdit; password?: string }
   | { op: "extract"; bytes: Uint8Array; pages: number[]; password?: string }
   | { op: "decrypt"; bytes: Uint8Array; password?: string }
+  | { op: "flatten"; bytes: Uint8Array; pages: number[] | null; password?: string }
   | { op: "encrypt"; bytes: Uint8Array; password: string }
   | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string }
   | { op: "readMarkup"; bytes: Uint8Array; password?: string }
@@ -48,6 +49,7 @@ export function jobBuffers(job: PageEditJob) {
     case "extract":
     case "compress":
     case "decrypt":
+    case "flatten":
     case "encrypt":
     case "annotations":
     case "readMarkup":

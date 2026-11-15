@@ -31,6 +31,7 @@ import { PasswordSetDialog } from "./PasswordSetDialog";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 import { SignatureBar } from "./SignatureBar";
 import { SignatureDetailsDialog } from "./SignatureDetailsDialog";
+import { SelectionBar } from "./SelectionBar";
 import { SignaturesList } from "./SignaturesList";
 import "./Forms.css";
 import "./Markup.css";
@@ -444,6 +445,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         </div>
         {!loaded && <div className="tab-loading">Opening {source.name}…</div>}
         <EditorUndoBar editorUi={viewer.editorUi} removed={editorState.removed} onUndo={() => onUndoRemoval(id)} />
+        <SelectionBar viewer={viewer} active={active} />
       </main>
       {loaded && mapShown && viewer.pdfDocument && (
         <DocumentMap

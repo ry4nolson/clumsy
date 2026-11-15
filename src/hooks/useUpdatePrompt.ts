@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { isMainWindow } from "../lib/documentWindows";
-import { isDesktop, openExternal } from "../lib/platform";
+import { isDesktop, isMobile, openExternal } from "../lib/platform";
 import { usePersistentState } from "../lib/preferences";
 import {
   UPDATE_CHECK_INTERVAL_MS,
@@ -46,7 +46,7 @@ export function useUpdatePrompt() {
   offerRef.current = offer;
 
   useEffect(() => {
-    if (!isDesktop || !isMainWindow()) {
+    if (!isDesktop || isMobile || !isMainWindow()) {
       return;
     }
 

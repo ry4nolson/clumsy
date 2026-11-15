@@ -118,3 +118,60 @@ jobs:
 
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+  android:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Point the build at the Android NDK
+        run: echo "NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+
+      - name: Configure signing
+        run: |
+          set -euo pipefail
+          KEYSTORE="$RUNNER_TEMP/clumsy.jks"
+          keytool -genkeypair -keystore "$KEYSTORE" -storepass throwaway -keypass throwaway -alias clumsy -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Clumsy CI"
+          printf 'storeFile=%s\npassword=throwaway\nkeyAlias=clumsy\n' "$KEYSTORE" > src-tauri/gen/android/keystore.properties
+
+      - name: Build APK
+        run: pnpm tauri android build --target aarch64 --apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clumsy-Android
+          path: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+          retention-days: 7
+          if-no-files-found: error

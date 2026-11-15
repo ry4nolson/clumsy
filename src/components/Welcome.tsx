@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FileText, FolderOpen, Info, X } from "lucide-react";
 import appIcon from "../../src-tauri/icons/128x128@2x.png";
+import { isMobile } from "../lib/platform";
 import { formatRelativeTime, type RecentEntry } from "../lib/recent";
 
 const COLLAPSED_COUNT = 8;
@@ -37,13 +38,13 @@ export function Welcome({ loading, shortcut, recent, onOpen, onOpenRecent, onRem
           <button type="button" className="welcome-action" onClick={onOpen} disabled={loading}>
             <FolderOpen size={16} />
             Open File…
-            <kbd>{shortcut}</kbd>
+            {!isMobile && <kbd>{shortcut}</kbd>}
           </button>
           <button type="button" className="welcome-action" onClick={onAbout}>
             <Info size={16} />
             About Clumsy
           </button>
-          <p className="welcome-hint">Or drop a PDF or Markdown file anywhere in this window.</p>
+          {!isMobile && <p className="welcome-hint">Or drop a PDF or Markdown file anywhere in this window.</p>}
         </section>
 
         {recent && visible && (

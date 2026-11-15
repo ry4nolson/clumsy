@@ -139,7 +139,7 @@ function streamRef(doc: PDFDocument, entry: unknown) {
   return entry instanceof PDFRef ? entry : doc.context.register(stream);
 }
 
-function appearanceOf(doc: PDFDocument, widget: PDFDict): PDFRef | null | undefined {
+export function appearanceOf(doc: PDFDocument, widget: PDFDict): PDFRef | null | undefined {
   const appearances = widget.lookup(key("AP"));
   const normal = appearances instanceof PDFDict ? appearances.get(key("N")) : undefined;
   const resolved = normal && doc.context.lookup(normal);
@@ -153,7 +153,7 @@ function appearanceOf(doc: PDFDocument, widget: PDFDict): PDFRef | null | undefi
   return drawsNothing(widget) ? null : undefined;
 }
 
-function drawAppearance(doc: PDFDocument, page: PDFPage, widget: PDFDict, ref: PDFRef) {
+export function drawAppearance(doc: PDFDocument, page: PDFPage, widget: PDFDict, ref: PDFRef) {
   const stream = doc.context.lookup(ref, PDFStream);
   const rect = numbers(widget.lookup(key("Rect")) as PDFArray | undefined, 4);
   const bbox = numbers(stream.dict.lookup(key("BBox")) as PDFArray | undefined, 4);

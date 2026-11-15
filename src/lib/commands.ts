@@ -141,6 +141,7 @@ export type Command = {
   needsProtection?: boolean;
   needsPrinting?: boolean;
   needsDigitalSigning?: boolean;
+  needsDesktop?: boolean;
 };
 
 const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) => ({
@@ -152,26 +153,26 @@ const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) =
 
 export const commands: Command[] = [
   { id: "about", label: "About Clumsy", menu: "Clumsy", combos: [] },
-  { id: "checkUpdates", label: "Check for Updates…", menu: "Clumsy", combos: [] },
-  { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [] },
-  { id: "makeDefaultMarkdown", label: "Make Clumsy the Default Markdown App…", menu: "Clumsy", combos: [] },
-  { id: "quit", label: "Quit Clumsy", menu: "Clumsy", combos: ["mod+q"] },
+  { id: "checkUpdates", label: "Check for Updates…", menu: "Clumsy", combos: [], needsDesktop: true },
+  { id: "makeDefault", label: "Make Clumsy the Default PDF App…", menu: "Clumsy", combos: [], needsDesktop: true },
+  { id: "makeDefaultMarkdown", label: "Make Clumsy the Default Markdown App…", menu: "Clumsy", combos: [], needsDesktop: true },
+  { id: "quit", label: "Quit Clumsy", menu: "Clumsy", combos: ["mod+q"], needsDesktop: true },
 
   { id: "newTab", label: "New Tab", menu: "File", combos: ["mod+n", "mod+t"] },
-  { id: "newWindow", label: "New Window", menu: "File", combos: ["mod+shift+n"] },
+  { id: "newWindow", label: "New Window", menu: "File", combos: ["mod+shift+n"], needsDesktop: true },
   { id: "reopenClosedTab", label: "Reopen Closed Tab", menu: "File", combos: ["mod+shift+t"] },
   { id: "open", label: "Open…", menu: "File", combos: ["mod+o"] },
   { id: "combineFiles", label: "Combine Files…", menu: "File", combos: [] },
   { id: "newPdfFromImages", label: "New PDF from Images…", menu: "File", combos: [] },
-  { id: "exportPagesAsImages", label: "Export Pages as Images…", menu: "File", combos: [], needsDocument: true },
+  { id: "exportPagesAsImages", label: "Export Pages as Images…", menu: "File", combos: [], needsDocument: true, needsDesktop: true },
   { id: "compareWithFile", label: "Compare With File…", menu: "File", combos: [], needsDocument: true },
   { id: "exportComparison", label: "Export Comparison Report…", menu: "File", combos: [], needsComparison: true },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
-  { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"] },
+  { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"], needsDesktop: true },
   { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true, markdown: true },
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
-  { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true },
+  { id: "revealInFinder", label: "Show in Finder", menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true, needsDesktop: true },
   { id: "compressPdf", label: "Compress…", menu: "File", combos: [], needsDocument: true },
   { id: "setPassword", label: "Set Password…", menu: "File", combos: [], needsDocument: true },
   { id: "removePassword", label: "Remove Password", menu: "File", combos: [], needsDocument: true, needsProtection: true },
@@ -266,7 +267,7 @@ export const commands: Command[] = [
   { id: "rotatePagesRight", label: "Rotate Pages Right", menu: "Pages", combos: [], needsDocument: true },
   { id: "deletePages", label: "Delete Pages", menu: "Pages", combos: [], needsDocument: true },
   { id: "extractPages", label: "Extract Pages to New Tab", menu: "Pages", combos: [], needsDocument: true },
-  { id: "exportSelectedPagesAsImages", label: "Export Selected Pages as Images…", menu: "Pages", combos: [], needsDocument: true },
+  { id: "exportSelectedPagesAsImages", label: "Export Selected Pages as Images…", menu: "Pages", combos: [], needsDocument: true, needsDesktop: true },
   { id: "printSelectedPages", label: "Print Selected Pages…", menu: "Pages", combos: [], needsDocument: true, needsPrinting: true },
   { id: "pageLabels", label: "Page Labels…", menu: "Pages", combos: [], needsDocument: true },
 
@@ -276,10 +277,10 @@ export const commands: Command[] = [
   { id: "focusRightPane", label: "Focus Right Pane", menu: "Window", combos: ["alt+mod+ArrowRight"], needsSplit: true },
   { id: "moveTabLeft", label: "Move Tab to Left Pane", menu: "Window", combos: ["ctrl+mod+ArrowLeft"], needsSplit: true },
   { id: "moveTabRight", label: "Move Tab to Right Pane", menu: "Window", combos: ["ctrl+mod+ArrowRight"] },
-  { id: "moveTabToNewWindow", label: "Move Tab to New Window", menu: "Window", combos: ["alt+mod+n"] },
+  { id: "moveTabToNewWindow", label: "Move Tab to New Window", menu: "Window", combos: ["alt+mod+n"], needsDesktop: true },
   ...tabCommands,
 
-  { id: "keyboardShortcuts", label: "Keyboard Shortcuts", menu: "Help", combos: ["mod+k", "mod+/"] },
+  { id: "keyboardShortcuts", label: "Keyboard Shortcuts", menu: "Help", combos: ["mod+k", "mod+/"], needsDesktop: true },
   { id: "whatsNew", label: "What's New", menu: "Help", combos: [] },
   { id: "openGitHub", label: "Clumsy on GitHub", menu: "Help", combos: [] },
   { id: "reportIssue", label: "Report an Issue…", menu: "Help", combos: [] },
@@ -298,12 +299,13 @@ export type CommandContext = {
   comparing: boolean;
   canPrint?: boolean;
   canSignDigitally?: boolean;
+  desktopShell?: boolean;
 };
 
-export type PlatformAbilities = Pick<CommandContext, "canPrint" | "canSignDigitally">;
+export type PlatformAbilities = Pick<CommandContext, "canPrint" | "canSignDigitally" | "desktopShell">;
 
-export const platformSupports = (command: Command, { canPrint = false, canSignDigitally = false }: PlatformAbilities) =>
-  (!command.needsPrinting || canPrint) && (!command.needsDigitalSigning || canSignDigitally);
+export const platformSupports = (command: Command, { canPrint = false, canSignDigitally = false, desktopShell = true }: PlatformAbilities) =>
+  (!command.needsPrinting || canPrint) && (!command.needsDigitalSigning || canSignDigitally) && (!command.needsDesktop || desktopShell);
 
 export function documentAvailable(command: Command, { hasDocument, hasMarkdown = false }: Pick<CommandContext, "hasDocument" | "hasMarkdown">) {
   if (command.needsMarkdown) {
