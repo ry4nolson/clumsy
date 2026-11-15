@@ -4,6 +4,10 @@ export type MeasureScale = { label: string; inchesPerPoint: number };
 
 export type MeasureFormat = { unit: LengthUnit; precision: number };
 
+export type MeasureKind = "measure-length" | "measure-path" | "measure-area";
+
+export const measureKinds: MeasureKind[] = ["measure-length", "measure-path", "measure-area"];
+
 export type ScaleGroup = "Architectural" | "Engineering" | "Metric";
 
 export type ScalePreset = MeasureScale & { group: ScaleGroup };
@@ -154,9 +158,12 @@ export const formatLength = (points: number, scale: MeasureScale, format: Measur
 
 const AREA_DECIMALS = 2;
 
-export function formatArea(squarePoints: number, scale: MeasureScale, { unit, precision }: MeasureFormat) {
+export const areaPlaces = ({ unit, precision }: MeasureFormat) => (isFractional(unit) ? AREA_DECIMALS : precision);
+
+export function formatArea(squarePoints: number, scale: MeasureScale, format: MeasureFormat) {
+  const { unit } = format;
   const squareInches = squarePoints * scale.inchesPerPoint ** 2;
-  const places = isFractional(unit) ? AREA_DECIMALS : precision;
+  const places = areaPlaces(format);
   if (unit === "ft-in" || unit === "ft") {
     return `${decimal(squareInches / 144, places)} sq ft`;
   }
@@ -202,6 +209,13 @@ function signedArea(vertices: number[]) {
 }
 
 export const areaOf = (vertices: number[]) => (vertices.length < 6 ? 0 : Math.abs(signedArea(vertices)));
+
+export function measureCaption(kind: MeasureKind, points: number[], scale: MeasureScale, format: MeasureFormat) {
+  if (kind === "measure-area") {
+    return formatArea(areaOf(points), scale, format);
+  }
+  return formatLength(kind === "measure-length" ? lengthOf(points) : pathLengthOf(points), scale, format);
+}
 
 export function uprightAngle(angle: number, pageRotation = 0) {
   const onScreen = angle - (pageRotation * Math.PI) / 180;
