@@ -10,6 +10,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 ### Added
 - **Measure.** A new Measure tool measures lengths, paths, and areas on drawings, with a live reading as you click. Pages > Set Scale sets a drawing's scale from architectural, engineering, or metric presets, or by measuring a dimension you know. Measuring on a page with no scale asks first. Drag any corner to adjust a measurement. The Measurements sidebar lists every one with total length and area, and Copy or Export CSV sends them to a spreadsheet. Measurements save as standard PDF measurements, so other PDF apps show them too
 
+### Changed
+- Toolbar buttons and menus respond faster in long documents. Each click used to restyle every thumbnail and Document Map page.
+- A large Markdown file shows its tab right away with "Rendering…" instead of freezing the window until it's drawn, and its minimap fills in afterwards without blocking.
+
 ## [0.18.0] - 2026-11-16
 
 ### Added

@@ -395,7 +395,7 @@ export default function App() {
   const viewer = activeHandle()?.viewer;
 
   return (
-    <div className={`app${dropHover ? " dragging" : ""}${forms.fieldHighlights ? "" : " hide-field-highlights"}`}>
+    <div className={`app${dropHover ? " dragging" : ""}${forms.fieldHighlights ? "" : " hide-field-highlights"}${darkPages ? " dark-pages" : ""}${darkPagesImages === "keep" ? " keep-images" : ""}`}>
       <PaneGrid
         panes={workspace.panes}
         focusedPaneId={workspace.focusedPaneId}

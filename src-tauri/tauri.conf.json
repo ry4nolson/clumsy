@@ -84,6 +84,10 @@
     ],
     "macOS": {
       "minimumSystemVersion": "15.4"
+    },
+    "iOS": {
+      "developmentTeam": "M3C8F32WA5",
+      "minimumSystemVersion": "18.4"
     }
   },
   "plugins": {
