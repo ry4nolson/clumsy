@@ -1,4 +1,4 @@
-import { isClaimedShape, isMeasureKind, type Markup } from "./markup";
+import { isMeasureKind, type Markup } from "./markup";
 import { listedAnnotationTypes, rowFromAnnotation, rowFromMarkup, type AnnotationEntry, type MarkupRow } from "./markupRows";
 import { isStickyNote, noteFromAnnotation, visibleNotes, type StickyNote } from "./notes";
 import { isStateReply, latestStatuses, stateText } from "./reviewState";
@@ -47,8 +47,6 @@ export type RowSources = {
 
 const HIDDEN = 2;
 const NO_VIEW = 32;
-const READ_ONLY = 64;
-const LOCKED = 128;
 const SIGNATURE_EDITOR = 101;
 const STAMP = 13;
 const FREETEXT = 3;
@@ -91,7 +89,6 @@ export function assembleRows(sources: RowSources): MarkupRow[] {
       subject: subjects[note.id] ?? "",
       comment: note.text,
       date: time(note.date),
-      readOnly: false,
       source: note.fresh ? "clumsy" : "file",
       target: "note",
     };
@@ -119,9 +116,8 @@ export function assembleRows(sources: RowSources): MarkupRow[] {
       color: rgb(editor?.color ?? record.color),
       author: record.titleObj?.str || "",
       subject: subjects[record.id] ?? "",
-      comment: editor?.popup && !editor.popup.deleted ? (editor.popup.contents ?? "") : editor?.annotationType === FREETEXT ? (editor.value ?? "") : textOf(record),
+      comment: editor?.popup ? (editor.popup.deleted ? "" : (editor.popup.contents ?? "")) : editor?.annotationType === FREETEXT ? (editor.value ?? "") : textOf(record),
       date: time(record.modificationDate || record.creationDate),
-      readOnly: isClaimedShape(record) || !!(flags & (READ_ONLY | LOCKED)),
       source: editor ? "editor" : "file",
       target: "annotation",
     };
@@ -142,7 +138,6 @@ export function assembleRows(sources: RowSources): MarkupRow[] {
       subject: "",
       comment: editor.annotationType === FREETEXT ? (editor.value ?? "") : (editor.popup?.contents ?? ""),
       date: null,
-      readOnly: false,
       source: "editor",
       target: "annotation",
     };

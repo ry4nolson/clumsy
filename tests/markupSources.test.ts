@@ -19,7 +19,7 @@ const sources = (overrides: Partial<RowSources>): RowSources => ({
   ...overrides,
 });
 
-const summary = (rows: ReturnType<typeof assembleRows>) => rows.map((row) => [row.id, row.type, row.subject, row.author, row.comment, row.status, row.source, row.target, row.readOnly]);
+const summary = (rows: ReturnType<typeof assembleRows>) => rows.map((row) => [row.id, row.type, row.subject, row.author, row.comment, row.status, row.source, row.target]);
 
 describe("gathering markup rows", () => {
   it("lists file annotations, skipping replies, popups, links, and hidden ones", () => {
@@ -38,9 +38,9 @@ describe("gathering markup rows", () => {
       }),
     );
     expect(summary(rows)).toEqual([
-      ["1R", "Highlight", "Review comment", "Bobby", "Check", "Accepted", "file", "annotation", false],
-      ["6R", "Line", "Line", "", "", null, "file", "annotation", true],
-      ["7R", "Drawing", "Drawing", "", "", null, "file", "annotation", true],
+      ["1R", "Highlight", "Review comment", "Bobby", "Check", "Accepted", "file", "annotation"],
+      ["6R", "Line", "Line", "", "", null, "file", "annotation"],
+      ["7R", "Drawing", "Drawing", "", "", null, "file", "annotation"],
     ]);
     expect(rows[0].color).toBe("#ffff00");
     expect(rows[0].date).toBe(5);
@@ -57,8 +57,8 @@ describe("gathering markup rows", () => {
       }),
     );
     expect(summary(rows)).toEqual([
-      ["8R", "Rectangle", "Drywall", "Ann", "Move wall", null, "file", "markup", false],
-      ["markup-1", "Stamp", "Duplex Receptacle", "Ryan", "", null, "clumsy", "markup", false],
+      ["8R", "Rectangle", "Drywall", "Ann", "Move wall", null, "file", "markup"],
+      ["markup-1", "Stamp", "Duplex Receptacle", "Ryan", "", null, "clumsy", "markup"],
     ]);
   });
 
@@ -71,27 +71,29 @@ describe("gathering markup rows", () => {
         noteChanges: [edited, { ...edited, id: "11R", deleted: true }, reply],
       }),
     );
-    expect(summary(rows)).toEqual([["10R", "Note", "Note", "Sam", "Edited", "Completed", "file", "note", false]]);
+    expect(summary(rows)).toEqual([["10R", "Note", "Note", "Sam", "Edited", "Completed", "file", "note"]]);
   });
 
   it("overlays pdf.js editors on file annotations and adds new ones", () => {
     const rows = assembleRows(
       sources({
-        annotations: [record({ id: "12R", annotationType: 3, contentsObj: { str: "old" } }), record({ id: "13R" })],
+        annotations: [record({ id: "12R", annotationType: 3, contentsObj: { str: "old" } }), record({ id: "13R" }), record({ id: "1R", contentsObj: { str: "Deleted comment" } })],
         editors: [
           { key: "pdfjs_internal_editor_0", id: "12R", annotationType: 3, pageIndex: 0, rect: [5, 5, 50, 20], value: "new text" },
           { key: "pdfjs_internal_editor_1", id: "13R", deleted: true, annotationType: 9, pageIndex: 0, rect: [0, 0, 1, 1] },
+          { key: "pdfjs_internal_editor_4", id: "1R", annotationType: 9, pageIndex: 0, rect: [0, 0, 10, 10], popup: { deleted: true } },
           { key: "pdfjs_internal_editor_2", annotationType: 15, pageIndex: 2, rect: [1, 2, 3, 4], color: [0, 0, 255] },
           { key: "pdfjs_internal_editor_3", annotationType: 101, pageIndex: 0, rect: [1, 2, 3, 4] },
         ],
       }),
     );
     expect(summary(rows)).toEqual([
-      ["12R", "Text Box", "Text Box", "", "new text", null, "editor", "annotation", false],
-      ["pdfjs_internal_editor_2", "Drawing", "Drawing", "", "", null, "editor", "annotation", false],
-      ["pdfjs_internal_editor_3", "Stamp", "Stamp", "", "", null, "editor", "annotation", false],
+      ["12R", "Text Box", "Text Box", "", "new text", null, "editor", "annotation"],
+      ["1R", "Highlight", "Highlight", "", "", null, "editor", "annotation"],
+      ["pdfjs_internal_editor_2", "Drawing", "Drawing", "", "", null, "editor", "annotation"],
+      ["pdfjs_internal_editor_3", "Stamp", "Stamp", "", "", null, "editor", "annotation"],
     ]);
     expect(rows[0].rect).toEqual([5, 5, 50, 20]);
-    expect(rows[1]).toMatchObject({ page: "3", color: "#0000ff" });
+    expect(rows[2]).toMatchObject({ page: "3", color: "#0000ff" });
   });
 });

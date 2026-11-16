@@ -189,7 +189,7 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       readScales: async (doc) => readScalesOffThread(await doc.getData(), passwordOf(doc)),
       stampDate: () => dateLabel(new Date()),
       askScale: askForScale,
-      listed: markupChanged,
+      listed: () => markupList?.changed(),
       selected: (markupSelection) => set({ markupSelection }),
       removed: () => editorUndoBar.show(() => {}, "markup"),
     });
@@ -197,8 +197,9 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
     markupList = createMarkupList(viewer, {
       markup: () => markup,
       revealNote: comments.revealNote,
-      removeNotes: (ids) => void comments.removeNotes(ids),
+      noteRemoval: comments.noteRemoval,
       addCommands: comments.addCommands,
+      removed: () => editorUndoBar.show(() => {}, "markup"),
       changed: markupChanged,
     });
   };

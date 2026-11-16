@@ -12,11 +12,13 @@ const KEEP_LAYERS = { keepAnnotationLayer: true, keepAnnotationEditorLayer: true
 
 type StorePageView = { reset(options: Record<string, boolean>): void };
 
+export type FileMarkup = { markup: Markup[]; subjects: Record<string, string> };
+
 export type MarkupEntry = { id: string; pageIndex: number; after: Markup | null };
 
 export type StoreHooks = {
   addCommands(command: UndoableCommand): void;
-  readFile(doc: PDFDocumentProxy): Promise<Markup[]>;
+  readFile(doc: PDFDocumentProxy): Promise<FileMarkup>;
   readScales(doc: PDFDocumentProxy): Promise<Array<PageScale | null>>;
   loaded(): void;
   changed(pageIndex: number): void;
@@ -25,6 +27,7 @@ export type StoreHooks = {
 export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
   let doc: PDFDocumentProxy | null = null;
   let file: Promise<Markup[]> | null = null;
+  let subjects: Record<string, string> = {};
   let fileByPage = new Map<number, Markup[]>();
   let hiddenIds = new Set<string>();
   let scales: Promise<Array<PageScale | null>> | null = null;
@@ -46,9 +49,10 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     }
     file ??= hooks
       .readFile(owner)
-      .catch(() => [])
-      .then((list) => {
+      .catch(() => ({ markup: [], subjects: {} }))
+      .then(({ markup: list, subjects: found }) => {
         if (doc === owner) {
+          subjects = found;
           fileByPage = new Map();
           for (const markup of list) {
             fileByPage.set(markup.pageIndex, [...(fileByPage.get(markup.pageIndex) ?? []), markup]);
@@ -81,6 +85,7 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
   const reset = () => {
     doc = viewer.pdfDocument ?? null;
     file = null;
+    subjects = {};
     scales = null;
     scaleList = [];
     scalesReady = false;
@@ -120,18 +125,24 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     hooks.changed(pageIndex);
   };
 
-  const commit = (entries: MarkupEntry[], coalesce?: string) => {
+  const command = (entries: MarkupEntry[]): UndoableCommand | null => {
     if (!writable() || !entries.length) {
-      return false;
+      return null;
     }
     const befores = entries.map(({ id }) => (doc!.annotationStorage.getRawValue(MARKUP_KEY_PREFIX + id) as Markup | undefined) ?? null);
-    hooks.addCommands({
+    return {
       cmd: () => entries.forEach(({ id, pageIndex, after }) => put(id, after, pageIndex)),
       undo: () => entries.forEach(({ id, pageIndex }, index) => put(id, befores[index], pageIndex)),
       mustExec: true,
-      ...(coalesce && { type: burstType(coalesce), overwriteIfSameType: true, keepUndo: true }),
-    });
-    return true;
+    };
+  };
+
+  const commit = (entries: MarkupEntry[], coalesce?: string) => {
+    const found = command(entries);
+    if (found) {
+      hooks.addCommands({ ...found, ...(coalesce && { type: burstType(coalesce), overwriteIfSameType: true, keepUndo: true }) });
+    }
+    return !!found;
   };
 
   const change = (markup: Markup, after: Markup | null, coalesce?: string) => commit([{ id: markup.id, pageIndex: markup.pageIndex, after }], coalesce && `${coalesce}:${markup.id}`);
@@ -143,7 +154,7 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     loadFile,
     async listAll() {
       const list = await loadFile();
-      return { markup: all(), fileIds: new Set(list.map((markup) => markup.id)) };
+      return { markup: all(), fileIds: new Set(list.map((markup) => markup.id)), subjects };
     },
     loaded: () => !!file,
     loadScales,
@@ -154,6 +165,7 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     find,
     onPage,
     writable,
+    command,
     commit,
     change,
   };

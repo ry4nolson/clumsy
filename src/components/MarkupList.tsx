@@ -32,7 +32,7 @@ export function MarkupList({ list, version, visible, pageLabels, currentPage, pa
   const [limit, setLimit] = useState(ROW_LIMIT);
   const [author, setAuthor] = usePersistentState(AUTHOR_NAME_KEY, "");
 
-  useEffect(() => setLimit(ROW_LIMIT), [shown]);
+  useEffect(() => setLimit(ROW_LIMIT), [filter, view]);
 
   const items = useMemo(() => {
     const flat: Item[] = [];
@@ -132,13 +132,12 @@ export function MarkupList({ list, version, visible, pageLabels, currentPage, pa
           <input type="text" placeholder="Written on new markup" value={author} onChange={(event) => setAuthor(event.target.value)} />
         </label>
       </div>
-      {chosen.length > 1 && (
+      {chosen.length > 0 && (
         <div className="markup-selection">
-          <span>{chosen.length} selected</span>
+          {chosen.length > 1 && <span>{chosen.length} selected</span>}
           <SelectionActions list={list} rows={chosen} />
         </div>
       )}
-      {chosen.length === 1 && <SelectionActions list={list} rows={chosen} />}
       <ol className="changes markups">
         {items.slice(0, limit).map((item) =>
           item.row ? (
@@ -181,21 +180,24 @@ export function MarkupList({ list, version, visible, pageLabels, currentPage, pa
 }
 
 function SelectionActions({ list, rows }: { list: ListController | null; rows: MarkupRow[] }) {
+  const [status, setStatus] = useState<ReviewStatus>("Accepted");
   const statusable = rows.filter((row) => list?.canSetStatus(row));
   const removable = rows.filter((row) => list?.canRemove(row));
   return (
     <div className="markup-selection-actions">
       <label className="markup-filter">
         <span>Status</span>
-        <select value="" aria-label="Set status" disabled={!statusable.length} onChange={(event) => event.target.value && list?.setStatus(statusable, event.target.value as ReviewStatus)}>
-          <option value="">Set…</option>
-          {reviewStatuses.map((status) => (
-            <option key={status} value={status}>
-              {status}
+        <select value={status} aria-label="Status to set" disabled={!statusable.length} onChange={(event) => setStatus(event.target.value as ReviewStatus)}>
+          {reviewStatuses.map((choice) => (
+            <option key={choice} value={choice}>
+              {choice}
             </option>
           ))}
         </select>
       </label>
+      <button type="button" disabled={!statusable.length} onClick={() => list?.setStatus(statusable, status)}>
+        Set
+      </button>
       <button type="button" disabled={!removable.length} onClick={() => list?.remove(removable)}>
         Delete
       </button>

@@ -422,9 +422,20 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     has: (id: string) => !!findNote(id),
     writable,
     addAt,
-    async remove(ids: string[]) {
+    async removal(ids: string[]): Promise<Parameters<NoteHooks["addCommands"]>[0] | null> {
       await loadAll();
-      ids.forEach((id) => change(id, null));
+      const date = pdfDate(new Date());
+      const entries = ids.flatMap((id) => {
+        const note = findNote(id);
+        return note ? [{ id, pageIndex: note.pageIndex, before: (doc?.annotationStorage.getRawValue(NOTE_KEY_PREFIX + id) as StickyNote | undefined) ?? null, after: changedNote(note, null, date) }] : [];
+      });
+      return entries.length
+        ? {
+            cmd: () => entries.forEach(({ id, pageIndex, after }) => put(id, after, pageIndex)),
+            undo: () => entries.forEach(({ id, pageIndex, before }) => put(id, before, pageIndex)),
+            mustExec: true,
+          }
+        : null;
     },
     async entries(): Promise<CommentEntry[]> {
       await loadAll();

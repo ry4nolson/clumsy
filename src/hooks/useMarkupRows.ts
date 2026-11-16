@@ -13,6 +13,11 @@ export function useMarkupRows(list: MarkupList | null, version: number, visible:
   const [view, setView] = usePersistentState<ListView>("clumsy.markupListView", defaultView);
 
   useEffect(() => {
+    list?.watch(visible);
+    return () => list?.watch(false);
+  }, [list, visible]);
+
+  useEffect(() => {
     if (!list || !visible) {
       return;
     }

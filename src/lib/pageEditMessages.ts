@@ -15,7 +15,6 @@ export type PageEditJob =
   | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string }
   | { op: "readMarkup"; bytes: Uint8Array; password?: string }
   | { op: "readScales"; bytes: Uint8Array; password?: string }
-  | { op: "readSubjects"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
   | { op: "combine"; files: Uint8Array[] }
   | { op: "compress"; bytes: Uint8Array; settings: CompressSettings; password?: string }
@@ -59,7 +58,6 @@ export function jobBuffers(job: PageEditJob) {
     case "annotations":
     case "readMarkup":
     case "readScales":
-    case "readSubjects":
     case "role":
     case "scanSignatures":
     case "prepareSignature":

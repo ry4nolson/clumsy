@@ -35,11 +35,11 @@ Counts and totals always follow the filter, so "receptacles on pages 3 to 6" or 
 
 ## Review status
 
-Select a row and choose a status: **Accepted**, **Rejected**, **Cancelled**, **Completed**, or **None**. [[⇧]]-click selects a run of rows and [[⌘]]-click adds or removes one, to set a status on several at once. Setting a status can be undone.
+Select a row, choose a status (**Accepted**, **Rejected**, **Cancelled**, **Completed**, or **None**), and click **Set**. [[⇧]]-click selects a run of rows and [[⌘]]-click adds or removes one, to set a status on several at once. Setting a status can be undone.
 
 Statuses are saved the standard way PDFs record review status, so other PDF apps show the same status, and statuses set in other apps show here.
 
-> Highlights, drawings, and text boxes you haven't saved yet can't take a status. Save first.
+> Highlights, drawings, and text boxes you haven't saved yet can't take a status. Save first. A few files store markup in a way that can't take a status at all; Set stays off for those.
 
 ## Delete
 
@@ -60,6 +60,6 @@ The rows include page, type, subject, comment, author, date, status, the measure
 
 ## Your name
 
-Type your name in **Your name** and Clumsy saves it as the author of markup and notes you add from then on, and of review statuses you set. It's empty until you fill it in, so your name never goes into a file without you choosing it.
+Type your name in **Your name** and Clumsy writes it as the author of new markup and notes when you save, and of review statuses you set. It's empty until you fill it in, so your name never goes into a file without you choosing it.
 
 Highlights, drawings, and text boxes don't record an author yet.

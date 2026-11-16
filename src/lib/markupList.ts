@@ -3,20 +3,19 @@ import type { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { readAuthorName } from "./authorName";
 import type { UndoableCommand } from "./commentManager";
 import type { Markup } from "./markup";
-import { listedAnnotationTypes, type MarkupRow, type ReviewStatus } from "./markupRows";
+import { listedAnnotationTypes, sortRows, type MarkupRow, type ReviewStatus } from "./markupRows";
 import { assembleRows, type AnnotationRecord, type EditorRecord } from "./markupSources";
 import { NOTE_KEY_PREFIX, notesIn, pdfDate, type StickyNote } from "./notes";
-import { readSubjectsOffThread } from "./pageEditWorker";
-import { passwordOf } from "./pdfjs";
 import { stateReplyNote } from "./reviewState";
 
-type ListLayer = { listAll(): Promise<{ markup: Markup[]; fileIds: Set<string> }>; removeMarkup(ids: string[]): void; show(id: string): void };
+type ListLayer = { listAll(): Promise<{ markup: Markup[]; fileIds: Set<string>; subjects: Record<string, string> }>; removal(ids: string[]): UndoableCommand | null; show(id: string): void };
 
 type ListDeps = {
   markup: () => ListLayer | null;
   revealNote: (id: string) => void;
-  removeNotes: (ids: string[]) => void;
+  noteRemoval: (ids: string[]) => Promise<UndoableCommand | null>;
   addCommands: (command: UndoableCommand) => void;
+  removed: () => void;
   changed: () => void;
 };
 
@@ -29,6 +28,10 @@ const FLASH_MS = 1200;
 const CHANGE_DELAY = 150;
 
 const time = (date: string | null | undefined) => (date ? (PDFDateString.toDateObject(date)?.getTime() ?? null) : null);
+
+const FILE_REF = /^\d+R$/;
+
+const canSetStatus = (row: MarkupRow) => row.source !== "editor" && (FILE_REF.test(row.id) || row.source === "clumsy");
 
 const isEditor = (value: unknown): value is SerializingEditor => typeof (value as SerializingEditor | null)?.serialize === "function";
 
@@ -52,18 +55,20 @@ function editorsIn(storage: Iterable<[string, unknown]>) {
 
 export function createMarkupList(viewer: PDFViewer, deps: ListDeps) {
   const annotations = new WeakMap<PDFDocumentProxy, Promise<AnnotationRecord[]>>();
-  const subjects = new WeakMap<PDFDocumentProxy, Promise<Record<string, string>>>();
   const watched = new WeakSet<object>();
   let timer = 0;
   let notes = new Map<string, MarkupRow>();
   let shown: (() => MarkupRow[]) | null = null;
+  let watching = false;
 
   const changedSoon = () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(deps.changed, CHANGE_DELAY);
+    if (watching) {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(deps.changed, CHANGE_DELAY);
+    }
   };
 
-  const watch = (doc: PDFDocumentProxy) => {
+  const watchStorage = (doc: PDFDocumentProxy) => {
     const storage = doc.annotationStorage as unknown as { setValue(key: string, value: unknown): void; remove(key: string): void };
     if (watched.has(storage)) {
       return;
@@ -92,17 +97,6 @@ export function createMarkupList(viewer: PDFViewer, deps: ListDeps) {
     return found;
   };
 
-  const subjectsOf = (doc: PDFDocumentProxy) => {
-    let found = subjects.get(doc);
-    if (!found) {
-      found = doc
-        .getData()
-        .then((bytes) => readSubjectsOffThread(bytes, passwordOf(doc)))
-        .catch(() => ({}));
-      subjects.set(doc, found);
-    }
-    return found;
-  };
 
   const flash = (row: MarkupRow) => {
     const view = viewer.getPageView(row.pageIndex) as unknown as ListPageView | undefined;
@@ -126,15 +120,15 @@ export function createMarkupList(viewer: PDFViewer, deps: ListDeps) {
     if (!doc || !layer) {
       return null;
     }
-    watch(doc);
-    const [records, subjectMap, clumsy] = await Promise.all([annotationsOf(doc), subjectsOf(doc), layer.listAll()]);
+    watchStorage(doc);
+    const [records, clumsy] = await Promise.all([annotationsOf(doc), layer.listAll()]);
     if (viewer.pdfDocument !== doc) {
       return null;
     }
     const storage = doc.annotationStorage as unknown as Iterable<[string, unknown]>;
     const rows = assembleRows({
       annotations: records,
-      subjects: subjectMap,
+      subjects: clumsy.subjects,
       clumsy: clumsy.markup,
       clumsyFileIds: clumsy.fileIds,
       noteChanges: notesIn(storage),
@@ -149,11 +143,18 @@ export function createMarkupList(viewer: PDFViewer, deps: ListDeps) {
 
   return {
     collect,
+    changed: changedSoon,
+    watch(on: boolean) {
+      watching = on;
+      if (!on) {
+        window.clearTimeout(timer);
+      }
+    },
     showing(provider: (() => MarkupRow[]) | null) {
       shown = provider;
     },
     async exportRows(pageLabels: string[] | null) {
-      return shown ? shown() : ((await collect(pageLabels)) ?? []);
+      return shown ? shown() : sortRows((await collect(pageLabels)) ?? [], "page");
     },
     show(row: MarkupRow) {
       if (row.target === "markup") {
@@ -164,12 +165,12 @@ export function createMarkupList(viewer: PDFViewer, deps: ListDeps) {
         flash(row);
       }
     },
-    canSetStatus: (row: MarkupRow) => row.source !== "editor",
+    canSetStatus,
     setStatus(rows: MarkupRow[], status: ReviewStatus) {
       const storage = viewer.pdfDocument?.annotationStorage;
       const author = readAuthorName();
       const date = pdfDate(new Date());
-      const replies: StickyNote[] = rows.filter((row) => row.source !== "editor").map((row) => stateReplyNote(`state-${crypto.randomUUID()}`, row, status, author, date));
+      const replies: StickyNote[] = rows.filter(canSetStatus).map((row) => stateReplyNote(`state-${crypto.randomUUID()}`, row, status, author, date));
       if (!storage || !replies.length) {
         return;
       }
@@ -180,15 +181,19 @@ export function createMarkupList(viewer: PDFViewer, deps: ListDeps) {
       });
     },
     canRemove: (row: MarkupRow) => row.target === "markup" || row.target === "note",
-    remove(rows: MarkupRow[]) {
-      const markupIds = rows.filter((row) => row.target === "markup").map((row) => row.id);
-      const noteIds = rows.filter((row) => row.target === "note").map((row) => row.id);
-      if (markupIds.length) {
-        deps.markup()?.removeMarkup(markupIds);
+    async remove(rows: MarkupRow[]) {
+      const noteCommand = await deps.noteRemoval(rows.filter((row) => row.target === "note").map((row) => row.id));
+      const markupCommand = deps.markup()?.removal(rows.filter((row) => row.target === "markup").map((row) => row.id)) ?? null;
+      const commands = [markupCommand, noteCommand].filter((command): command is UndoableCommand => !!command);
+      if (!commands.length) {
+        return;
       }
-      if (noteIds.length) {
-        deps.removeNotes(noteIds);
-      }
+      deps.addCommands({
+        cmd: () => commands.forEach((command) => command.cmd()),
+        undo: () => [...commands].reverse().forEach((command) => command.undo()),
+        mustExec: true,
+      });
+      deps.removed();
     },
     dispose() {
       window.clearTimeout(timer);

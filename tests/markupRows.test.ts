@@ -41,9 +41,8 @@ const annotation = (entry: Partial<AnnotationEntry>): AnnotationEntry => ({
   subject: "",
   comment: "",
   date: null,
-  readOnly: false,
   source: "file",
-  target: "comment",
+  target: "annotation",
   ...entry,
 });
 
@@ -114,12 +113,16 @@ describe("markup rows", () => {
   });
 
   it("exports one row per markup and one row per subject, without formulas", () => {
-    const rows: MarkupRow[] = [...takeoff(), rowFromAnnotation(annotation({ id: "9R", comment: "=1+1", author: "Ann", date: Date.UTC(2026, 10, 16, 9, 30) }), null, "Completed")];
+    const rows: MarkupRow[] = [...takeoff(), rowFromAnnotation(annotation({ id: "9R", comment: "=1+1", author: "Ann", date: new Date(2026, 10, 16, 9, 30).getTime() }), null, "Completed")];
     const csv = markupsCsv(rows).split("\r\n");
     expect(csv[0]).toBe("Page,Type,Subject,Comment,Author,Date,Status,Value,Quantity,Unit,Scale,Color,X,Y");
     expect(csv[1]).toBe("1,Stamp,Duplex Receptacle,,,,,,,,,#ff0000,0,0");
     expect(csv[8]).toBe("1,Highlight,Highlight,'=1+1,Ann,2026-11-16 09:30,Completed,,,,,#ffff00,0,0");
     expect(markupsCsv([rowFromAnnotation(annotation({ subject: 'Panel "A", east' }), null, null)]).split("\r\n")[1]).toBe('1,Highlight,"Panel ""A"", east",,,,,,,,,#ffff00,0,0');
+    expect(markupsCsv([rowFromAnnotation(annotation({ rect: [-305.4, -12, 0, 0], comment: "-1+1" }), null, null)]).split("\r\n")[1]).toBe("1,Highlight,Highlight,'-1+1,,,,,,,,#ffff00,-305,-12");
+    const metricRun = run("m1", 0, [0, 0, 72, 0], "Mixed run");
+    const mixed = [run("f1", 0, [0, 0, 72, 0], "Mixed run"), { ...metricRun, measure: { scale: eighth, format: { unit: "m" as const, precision: 2 } } }];
+    expect(summaryCsv(rowsOf(mixed)).split("\r\n")[1]).toBe("Mixed run,Path,2,16,ft,,");
     const summary = summaryCsv(rows).split("\r\n");
     expect(summary).toEqual([
       "Subject,Type,Count,Length,Length Unit,Area,Area Unit",

@@ -4,7 +4,7 @@ import { pageLabelOf } from "./pageLabels";
 import { stampLabel } from "./stampSymbols";
 
 export type ReviewStatus = "Accepted" | "Rejected" | "Cancelled" | "Completed" | "None";
-export type RowTarget = "markup" | "note" | "comment" | "annotation";
+export type RowTarget = "markup" | "note" | "annotation";
 export type RowSource = "file" | "clumsy" | "editor";
 
 export type MarkupRow = {
@@ -22,7 +22,6 @@ export type MarkupRow = {
   rect: number[];
   source: RowSource;
   target: RowTarget;
-  readOnly: boolean;
 };
 
 export type AnnotationEntry = {
@@ -35,7 +34,6 @@ export type AnnotationEntry = {
   subject: string;
   comment: string;
   date: number | null;
-  readOnly: boolean;
   source: RowSource;
   target: RowTarget;
 };
@@ -91,7 +89,6 @@ export function rowFromMarkup(markup: Markup, pageLabels: string[] | null, extra
     rect: markup.box,
     source: extras.source,
     target: "markup",
-    readOnly: false,
   };
 }
 
@@ -112,7 +109,6 @@ export function rowFromAnnotation(entry: AnnotationEntry, pageLabels: string[] |
     rect: entry.rect,
     source: entry.source,
     target: entry.target,
-    readOnly: entry.readOnly,
   };
 }
 
@@ -176,7 +172,15 @@ export function groupRows(rows: MarkupRow[], by: GroupBy): RowGroup[] {
   return ordered.map(([key, group]) => ({ key, label: group.label, rows: group.rows, totals: rowTotals(group.rows) }));
 }
 
-const isoDate = (time: number | null) => (time === null ? "" : new Date(time).toISOString().slice(0, 16).replace("T", " "));
+const pad = (value: number) => String(value).padStart(2, "0");
+
+function localDate(time: number | null) {
+  if (time === null) {
+    return "";
+  }
+  const date = new Date(time);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 const rowHeadings = ["Page", "Type", "Subject", "Comment", "Author", "Date", "Status", "Value", "Quantity", "Unit", "Scale", "Color", "X", "Y"];
 
@@ -186,7 +190,7 @@ const rowCells = (row: MarkupRow) => [
   row.subject,
   row.comment,
   row.author,
-  isoDate(row.date),
+  localDate(row.date),
   row.status ?? "",
   row.measure?.value ?? "",
   row.measure ? String(row.measure.quantity) : "",
@@ -203,9 +207,10 @@ function sumIn(measures: MeasurementRow[], quantity: typeof lengthQuantity): [st
   if (!measures.length) {
     return ["", ""];
   }
-  const [, unit] = quantity(0, measures[0].format);
-  const same = measures.filter((measure) => quantity(0, measure.format)[1] === unit);
-  const [value] = quantity(same.reduce((total, measure) => total + measure.inches, 0), measures[0].format);
+  const [value, unit] = quantity(
+    measures.reduce((total, measure) => total + measure.inches, 0),
+    measures[0].format,
+  );
   return [String(value), unit];
 }
 

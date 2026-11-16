@@ -187,10 +187,10 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
       return { bytes: await encryptPdf(job.bytes, job.password) };
     case "annotations":
       return writeAnnotationsReporting(job.bytes, job.notes, job.markup, job.password);
-    case "readMarkup":
-      return { bytes: new Uint8Array(), markup: readMarkup(await load(job.bytes, job.password)) };
-    case "readSubjects":
-      return { bytes: new Uint8Array(), subjects: readSubjects(await load(job.bytes, job.password)) };
+    case "readMarkup": {
+      const doc = await load(job.bytes, job.password);
+      return { bytes: new Uint8Array(), markup: readMarkup(doc), subjects: readSubjects(doc) };
+    }
     case "readScales": {
       const doc = await load(job.bytes, job.password);
       return { bytes: new Uint8Array(), scales: pageLeafRefs(doc).map((ref) => pageScaleOf(doc.context.lookup(ref, PDFDict))) };

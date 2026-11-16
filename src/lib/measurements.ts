@@ -101,7 +101,9 @@ export function measurementTotals(rows: MeasurementRow[]): MeasurementTotal[] {
 
 const FORMULA_START = /^[=+\-@\t\r]/;
 
-const inert = (text: string) => (FORMULA_START.test(text) ? `'${text}` : text);
+const NUMBER = /^-?\d+(\.\d+)?$/;
+
+const inert = (text: string) => (FORMULA_START.test(text) && !NUMBER.test(text) ? `'${text}` : text);
 
 function csvCell(text: string) {
   const safe = inert(text);

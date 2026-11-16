@@ -9,7 +9,7 @@ import { textMarkupFromSelection } from "./markupSelection";
 import { draftFor, drawable, insidePage, resizedMarkup, withVertexToggled } from "./markupDraft";
 import { attachMarkupKeys } from "./markupKeys";
 import { clampShift, outerRect, type Handle, type Point } from "./markupShapes";
-import { createMarkupStore } from "./markupStore";
+import { createMarkupStore, type FileMarkup } from "./markupStore";
 import { createScaleQuestion } from "./scaleQuestion";
 import { markupDrawing, markupHitTarget, matrixAttribute, selectionOverlay, svg } from "./markupSvg";
 import { pdfDate } from "./notes";
@@ -40,7 +40,7 @@ export type MarkupTool =
 export type MarkupHooks = {
   addCommands(command: UndoableCommand): void;
   style(): MarkupStyle;
-  readFile(doc: PDFDocumentProxy): Promise<Markup[]>;
+  readFile(doc: PDFDocumentProxy): Promise<FileMarkup>;
   readScales(doc: PDFDocumentProxy): Promise<Array<PageScale | null>>;
   stampDate(): string;
   askScale(): Promise<boolean>;
@@ -432,11 +432,9 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       publishList();
     },
     listAll: () => store.listAll(),
-    removeMarkup(ids: string[]) {
+    removal(ids: string[]) {
       const found = ids.map(findMarkup).filter((markup): markup is Markup => !!markup);
-      if (found.length && store.commit(found.map((markup) => ({ id: markup.id, pageIndex: markup.pageIndex, after: removedMarkup(markup, now()) })))) {
-        hooks.removed();
-      }
+      return store.command(found.map((markup) => ({ id: markup.id, pageIndex: markup.pageIndex, after: removedMarkup(markup, now()) })));
     },
     show(id: string) {
       const markup = findMarkup(id);
