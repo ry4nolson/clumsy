@@ -2,6 +2,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { UndoableCommand } from "./commentManager";
 import { hideAnnotations } from "./hiddenAnnotations";
+import { forgetImageCoordinates } from "./imageRegions";
 import { MARKUP_KEY_PREFIX, editedFileIds, markupIn, visibleMarkup, type Markup } from "./markup";
 import { undoBursts } from "./markupDraft";
 import type { PageScale } from "./measurePdf";
@@ -10,7 +11,7 @@ import { claimStamps } from "./pdfjs";
 
 const KEEP_LAYERS = { keepAnnotationLayer: true, keepAnnotationEditorLayer: true, keepXfaLayer: true, keepTextLayer: true, keepCanvasWrapper: true };
 
-type StorePageView = { reset(options: Record<string, boolean>): void };
+type StorePageView = { reset(options: Record<string, boolean>): void; imageCoordinates: unknown; pdfPage?: { imageCoordinates: unknown } | null };
 
 export type FileMarkup = { markup: Markup[]; subjects: Record<string, string> };
 
@@ -107,7 +108,15 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     const pages = new Set([...ids, ...hiddenIds].filter((id) => ids.has(id) !== hiddenIds.has(id)).map(pageOf));
     hiddenIds = ids;
     for (const pageIndex of pages) {
-      (pageIndex === undefined ? null : (viewer.getPageView(pageIndex) as unknown as StorePageView | undefined))?.reset(KEEP_LAYERS);
+      const view = pageIndex === undefined ? null : (viewer.getPageView(pageIndex) as unknown as StorePageView | undefined);
+      if (view) {
+        view.imageCoordinates = null;
+        if (view.pdfPage) {
+          view.pdfPage.imageCoordinates = null;
+          forgetImageCoordinates(view.pdfPage);
+        }
+        view.reset(KEEP_LAYERS);
+      }
     }
     viewer.update();
   };

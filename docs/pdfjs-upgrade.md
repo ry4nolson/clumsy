@@ -107,6 +107,7 @@ Each row is something pdf.js could change without a type error. "Test" names the
 | --- | --- | --- | --- |
 | `src/hooks/usePdfViewer.ts:137` `imagesRightClickMinSize: 0` | `PDFPageView` records images whenever the option isn't `-1`; `CanvasImagesTracker` stores 6 numbers per image as fractions of the canvas | Dark pages invert photos again, or restore them in the wrong place | dark pages |
 | `src/lib/imageRestore.ts:58` `previewRender`, `src/lib/imageRegions.ts:65` `fillTransform` | `page.render({ recordImages, transform })` setting `PDFPageProxy.imageCoordinates`; coordinates relative to the canvas, so the transform must fill it exactly | Thumbnails and the Document Map invert photos in dark mode | dark pages |
+| `src/lib/markupStore.ts` `syncHidden` | Setting `PDFPageView.imageCoordinates` and `PDFPageProxy.imageCoordinates` to `null` makes the next render record image rectangles again (both are only recorded while empty) | Hiding an edited custom image stamp leaves no stale "Keep images" overlay where it was | dark pages, move an image stamp from a file |
 | `src/hooks/usePdfViewer.ts:138` `enableDetailCanvas: false` | Detail canvas drawn inside `.canvasWrapper` under `.image-restore` | If turned on: blurry images at high zoom in dark mode | manual |
 | `src/lib/pageImages.ts:27`, `src/hooks/useImageExport.ts:88` | `intent: "print"`, `AnnotationMode.ENABLE_STORAGE`, `annotationStorage.print` | Exported images lose unsaved markup or typed form values | manual |
 

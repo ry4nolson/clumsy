@@ -123,6 +123,14 @@ export function downloadImage(name: string, data: Uint8Array, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+export async function confirmDeleteStamp(name: string) {
+  const prompt = `Delete the custom stamp “${name}”? Stamps you've already placed stay in their documents.`;
+  if (!isDesktop) {
+    return window.confirm(prompt);
+  }
+  return ask(prompt, { title: "Delete stamp", kind: "warning", okLabel: "Delete", cancelLabel: "Cancel" });
+}
+
 export async function offerToShowExport(summary: string, path: string) {
   if (await ask(summary, { title: "Export finished", kind: "info", okLabel: revealLabel, cancelLabel: "Done" })) {
     await revealInFinder(path);

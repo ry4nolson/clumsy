@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Custom stamps.** Make your own stamps in the Stamps picker: an image stamp from a PNG, JPEG, or SVG (a logo, a seal, a signature block) or a text stamp in your own words and color, with or without the date. They sit in a new Custom section, show up in Recently Used and search, can be renamed and deleted, and are shared by every window. They save as standard PDF stamps that other PDF apps draw, and stay movable in Clumsy on any computer
+
 ## [0.20.0] - 2026-11-16
 
 ### Added

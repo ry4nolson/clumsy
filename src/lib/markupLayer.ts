@@ -11,7 +11,7 @@ import { attachMarkupKeys } from "./markupKeys";
 import { clampShift, outerRect, type Handle, type Point } from "./markupShapes";
 import { createMarkupStore, type FileMarkup } from "./markupStore";
 import { createScaleQuestion } from "./scaleQuestion";
-import { markupDrawing, markupHitTarget, matrixAttribute, selectionOverlay, svg } from "./markupSvg";
+import { isImageStamp, markupDrawing, markupHitTarget, matrixAttribute, selectionOverlay, svg } from "./markupSvg";
 import { pdfDate } from "./notes";
 
 type Viewport = {
@@ -213,17 +213,18 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     layer.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
     layer.dataset.page = String(pageIndex);
     const content = svg("g", { class: "markup-content", transform: matrixAttribute(viewport.transform) });
+    const images = svg("g", { class: "markup-images", transform: matrixAttribute(viewport.transform) });
     const edited = store.edited();
     for (const markup of markups) {
       const group = svg("g", { class: "markup", "data-markup": markup.id });
       if (markup.fresh || edited.has(markup.id) || markup === preview) {
-        group.append(markupDrawing(markup));
+        (isImageStamp(markup) ? images : group).append(markupDrawing(markup));
       }
       group.append(markupHitTarget(markup, MIN_HIT / viewport.scale));
       content.append(group);
     }
     const selected = markups.find((markup) => markup.id === selectedId);
-    layer.replaceChildren(svg("rect", { class: "markup-surface", width: viewport.width, height: viewport.height }), content, ...(selected ? [selectionOverlay(selected, viewport)] : []));
+    layer.replaceChildren(svg("rect", { class: "markup-surface", width: viewport.width, height: viewport.height }), images, content, ...(selected ? [selectionOverlay(selected, viewport)] : []));
   };
 
   const paintAll = () => {

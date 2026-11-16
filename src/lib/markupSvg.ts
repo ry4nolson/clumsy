@@ -1,3 +1,4 @@
+import { customStamp, imageHref } from "./customStamps";
 import { hexColor, isLineKind, isMeasureKind, isTextKind, isVertexKind, type Markup } from "./markup";
 import { CAPTION_SIZE, captionBaseline, captionPlacement, captionText, vertexPath } from "./measureMarkup";
 import { handlePoints, isCorner, lineEndings, outerRect, outlinePath, rectPath, segmentsPath, stampMatrix, textMarkupSegments } from "./markupShapes";
@@ -18,7 +19,10 @@ export function svg<K extends keyof SVGElementTagNameMap>(tag: K, attributes: Re
 
 export const matrixAttribute = (matrix: number[]) => `matrix(${matrix.join(" ")})`;
 
-export function designElements(design: StampDesign, color: string) {
+export function designElements(design: StampDesign, color: string, opacity = 1) {
+  if (design.image) {
+    return [svg("image", { href: imageHref(design.image), x: 0, y: 0, width: design.width, height: design.height, preserveAspectRatio: "none", opacity })];
+  }
   const shapes = design.shapes.map((shape) =>
     svg("path", {
       d: shape.d,
@@ -60,6 +64,8 @@ function captionElement(markup: Markup, color: string) {
   return text;
 }
 
+export const isImageStamp = (markup: Markup) => markup.kind === "stamp" && !!markup.stamp && customStamp(markup.stamp)?.kind === "image";
+
 export function markupDrawing(markup: Markup) {
   const color = hexColor(markup.color);
   const group = svg("g", { "stroke-opacity": markup.opacity, "fill-opacity": markup.opacity, "stroke-linecap": "round", "stroke-linejoin": "round" });
@@ -82,7 +88,7 @@ export function markupDrawing(markup: Markup) {
     const design = markup.stamp ? stampDesign(markup.stamp, markup.stampDate) : null;
     if (design) {
       const inner = svg("g", { transform: matrixAttribute(stampMatrix(markup.box, markup.rotation, design.width, design.height)) });
-      inner.append(...designElements(design, color));
+      inner.append(...designElements(design, color, markup.opacity));
       group.append(inner);
     }
   } else {

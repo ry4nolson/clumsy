@@ -4,11 +4,24 @@ import { minVertices, withInsertedVertex, withVertex, withoutVertex } from "./me
 import type { MarkupTool } from "./markupLayer";
 import { constrainEnd, isCorner, resizeBox, stampBox, vertexIndex, type Handle, type Point } from "./markupShapes";
 import { pdfDate } from "./notes";
-import { reviewStamp, stampAspect } from "./stampSymbols";
+import { customStamp } from "./customStamps";
+import { isDatedStamp, isWordStamp, stampAspect, stampColor } from "./stampSymbols";
 
 const STAMP_HEIGHT = 36;
 const REVIEW_HEIGHT = 40;
+const IMAGE_LONGEST = 96;
 const MIN_STAMP = 8;
+
+export function stampHeight(id: string) {
+  if (isWordStamp(id)) {
+    return REVIEW_HEIGHT;
+  }
+  if (customStamp(id)?.kind === "image") {
+    const aspect = stampAspect(id);
+    return Math.max(MIN_STAMP, aspect >= 1 ? IMAGE_LONGEST / aspect : IMAGE_LONGEST);
+  }
+  return STAMP_HEIGHT;
+}
 
 export type Draft = { pageIndex: number; start: Point; end: Point; shift: boolean; moved: boolean; rotation: number };
 
@@ -21,15 +34,15 @@ export function draftFor(tool: MarkupTool, draft: Draft, style: MarkupStyle, sta
   const id = `markup-${crypto.randomUUID()}`;
   const { pageIndex, start, end, rotation } = draft;
   if (tool.kind === "stamp") {
-    const review = reviewStamp(tool.stamp);
+    const color = stampColor(tool.stamp);
     const aspect = rotation % 180 ? 1 / stampAspect(tool.stamp) : stampAspect(tool.stamp);
     const [dx, dy] = [end[0] - start[0], end[1] - start[1]];
     const height = Math.max(Math.abs(dy), Math.abs(dx) / aspect, MIN_STAMP);
     const box = draft.moved
       ? normalizeBox([start[0], start[1], start[0] + Math.sign(dx || 1) * height * aspect, start[1] + Math.sign(dy || 1) * height])
-      : stampBox(start, stampAspect(tool.stamp), review ? REVIEW_HEIGHT : STAMP_HEIGHT, rotation);
+      : stampBox(start, stampAspect(tool.stamp), stampHeight(tool.stamp), rotation);
     return newMarkup(
-      { id, pageIndex, kind: "stamp", box, stamp: tool.stamp, stampDate: review ? stampDate() : null, rotation, width: 0, color: review?.color ?? style.color, fill: null },
+      { id, pageIndex, kind: "stamp", box, stamp: tool.stamp, stampDate: isDatedStamp(tool.stamp) ? stampDate() : null, rotation, width: 0, color: color ?? style.color, fill: null },
       style,
       pdfDate(new Date()),
     );

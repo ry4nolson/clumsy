@@ -1,4 +1,6 @@
 import type { CompressProgress, CompressSettings } from "./compressPlan";
+import type { CustomStamp } from "./customStamps";
+import type { FileStamp } from "./customStampPdf";
 import type { Markup } from "./markup";
 import type { PageScale } from "./measurePdf";
 import type { StickyNote } from "./notes";
@@ -12,7 +14,7 @@ export type PageEditJob =
   | { op: "decrypt"; bytes: Uint8Array; password?: string }
   | { op: "flatten"; bytes: Uint8Array; pages: number[] | null; password?: string }
   | { op: "encrypt"; bytes: Uint8Array; password: string }
-  | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string }
+  | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string; stamps?: CustomStamp[] }
   | { op: "readMarkup"; bytes: Uint8Array; password?: string }
   | { op: "readScales"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
@@ -31,6 +33,7 @@ export type PageEditResult = {
   role?: PasswordRole | null;
   markup?: Markup[];
   subjects?: Record<string, string>;
+  stamps?: FileStamp[];
   scales?: Array<PageScale | null>;
   scan?: SignatureScan;
   placeholder?: SignaturePlaceholder;
@@ -42,7 +45,7 @@ export type PageEditFailure = { message: string; pageEdit: boolean };
 
 export type PageEditResponse = { result: PageEditResult } | { failure: PageEditFailure } | { progress: CompressProgress };
 
-export const buffersOf = (arrays: Array<Uint8Array | undefined>) => [
+export const buffersOf = (arrays: Array<Uint8Array | Uint8ClampedArray | undefined>) => [
   ...new Set(arrays.flatMap((array) => (array?.buffer instanceof ArrayBuffer ? [array.buffer] : []))),
 ];
 
@@ -71,7 +74,12 @@ export function jobBuffers(job: PageEditJob) {
 }
 
 export const resultBuffers = (result: PageEditResult) =>
-  buffersOf([result.bytes, result.original, ...(result.scan?.dss ? [...result.scan.dss.certs, ...result.scan.dss.ocsps, ...result.scan.dss.crls] : [])]);
+  buffersOf([
+    result.bytes,
+    result.original,
+    ...(result.scan?.dss ? [...result.scan.dss.certs, ...result.scan.dss.ocsps, ...result.scan.dss.crls] : []),
+    ...(result.stamps ?? []).flatMap((stamp) => (stamp.kind === "pixels" ? [stamp.rgba] : [])),
+  ]);
 
 export const failureOf = (error: unknown): PageEditFailure => ({
   message: error instanceof Error ? error.message : String(error),

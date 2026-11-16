@@ -5,6 +5,7 @@ import { failureOf, resultBuffers, type PageEditJob, type PageEditResponse, type
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
+import { readCustomStamps } from "./customStampPdf";
 import { readMarkup, readSubjects } from "./markupPdf";
 import { pageScaleOf, setPageScale } from "./measurePdf";
 import { writeAnnotationsReporting } from "./notesPdf";
@@ -186,10 +187,10 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
     case "encrypt":
       return { bytes: await encryptPdf(job.bytes, job.password) };
     case "annotations":
-      return writeAnnotationsReporting(job.bytes, job.notes, job.markup, job.password);
+      return writeAnnotationsReporting(job.bytes, job.notes, job.markup, job.password, job.stamps);
     case "readMarkup": {
       const doc = await load(job.bytes, job.password);
-      return { bytes: new Uint8Array(), markup: readMarkup(doc), subjects: readSubjects(doc) };
+      return { bytes: new Uint8Array(), markup: readMarkup(doc), subjects: readSubjects(doc), stamps: readCustomStamps(doc) };
     }
     case "readScales": {
       const doc = await load(job.bytes, job.password);
