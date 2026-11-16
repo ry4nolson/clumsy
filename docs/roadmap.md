@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-14, at v0.16.2 (measurement, tool chest, markup list, and overlay added as next).
+Last updated 2026-11-16, with v0.20.0 (measurement and the Markups list) releasing.
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -116,6 +116,14 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
 - **v0.16.2 Compress (PR #22):**
   - File > Compress… shrinks a PDF's images (JPEG and lossless, gray and RGB) to 200, 150, or 96 dpi (High quality, Balanced, Smallest) at the size each is actually drawn, shows the size before and after, and applies as one undoable page edit.
   - PR #23 added `scripts/check-changelog.mjs`: CI and the release fail when a released changelog section gains entries.
+- **v0.17.0 Android, experimental (PR #29):** `Clumsy-Android.apk`. Open, mark up, fill in, save (through the system document picker), and print PDFs and Markdown files, with a phone layout, pinch to zoom, touch editing, and a selection bar for highlighting. Files open from other apps. No in-app updates.
+- **v0.18.0 Linux (PR #30):** x64 AppImage, `.deb`, and `.rpm`, built in Docker by `scripts/build-linux.sh` locally and in CI. Default PDF and Markdown app when installed from a package. On Windows and Linux, opening a file adds a tab to the running copy (`tauri-plugin-single-instance`) instead of a second process, and updates offer Download right away. The website gained feature guides with a Mac/Windows chooser.
+- **v0.18.1 speed (PR #34):** toolbar clicks no longer restyle every thumbnail and Document Map page; a large Markdown file shows its tab with "Rendering…" and fills in its minimap afterwards. iOS App Store build jobs (CI compile check, TestFlight release) landed in the same PR.
+- **v0.19.0 iPad and iPhone, experimental (PRs #34, #36):** builds with Xcode 26 and ships through TestFlight, with the Android touch layout; opens files from the Files app. Not on the App Store yet.
+- **v0.20.0 measurement and the Markups list (PR #31, with #35 merged into it; plans in `docs/measurement-plan.md` and `docs/markup-list-plan.md`):**
+  - Measure tool: Length, Path, and Area with live readings and captions. Pages > Set Scale… with architectural, engineering, and metric presets or calibration from a known dimension, written as the page's `/VP` (a page edit, undoable). Measuring on a page with no scale asks first. Drag vertices; Option/Alt-click adds or removes one. Saved as standard `/Line`, `/PolyLine`, and `/Polygon` measurement annotations with `/IT` and `/Measure`. A Measure guide on the website.
+  - Markups tab (View > Markups, ⇧⌘M): every markup, including other apps', grouped by subject with a count and total length and area per subject, so stamping a symbol on every fixture is a takeoff. Filters (type, subject, author, status, pages), search, and sort. Review status on one or several markups, through the spec's `/StateModel /Review` replies. Copy or export the list or a per-subject summary as CSV. Opt-in author name written as `/T` on new markup.
+  - State replies from other apps no longer show as stray note icons.
 
 ## Website and distribution
 
@@ -127,13 +135,12 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
 
 ## Next, in order
 
-1. **Measurement.** Plan in `docs/measurement-plan.md`. Set a page's scale (presets or calibrate from a known distance), then measure length, path, and area as real PDF measurement annotations (`/IT` dimension intents, `/Measure`, `/VP`), so Bluebeam and Acrobat read the values. Includes a Measurements sidebar with totals and CSV export. Asked for by FSG's construction side, and it's plain TypeScript, so it works on Windows too. Spike against a real Bluebeam takeoff first.
-2. **Tool chest.** Plan in `docs/tool-chest-plan.md`. Saved tools: a tool, its style, and a name ("Drywall" is a blue Area, "Rev 2" a red cloud), armed from a sidebar tab, the palette, or the right-click row, without touching your everyday style. The name is written as `/Subj`. Export and import as a `.clumsytools` file so a team shares one set.
-3. **Markup list.** Plan in `docs/markup-list-plan.md`. Every markup as a row (page, type, subject, author, date, status, measurement value), with sort, filters, click to go, review status through the spec's state replies so it round-trips with Acrobat and Bluebeam, and CSV export. Groups by subject with a count and totals per group ("Duplex Receptacle (24)"), which turns stamped symbols into a takeoff, with a one-row-per-group summary export. Folds in the Measurements tab.
-4. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for.
-5. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together.
-6. **OCR with Apple's Vision framework.** Local, free, from Rust. Moved behind measurement on 2026-11-14 because it would be Mac-only; worth checking for a cross-platform engine before building it.
-7. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
+1. **Tool chest.** Plan in `docs/tool-chest-plan.md`. Saved tools: a tool, its style, and a name ("Drywall" is a blue Area, "Duplex outlet" an electrical stamp), armed from a sidebar tab, the palette, or the right-click row, without touching your everyday style. The name is written as `/Subj`, so it becomes a Markups tab subject with its own count. Export and import as a `.clumsytools` file so a team shares one set.
+2. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for.
+3. **Measurement, the rest of what FSG asked for:** Angle (three clicks) and Volume (Area with a depth, in cu ft or cu yd), then Dynamic Fill (click inside a room, flood-fill the rendered page, trace the boundary to an Area) and snapping to drawing geometry, both from the plan's phase 2. Counts already work through subjects in the Markups tab.
+4. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together. Overlay builds a first Layers toggle.
+5. **OCR.** Local and free. Apple's Vision framework would be Mac-only, and Clumsy now ships on Windows, Linux, Android, and iOS too, so look for a cross-platform engine before building it.
+6. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
 
 Cleanup, whenever: split `styles.css` (2,454 lines), prune the merged remote branches. Not blocking anything.
 
@@ -158,7 +165,7 @@ Goal: every feature pdf.js 6.4.299 offers is reachable in Clumsy.
 Done: everything from the old "viewer flags and wiring" list (0.4.1), comments, signatures (moved onto pdf.js's `SignatureEditor`), alt text, and the undo bar (0.9.0), and print (0.11.0, through PDFKit rather than pdf.js's print service). `enableDetailCanvas` stays off on purpose; AGENTS.md explains the image-restore conflict.
 
 Left:
-- **Document Properties, Attachments, Layers, XFA.** Next item 5. Overlay builds a first Layers toggle.
+- **Document Properties, Attachments, Layers, XFA.** Next item 4. Overlay builds a first Layers toggle.
 - **Presentation mode.** Full screen, one page at a time, arrow keys and click to advance.
 - **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
@@ -202,3 +209,5 @@ From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
 - Digital signing is macOS-only, and encrypted files can't be signed.
 - Quick page edits on a 1,200-page file log "Transport destroyed" for pages pdf.js hadn't set up yet. pdf.js's own logging; the new version loads fine.
 - Clumsy requires macOS 15.4 or later.
+- Windows and Linux don't update themselves and can't print yet.
+- Android and iOS are experimental: no in-app updates, and iOS ships only through TestFlight.
