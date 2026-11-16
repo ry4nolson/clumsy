@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONTEXT_TOOLS_KEY, cleanContextTools, defaultContextTools, parseContextTools, readContextTools, toolCommand, withContextTool, writeContextTools } from "../src/lib/contextTools";
+import { CONTEXT_TOOLS_KEY, cleanContextTools, defaultContextTools, forgetSavedContextTools, parseContextTools, readContextTools, savedEntry, toolCommand, withContextTool, writeContextTools } from "../src/lib/contextTools";
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
@@ -61,5 +61,20 @@ describe("context tools", () => {
 
   it("keeps Shapes and Stamps as context tools and drops unknown ones", () => {
     expect(cleanContextTools(["stamp", "nonsense", "shape"])).toEqual(["shape", "stamp"]);
+  });
+});
+
+describe("saved tools in the context menu", () => {
+  it("keeps saved tools after the built-in ones, once each, in the order they were added", () => {
+    expect(cleanContextTools(["saved:b", "draw", "saved:a", "saved:b", "saved:", "unsaved:x", "select"])).toEqual(["select", "draw", "saved:b", "saved:a"]);
+    expect(withContextTool(["select"], savedEntry("x"), true)).toEqual(["select", "saved:x"]);
+    expect(withContextTool(["select", "saved:x"], "saved:x", false)).toEqual(["select"]);
+  });
+
+  it("forgets a saved tool when it's deleted", () => {
+    const storage = memoryStorage();
+    writeContextTools(["select", "saved:a", "saved:b"], storage);
+    forgetSavedContextTools(["a", "zzz"], storage);
+    expect(readContextTools(storage)).toEqual(["select", "saved:b"]);
   });
 });

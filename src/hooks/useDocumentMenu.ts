@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { CommandId } from "../lib/commands";
-import { readContextTools } from "../lib/contextTools";
+import { readContextTools, savedIdOf } from "../lib/contextTools";
 import { documentMenu, pageSection, targetPages, type DocumentMenuId, type DocumentMenuSpec, type MenuContext } from "../lib/documentMenu";
 import { isExternalUrl } from "../lib/markdownLinks";
 import { readMarkupParams } from "../lib/markupParams";
 import { stepNav, type NavDirection } from "../lib/navHistory";
 import { canPrint, isDesktop, isMobile, showDocumentMenu } from "../lib/platform";
 import { nativeMenuTargets } from "../lib/shellMenu";
+import { readToolChest } from "../lib/toolChest";
+import { armSavedTool } from "./useToolChest";
 import type { PdfViewerApi } from "./usePdfViewer";
 
 type Point = { x: number; y: number };
@@ -43,7 +45,10 @@ export function useDocumentMenu(
   const show = useCallback((spec: DocumentMenuSpec, pages: number[], point: Point, local: Partial<Record<DocumentMenuId, () => void>> = {}) => {
     return showDocumentMenu(spec, point, (id) => {
       const action = local[id];
-      if (action) {
+      const saved = readToolChest().tools.find((tool) => tool.id === savedIdOf(id));
+      if (saved) {
+        armSavedTool(latest.current.viewer, saved);
+      } else if (action) {
         action();
       } else {
         latest.current.onCommand(id as CommandId, pages);
@@ -95,6 +100,9 @@ export function useDocumentMenu(
         mark: viewer.mark,
         markupChoice: readMarkupParams(),
         contextTools: readContextTools(),
+        savedTools: readToolChest().tools,
+        armedTool: viewer.armedTool,
+        markupSelected: !!viewer.editorUi?.getState().markupSelection,
         canGoBack: canStep(viewer, "back"),
         canGoForward: canStep(viewer, "forward"),
         canAddComment: !!viewer.editorUi?.canAddNote(),

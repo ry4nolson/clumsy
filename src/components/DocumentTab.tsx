@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { CompareView } from "../hooks/useComparison";
 import { useDocumentMenu } from "../hooks/useDocumentMenu";
@@ -110,6 +110,7 @@ export type DocumentTabProps = {
   onUndoRemoval: (id: string) => void;
   onOpenSource: (source: PdfSource) => void;
   compare: CompareView | null;
+  toolChest?: (viewer: PdfViewerApi) => ReactNode;
 };
 
 type StartWithSidebar = ViewStart & { sidebar?: DocumentSidebar };
@@ -164,6 +165,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     onUndoRemoval,
     onOpenSource,
     compare,
+    toolChest,
   },
   ref,
 ) {
@@ -451,6 +453,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
               onCommand={(command) => onMenuCommand(command, [])}
             />
           }
+          toolChest={toolChest?.(viewer)}
           signatures={signatures.hasPanel && <SignaturesList signatures={signatures} pageLabels={viewer.pageLabels} />}
         />
       )}

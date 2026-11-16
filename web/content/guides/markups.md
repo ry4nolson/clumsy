@@ -16,7 +16,7 @@ The list is grouped by subject, with a count beside each one, and a total length
 
 That's a takeoff. Pick a symbol from Stamps, click once on every fixture, and the count climbs as you go. The Stamps tool stays on between clicks, so it's one click per fixture.
 
-A stamp's subject is its name, like "Duplex Receptacle". Other markup uses its kind ("Rectangle", "Highlight") unless it has a subject of its own. Subjects that differ only in capitals or spaces count as one.
+A stamp's subject is its name, like "Duplex Receptacle". Other markup uses its kind ("Rectangle", "Highlight") unless it has a subject of its own. Markup made with a saved tool from the [tool chest](/guides/tool-chest) takes the tool's name, so "Type A fixture" and "Type B fixture" count separately even when they're the same stamp. Subjects that differ only in capitals or spaces count as one.
 
 Markups made in other apps keep their subjects, so counts from another estimating tool's count markups show here too.
 

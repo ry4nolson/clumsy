@@ -174,3 +174,25 @@ describe("flattenMenu", () => {
     expect(flattenMenu({ palette: null, sections: [{ items: [] }, { items: [{ kind: "copy", label: "Copy" }] }] })).toEqual([{ kind: "copy", label: "Copy" }]);
   });
 });
+
+describe("saved tools", () => {
+  const savedTools = [
+    { id: "a", name: "Drywall", group: "Walls", tool: "measure:area", style: { color: "#1565c0", fill: true, width: 2, opacity: 1, dash: null } },
+    { id: "b", name: "Type A", group: null, tool: "stamp:elec:receptacle-duplex", style: { color: "#000000", fill: false, width: 0, opacity: 1, dash: null } },
+  ];
+
+  it("adds chosen saved tools to the palette with their base tool's symbol, and drops deleted ones", () => {
+    const palette = menu({ contextTools: ["select", "saved:b", "saved:gone", "saved:a"], savedTools, armedTool: "a" }).spec.palette;
+    expect(palette?.items).toEqual([
+      { id: "toolSelect", label: "Select", symbol: "cursorarrow", checked: false },
+      { id: "saved:b", label: "Type A", symbol: "seal", checked: false },
+      { id: "saved:a", label: "Drywall", symbol: "ruler", checked: true },
+    ]);
+  });
+
+  it("offers Add to Tool Chest on a selected markup", () => {
+    expect(ids(menu({ markupSelected: true }).spec.sections)).toContain("addToToolChest");
+    expect(ids(menu().spec.sections)).not.toContain("addToToolChest");
+    expect(ids(menu({ markupSelected: true, page: null }).spec.sections)).not.toContain("addToToolChest");
+  });
+});

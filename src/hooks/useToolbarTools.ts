@@ -51,5 +51,6 @@ export function useToolbarTools(
     onStamps: () => runCommand("toolStamp"),
     onMeasure: markupControls.chooseMeasure,
     onSetScale: () => runCommand("setScale"),
+    onSaveTool: markupControls.chest.saveAsTool,
   };
 }

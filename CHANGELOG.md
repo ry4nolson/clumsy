@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Tool chest.** Save a tool with its style and a name, like "Drywall" as a blue Area or "Type A fixture" as an electrical stamp, and pick it from the new Tool Chest tab in the sidebar, the Command Palette, or the right-click tools row. Markup made with a saved tool is named after it, so the Markups tab counts each one on its own. Using a saved tool leaves your everyday colors alone. Save one with Save as Tool… at the bottom of a tool's menu, or right-click a selected markup and choose Add to Tool Chest. Rename, regroup, restyle, duplicate, delete, and drag tools to reorder them. Export the chest or one group as a `.clumsytools` file and import it on another computer, or drop the file on a window, so a whole team uses the same names and colors. A starter set (review stamps, a revision cloud, a highlight, and Length and Area) fills the tab at first
+
 ## [0.20.0] - 2026-11-16
 
 ### Added

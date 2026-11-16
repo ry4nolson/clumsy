@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFStream, PDFString, decodePDFRawStream } from "@cantoo/pdf-lib";
 import { OPS } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { newMarkup, type Markup, type MarkupKind } from "../src/lib/markup";
+import { newMarkup, withPreset, type Markup, type MarkupKind } from "../src/lib/markup";
 import { idOfRef, readMarkup } from "../src/lib/markupPdf";
 import { outerRect } from "../src/lib/markupShapes";
 import { writeAnnotations } from "../src/lib/notesPdf";
@@ -251,5 +251,20 @@ describe("changing markup from the file", () => {
     const saved = await writeAnnotations(encrypted, [], [shape("rectangle")], "secret");
     const pdf = await openPdf(saved);
     expect((await (await pdf.getPage(1)).getAnnotations()).map((annotation) => annotation.subtype)).toEqual(["Square"]);
+  });
+});
+
+describe("saved tool names", () => {
+  it("writes a saved tool's name as /Subj, reads it back, and keeps it when the markup is edited", async () => {
+    const preset = { id: "tool-1", name: "Rev 2", style, dash: [4, 3], format: null };
+    const made = withPreset(shape("cloud"), preset);
+    const saved = await writeAnnotations(await blank(1), [], [made]);
+    const [dict] = (await pageAnnots(saved)).entries.map((entry) => entry.dict);
+    expect(textOf(dict, "Subj")).toBe("Rev 2");
+    const [found] = readMarkup(await PDFDocument.load(saved));
+    expect(found).toMatchObject({ subject: "Rev 2", dash: [4, 3], kind: "cloud" });
+    const moved = await writeAnnotations(saved, [], [{ ...found, box: [120, 520, 240, 600], subject: null, date }]);
+    const [after] = (await pageAnnots(moved)).entries.map((entry) => entry.dict);
+    expect(textOf(after, "Subj")).toBe("Rev 2");
   });
 });
