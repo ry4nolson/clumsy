@@ -426,7 +426,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           signatures={signatures.hasPanel && <SignaturesList signatures={signatures} pageLabels={viewer.pageLabels} />}
         />
       )}
-      <main className={`viewer-area${darkPages ? " dark-pages" : ""}${keepImages ? " keep-images" : ""}${compare ? " comparing" : signatures.bar ? " signed" : ""}`}>
+      <main className={`viewer-area${compare ? " comparing" : signatures.bar ? " signed" : ""}`}>
         {compare ? <CompareBar view={compare} /> : <SignatureBar signatures={signatures} />}
         {findOpen && (
           <FindBar

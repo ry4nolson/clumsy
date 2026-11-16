@@ -1,9 +1,10 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { useMarkdownFind } from "../hooks/useMarkdownFind";
+import { useRenderedMarkdown } from "../hooks/useRenderedMarkdown";
 import { imageTypeOf } from "../lib/imageFiles";
-import { headingAt, headingTree, renderMarkdown, type Heading, type HeadingNode } from "../lib/markdown";
+import { headingAt, renderMarkdown, type Heading, type HeadingNode } from "../lib/markdown";
 import type { ViewerScroll } from "../lib/documentMap";
-import { measureBlocks, offsetWithin, printableArticle, printCopy, renderedLineAtTop, renderedOffsetOf, sanitizeMarkdownHtml } from "../lib/markdownDom";
+import { measureBlocks, offsetWithin, printableArticle, printCopy, renderedLineAtTop, renderedOffsetOf } from "../lib/markdownDom";
 import type { MarkdownEditor } from "../lib/markdownEditor";
 import { isTypingTarget } from "../lib/commands";
 import { anchorIds, classifyHref, localImagePath } from "../lib/markdownLinks";
@@ -95,9 +96,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
   const refreshFind = useRef(find.refresh);
   refreshFind.current = find.refresh;
 
-  const rendered = useMemo(() => renderMarkdown(renderedText), [renderedText]);
-  const html = useMemo(() => sanitizeMarkdownHtml(rendered.html), [rendered]);
-  const outline = useMemo(() => headingTree(rendered.headings), [rendered]);
+  const { html, headings, outline } = useRenderedMarkdown(renderedText);
 
   const renderedLine = useCallback(() => {
     const box = containerRef.current;
@@ -105,7 +104,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     return box && content ? renderedLineAtTop(box, content) : 0;
   }, []);
 
-  const currentLine = useCallback(() => (modeRef.current === "source" ? (editorRef.current?.lineAtTop() ?? 0) : renderedLine()), [renderedLine]);
+  const currentLine = useCallback(() => pendingLine.current ?? (modeRef.current === "source" ? (editorRef.current?.lineAtTop() ?? 0) : renderedLine()), [renderedLine]);
 
   const scrollRendered = useCallback((line: number) => {
     const box = containerRef.current;
@@ -200,7 +199,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
 
   useLayoutEffect(() => {
     const content = contentRef.current;
-    if (!content) {
+    if (!content || html === null) {
       return;
     }
     content.innerHTML = html;
@@ -261,7 +260,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
 
   const toggleSource = useCallback(() => {
     if (modeRef.current === "rendered") {
-      const line = renderedLine();
+      const line = currentLine();
       heldLine.current = null;
       setMode("source");
       ensureEditor().then((editor) => {
@@ -281,7 +280,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     } else {
       scrollRendered(line);
     }
-  }, [ensureEditor, renderedLine, renderedText, scrollRendered]);
+  }, [ensureEditor, currentLine, renderedText, scrollRendered]);
 
   useEffect(() => {
     refreshFind.current();
@@ -431,7 +430,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     onSnapshot(id, { loaded: true, modified, findOpen: find.findOpen, mode });
   }, [id, modified, find.findOpen, mode, onSnapshot]);
 
-  const currentHeading = sidebarOpen ? headingAt(rendered.headings, topLine + 0.5) : null;
+  const currentHeading = sidebarOpen ? headingAt(headings, topLine + 0.5) : null;
   const findNode = (nodes: HeadingNode[]): HeadingNode | null => {
     for (const node of nodes) {
       if (node.id === currentHeading?.id) {
@@ -480,6 +479,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
           tabIndex={-1}
           inert={mode !== "rendered"}
         >
+          {html === null && <div className="tab-loading">Rendering {source.name}…</div>}
           <article ref={contentRef} className="markdown-body" onClick={onContentClick} onAuxClick={(event) => (event.target as Element).closest("a, area") && event.preventDefault()} />
         </div>
       </main>

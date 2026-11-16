@@ -4,6 +4,8 @@ mod documents;
 mod files;
 mod form_question;
 mod images;
+#[cfg(target_os = "ios")]
+mod launch_urls;
 mod navigation;
 mod print;
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
@@ -478,6 +480,9 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
+
+    #[cfg(target_os = "ios")]
+    launch_urls::install();
 
     app.run(|_app, _event| {
         #[cfg(any(target_os = "macos", target_os = "ios"))]
