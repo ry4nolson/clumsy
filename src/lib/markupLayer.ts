@@ -1,7 +1,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { UndoableCommand } from "./commentManager";
-import { mayBeMarkup, movedMarkup, restyledMarkup, sameStyle, type Markup, type MarkupStyle, type ShapeKind, type TextMarkupKind } from "./markup";
+import { mayBeMarkup, movedMarkup, removedMarkup, restyledMarkup, sameStyle, type Markup, type MarkupStyle, type ShapeKind, type TextMarkupKind } from "./markup";
 import { defaultFormat, fullSize, type MeasureKind } from "./measure";
 import type { PageScale } from "./measurePdf";
 import { createMeasureTool } from "./measureTool";
@@ -44,7 +44,7 @@ export type MarkupHooks = {
   readScales(doc: PDFDocumentProxy): Promise<Array<PageScale | null>>;
   stampDate(): string;
   askScale(): Promise<boolean>;
-  listed(measurements: Markup[] | null): void;
+  listed(): void;
   selected(markup: Markup | null): void;
   removed(): void;
 };
@@ -93,10 +93,8 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
 
   const publishSelection = () => hooks.selected(findMarkup(selectedId));
 
-  const publishList = () => {
-    const list = store.measurements();
-    hooks.listed(list.length || tool?.kind === "measure" ? list : null);
-  };
+  const publishList = () => hooks.listed();
+
 
   const select = (id: string | null) => {
     if (selectedId === id) {
@@ -432,6 +430,13 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       updateClasses();
       paintAll();
       publishList();
+    },
+    listAll: () => store.listAll(),
+    removeMarkup(ids: string[]) {
+      const found = ids.map(findMarkup).filter((markup): markup is Markup => !!markup);
+      if (found.length && store.commit(found.map((markup) => ({ id: markup.id, pageIndex: markup.pageIndex, after: removedMarkup(markup, now()) })))) {
+        hooks.removed();
+      }
     },
     show(id: string) {
       const markup = findMarkup(id);

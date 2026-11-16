@@ -73,13 +73,6 @@ export function measurementRow(markup: Markup, pageLabels: string[] | null): Mea
   };
 }
 
-export function measurementRows(markups: Markup[], pageLabels: string[] | null) {
-  return markups
-    .map((markup) => measurementRow(markup, pageLabels))
-    .filter((row): row is MeasurementRow => !!row)
-    .sort((a, b) => a.pageIndex - b.pageIndex);
-}
-
 const commonFormat = (rows: MeasurementRow[]) => {
   const counts = new Map<string, { format: MeasureFormat; count: number }>();
   for (const { format } of rows) {
@@ -106,10 +99,6 @@ export function measurementTotals(rows: MeasurementRow[]): MeasurementTotal[] {
   return totals;
 }
 
-const headings = ["Page", "Type", "Value", "Quantity", "Unit", "Scale", "Color"];
-
-const cells = (row: MeasurementRow) => [row.page, row.type, row.value, String(row.quantity), row.unit, row.scale, row.color];
-
 const FORMULA_START = /^[=+\-@\t\r]/;
 
 const inert = (text: string) => (FORMULA_START.test(text) ? `'${text}` : text);
@@ -119,12 +108,8 @@ function csvCell(text: string) {
   return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
 }
 
-export function measurementsCsv(rows: MeasurementRow[]) {
-  return [headings, ...rows.map(cells)].map((line) => line.map(csvCell).join(",")).join("\r\n") + "\r\n";
-}
+export const csvText = (lines: string[][]) => lines.map((line) => line.map(csvCell).join(",")).join("\r\n") + "\r\n";
 
 const tsvCell = (text: string) => inert(text.replace(/[\t\r\n]+/g, " "));
 
-export function measurementsTsv(rows: MeasurementRow[]) {
-  return [headings, ...rows.map(cells)].map((line) => line.map(tsvCell).join("\t")).join("\n");
-}
+export const tsvText = (lines: string[][]) => lines.map((line) => line.map(tsvCell).join("\t")).join("\n");

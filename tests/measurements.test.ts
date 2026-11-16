@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { newMarkup, pointsBox, type Markup } from "../src/lib/markup";
 import { defaultFormat, scalePresets, type MeasureFormat } from "../src/lib/measure";
-import { measurementRows, measurementTotals, measurementsCsv, measurementsTsv } from "../src/lib/measurements";
+import { measurementRow, measurementTotals, type MeasurementRow } from "../src/lib/measurements";
+
+const measurementRows = (markups: Markup[], labels: string[] | null) =>
+  markups
+    .map((markup) => measurementRow(markup, labels))
+    .filter((row): row is MeasurementRow => !!row)
+    .sort((a, b) => a.pageIndex - b.pageIndex);
 
 const eighth = scalePresets.find((scale) => scale.label === `1/8" = 1'-0"`)!;
 const style = { color: [1, 0, 0.5], fill: false, width: 2, opacity: 1 };
@@ -30,14 +36,5 @@ describe("measurement list", () => {
       { label: "Total area", count: 1, value: "32.00 sq ft" },
     ]);
     expect(measurementTotals([])).toEqual([]);
-  });
-
-  it("writes CSV with quoting and no formulas, and TSV for pasting", () => {
-    const rows = measurementRows([length("a", 0, [0, 0, 72, 0])], ['=HYPERLINK("x")']);
-    const csv = measurementsCsv(rows);
-    expect(csv.split("\r\n")[0]).toBe("Page,Type,Value,Quantity,Unit,Scale,Color");
-    expect(csv.split("\r\n")[1]).toBe(`"'=HYPERLINK(""x"")",Length,"8' 0""",8,ft,"1/8"" = 1'-0""",#ff0080`);
-    expect(csv.endsWith("\r\n")).toBe(true);
-    expect(measurementsTsv(rows).split("\n")[1]).toBe(`'=HYPERLINK("x")\tLength\t8' 0"\t8\tft\t1/8" = 1'-0"\t#ff0080`);
   });
 });

@@ -28,7 +28,7 @@ import { DocumentMap } from "./DocumentMap";
 import { EditorSheets, EditorUndoBar } from "./EditorSheets";
 import { FindBar } from "./FindBar";
 import { usePageSheets } from "./PageSheets";
-import { MeasurementsList } from "./MeasurementsList";
+import { MarkupList } from "./MarkupList";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 import { SignatureBar } from "./SignatureBar";
 import { SignatureDetailsDialog } from "./SignatureDetailsDialog";
@@ -440,17 +440,16 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
               <CommentsList comments={editorState.comments} selected={editorState.selectedComment} pageLabels={viewer.pageLabels} onSelect={(comment) => viewer.editorUi?.showComment(comment)} />
             )
           }
-          measurements={
-            editorState.measurements && (
-              <MeasurementsList
-                measurements={editorState.measurements}
-                selected={editorState.markupSelection?.id ?? null}
-                pageLabels={viewer.pageLabels}
-                onSelect={(markupId) => viewer.editorUi?.markup?.show(markupId)}
-                onCopy={() => onMenuCommand("copyMeasurements", [])}
-                onExport={() => onMenuCommand("exportMeasurements", [])}
-              />
-            )
+          markups={
+            <MarkupList
+              list={viewer.editorUi?.markupList ?? null}
+              version={editorState.markupVersion}
+              visible={active && sidebarOpen && sidebarTab === "markups"}
+              pageLabels={viewer.pageLabels}
+              currentPage={viewer.pageNumber}
+              pageCount={viewer.pagesCount}
+              onCommand={(command) => onMenuCommand(command, [])}
+            />
           }
           signatures={signatures.hasPanel && <SignaturesList signatures={signatures} pageLabels={viewer.pageLabels} />}
         />

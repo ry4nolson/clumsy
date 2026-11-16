@@ -35,6 +35,8 @@ export type Markup = {
   date: string | null;
   fresh: boolean;
   deleted: boolean;
+  subject?: string | null;
+  author?: string | null;
 };
 
 const LINE = 4;
@@ -195,6 +197,6 @@ export const kindLabels: Record<MarkupKind, string> = {
   strikeout: "Strikethrough",
   stamp: "Stamp",
   "measure-length": "Length",
-  "measure-path": "Perimeter",
+  "measure-path": "Path",
   "measure-area": "Area",
 };

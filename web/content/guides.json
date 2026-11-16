@@ -46,6 +46,11 @@
           "summary": "Set a drawing's scale, measure lengths, paths, and areas, and send the totals to a spreadsheet."
         },
         {
+          "slug": "markups",
+          "title": "The Markups list",
+          "summary": "Every markup in one list, counted by subject, with review status and a summary for the spreadsheet."
+        },
+        {
           "slug": "forms",
           "title": "Filling in forms",
           "summary": "Tab through real form fields, drop checkmarks and dates on paper forms, and flatten the result."

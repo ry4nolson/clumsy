@@ -1,4 +1,5 @@
 import { CSSConstants, PDFDateString, applyOpacity, findContrastColor } from "pdfjs-dist";
+import { isStateReply, type AnnotationReplyData } from "./reviewState";
 import type { EventBus, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import { CommentPopup, type CommentTarget } from "./commentPopup";
 import { compareComments, dropComments, upsertComment, type CommentEntry } from "./comments";
@@ -91,7 +92,7 @@ export function createCommentManager(eventBus: EventBus, linkService: PDFLinkSer
       uiManager = manager;
     },
     showSidebar(annotations: AnnotationComment[]) {
-      pdfComments = annotations.filter(hasCommentText).map(commentEntry).reduce(upsertComment, [] as CommentEntry[]);
+      pdfComments = annotations.filter((annotation) => hasCommentText(annotation) && !isStateReply(annotation as AnnotationReplyData)).map(commentEntry).reduce(upsertComment, [] as CommentEntry[]);
       publishComments();
       refreshNotes();
     },
@@ -221,6 +222,8 @@ export function createCommentManager(eventBus: EventBus, linkService: PDFLinkSer
     finishComment,
     showComment,
     canAddNote: () => !!notes?.writable(),
+    revealNote: (id: string) => notes?.reveal(id),
+    removeNotes: (ids: string[]) => notes?.remove(ids),
     addNoteAt: (pageDiv: HTMLElement, clientX: number, clientY: number) => !!notes?.addAt(pageDiv, clientX, clientY),
     dispose() {
       notes?.dispose();

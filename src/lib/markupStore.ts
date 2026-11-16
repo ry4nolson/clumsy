@@ -2,13 +2,11 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { UndoableCommand } from "./commentManager";
 import { hideAnnotations } from "./hiddenAnnotations";
-import { MARKUP_KEY_PREFIX, editedFileIds, isMeasureKind, markupIn, visibleMarkup, type Markup } from "./markup";
+import { MARKUP_KEY_PREFIX, editedFileIds, markupIn, visibleMarkup, type Markup } from "./markup";
 import { undoBursts } from "./markupDraft";
 import type { PageScale } from "./measurePdf";
 import { claimStamps } from "./pdfjs";
 
-const MEASURE_TYPES = new Set([4, 7, 8]);
-const MEASURE_INTENTS = new Set(["LineDimension", "PolyLineDimension", "PolygonDimension"]);
 
 const KEEP_LAYERS = { keepAnnotationLayer: true, keepAnnotationEditorLayer: true, keepXfaLayer: true, keepTextLayer: true, keepCanvasWrapper: true };
 
@@ -80,19 +78,6 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     return scales;
   };
 
-  const findMeasurements = () => {
-    viewer.eventBus.off("pagerendered", findMeasurements);
-    const owner = doc;
-    owner
-      ?.getAnnotationsByType(MEASURE_TYPES, new Set())
-      .then((annotations) => {
-        if (doc === owner && annotations.some((annotation) => MEASURE_INTENTS.has(String((annotation as { it?: string }).it)))) {
-          void loadFile();
-        }
-      })
-      .catch(() => {});
-  };
-
   const reset = () => {
     doc = viewer.pdfDocument ?? null;
     file = null;
@@ -101,9 +86,7 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     scalesReady = false;
     fileByPage = new Map();
     hiddenIds = new Set();
-    viewer.eventBus.off("pagerendered", findMeasurements);
     if (doc) {
-      viewer.eventBus.on("pagerendered", findMeasurements);
       claimStamps(doc, () => loadFile().then((list) => new Set(list.filter((markup) => markup.kind === "stamp").map((markup) => markup.id))));
     }
   };
@@ -158,6 +141,10 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     isStale: () => (viewer.pdfDocument ?? null) !== doc,
     reset,
     loadFile,
+    async listAll() {
+      const list = await loadFile();
+      return { markup: all(), fileIds: new Set(list.map((markup) => markup.id)) };
+    },
     loaded: () => !!file,
     loadScales,
     scalesReady: () => scalesReady,
@@ -165,7 +152,6 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     hasFileMarkup: (pageIndex: number) => fileByPage.has(pageIndex),
     edited: () => editedFileIds(changes()),
     find,
-    measurements: () => all().filter((markup) => isMeasureKind(markup.kind)),
     onPage,
     writable,
     commit,

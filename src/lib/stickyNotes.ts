@@ -65,7 +65,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
   let drag: NoteDrag | null = null;
   let dropped = false;
 
-  const changes = () => notesIn(doc?.annotationStorage ?? []);
+  const changes = () => notesIn(doc?.annotationStorage ?? []).filter((note) => !note.reply);
   const pageView = (pageIndex: number) => viewer.getPageView(pageIndex) as unknown as NotePageView | undefined;
   const allNotes = () => visibleNotes([...fileNotes.values()].flat(), changes());
   const findNote = (id: string) => drafts.get(id) ?? allNotes().find((note) => note.id === id) ?? null;
@@ -422,6 +422,10 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     has: (id: string) => !!findNote(id),
     writable,
     addAt,
+    async remove(ids: string[]) {
+      await loadAll();
+      ids.forEach((id) => change(id, null));
+    },
     async entries(): Promise<CommentEntry[]> {
       await loadAll();
       return allNotes()

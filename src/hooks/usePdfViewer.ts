@@ -16,6 +16,7 @@ import { publishPageCanvas } from "../lib/pageCanvases";
 import { markupIn } from "../lib/markup";
 import { trackModified, type ModifiedStorage } from "../lib/modifiedState";
 import { notesIn } from "../lib/notes";
+import { withAuthor } from "../lib/authorName";
 import { writeAnnotationsOffThread } from "../lib/pageEditWorker";
 import { hasCustomLabels } from "../lib/pageLabels";
 import { assetsUrl, passwordOf } from "../lib/pdfjs";
@@ -447,8 +448,7 @@ export function usePdfViewer() {
     }
     commitEdits();
     const bytes = await saveKeepingModified(doc);
-    const notes = notesIn(doc.annotationStorage);
-    const markup = markupIn(doc.annotationStorage);
+    const { notes, markup } = withAuthor(notesIn(doc.annotationStorage), markupIn(doc.annotationStorage));
     return notes.length || markup.length ? writeAnnotationsOffThread(bytes, notes, markup, passwordOf(doc)) : bytes;
   }), [commitEdits]);
 

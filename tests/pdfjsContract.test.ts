@@ -446,3 +446,20 @@ describe("form scripting", () => {
     }
   });
 });
+
+describe("markup list", () => {
+  it("reads the annotation fields and state replies it lists", () => {
+    expect(classMembers(display, "PDFDocumentProxy"), "PDFDocumentProxy.getAnnotationsByType").toContain("getAnnotationsByType");
+    for (const field of ["titleObj", "modificationDate", "creationDate", "annotationFlags", "inReplyTo"]) {
+      expectIn(worker, new RegExp(`data\\.${field}\\b`));
+    }
+    expectIn(worker, /this\.data\.state = dict\.get\("State"\) \|\| null;\s*this\.data\.stateModel = dict\.get\("StateModel"\) \|\| null;/);
+  });
+
+  it("lists unsaved editors by iterating storage and serializing them", () => {
+    expectIn(classSource(display, "AnnotationStorage"), /\[Symbol\.iterator\]\(\) \{\s*return this\.#storage\.entries\(\);/);
+    expectIn(display, "serialize(isForCopying = false, context = null) {");
+    expectIn(methodSource(display, "AnnotationEditor", "serializeDeleted"), /id: this\.annotationElementId,\s*deleted: true,\s*pageIndex: this\.pageIndex,/);
+    expectIn(app.read("src/lib/markupList.ts"), 'const EDITOR_KEY = "pdfjs_internal_editor_";');
+  });
+});
