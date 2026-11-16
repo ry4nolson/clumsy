@@ -6,7 +6,7 @@ import { readContextTools, savedEntry, withContextTool, writeContextTools } from
 import type { MarkupParams } from "../lib/markupParams";
 import { showMessage } from "../lib/platform";
 import { armSpec, newTool, readToolChest, starterChest, toolLabel, toolOfMarkup, type SavedTool, type ToolStyle, type ToolTarget } from "../lib/toolChest";
-import { addedTool, chestFileText, duplicatedTool, groupOnly, mergedChest, movedTool, removedTool, restoredTool, updatedTool, type Removal } from "../lib/toolChestEdit";
+import { addedTool, chestFileText, duplicatedTool, groupOnly, movedTool, removedTool, restoredTool, updatedTool, withMissing, type Removal } from "../lib/toolChestEdit";
 import { confirmClearChest, pickToolChestFile, saveToolChestFile, toolChestFileName } from "../lib/toolChestFiles";
 import { importChestText, saveChest, watchChest } from "../lib/toolChestStore";
 import type { EditorParams, PdfViewerApi } from "./usePdfViewer";
@@ -87,7 +87,7 @@ const freshId = () => crypto.randomUUID();
 export function useToolChest(host: ChestHost) {
   const [chest, setChest] = useState(readToolChest);
   const [sheet, setSheet] = useState<ToolSheetRequest | null>(null);
-  const [removal, setRemoval] = useState<Removal | null>(null);
+  const [removal, setRemoval] = useState<(Removal & { inContext: boolean }) | null>(null);
 
   useEffect(() => watchChest(() => setChest(readToolChest())), []);
 
@@ -133,8 +133,9 @@ export function useToolChest(host: ChestHost) {
   const remove = (id: string) => {
     const result = removedTool(readToolChest(), id);
     if (result.removal) {
+      const inContext = readContextTools().includes(savedEntry(id));
       update(() => result.chest);
-      setRemoval(result.removal);
+      setRemoval({ ...result.removal, inContext });
     }
   };
 
@@ -149,6 +150,9 @@ export function useToolChest(host: ChestHost) {
     onUndoRemove: () => {
       if (removal) {
         update((current) => restoredTool(current, removal));
+        if (removal.inContext) {
+          writeContextTools(withContextTool(readContextTools(), savedEntry(removal.tool.id), true));
+        }
       }
       setRemoval(null);
     },
@@ -160,7 +164,7 @@ export function useToolChest(host: ChestHost) {
     },
     onExport: exportChest,
     onImport: importChest,
-    onRestoreStarter: () => update((current) => mergedChest(current, starterChest(), "keepBoth").chest),
+    onRestoreStarter: () => update((current) => withMissing(current, starterChest())),
     onClear: async () => {
       if (await confirmClearChest()) {
         update((current) => ({ ...current, tools: [] }));

@@ -16,7 +16,7 @@ import {
   writeToolChest,
   type SavedTool,
 } from "../src/lib/toolChest";
-import { addedTool, chestFileText, duplicatedTool, groupOnly, importClashes, mergedChest, movedTool, removedTool, restoredTool, toolGroups, toolSections } from "../src/lib/toolChestEdit";
+import { addedTool, chestFileText, duplicatedTool, groupOnly, importClashes, mergedChest, movedTool, removedTool, restoredTool, toolGroups, toolSections, withMissing } from "../src/lib/toolChestEdit";
 import { spotAtGroup, spotNear } from "../src/lib/toolChestDrag";
 import { swatchMarkup } from "../src/lib/toolSwatch";
 
@@ -198,16 +198,39 @@ describe("editing the chest", () => {
 
 describe("importing", () => {
   const mine = chestOf(tool("a", "Type A", "Lighting"), tool("b", "Drywall", "Walls"));
+  let next = 0;
+  const freshId = () => `fresh-${++next}`;
 
-  it("replaces the same id, adds new ones, and finds name clashes within a group", () => {
-    const incoming = chestOf({ ...tool("a", "Type A v2", "Lighting") }, tool("x", "drywall", "walls"), tool("y", "Drywall", "Other"), tool("z", "New", null));
-    expect(importClashes(mine, incoming).map((entry) => entry.id)).toEqual(["x"]);
-    const kept = mergedChest(mine, incoming, "keepBoth");
-    expect(kept.chest.tools.map((entry) => [entry.id, entry.name])).toEqual([["a", "Type A v2"], ["b", "Drywall"], ["x", "drywall"], ["y", "Drywall"], ["z", "New"]]);
-    expect([kept.added, kept.replaced]).toEqual([3, 1]);
-    const replaced = mergedChest(mine, incoming, "replace");
-    expect(replaced.chest.tools.map((entry) => [entry.id, entry.group])).toEqual([["a", "Lighting"], ["x", "walls"], ["y", "Other"], ["z", null]]);
+  it("asks about changed tools with the same id and new tools with the same name and group", () => {
+    const incoming = chestOf(tool("a", "Type A v2", "Lighting"), tool("b", "Drywall", "Walls"), tool("x", "drywall", "walls"), tool("y", "Drywall", "Other"), tool("z", "New", null));
+    expect(importClashes(mine, incoming).map((entry) => entry.id)).toEqual(["a", "x"]);
+  });
+
+  it("keeps both by adding copies, and skips tools that haven't changed", () => {
+    next = 0;
+    const incoming = chestOf(tool("a", "Type A v2", "Lighting"), tool("b", "Drywall", "Walls"), tool("x", "drywall", "walls"), tool("z", "New", null));
+    const kept = mergedChest(mine, incoming, "keepBoth", freshId);
+    expect(kept.chest.tools.map((entry) => [entry.id, entry.name])).toEqual([["a", "Type A"], ["b", "Drywall"], ["fresh-1", "Type A v2"], ["x", "drywall"], ["z", "New"]]);
+    expect([kept.added, kept.replaced]).toEqual([3, 0]);
+  });
+
+  it("replaces in place and keeps your tool's id, once per tool", () => {
+    const incoming = chestOf(tool("a", "Type A v2", "Lighting"), tool("x", "drywall", "walls"), { ...tool("w", "Drywall", "Walls"), tool: "measure:area" }, tool("z", "New", null));
+    const replaced = mergedChest(mine, incoming, "replace", freshId);
+    expect(replaced.chest.tools.map((entry) => [entry.id, entry.name, entry.tool])).toEqual([
+      ["a", "Type A v2", "shape:rectangle"],
+      ["b", "drywall", "shape:rectangle"],
+      ["w", "Drywall", "measure:area"],
+      ["z", "New", "shape:rectangle"],
+    ]);
     expect([replaced.added, replaced.replaced]).toEqual([2, 2]);
+  });
+
+  it("adds missing starter tools without touching edited ones", () => {
+    const edited = chestOf({ ...starterTools[3], style: { ...starterTools[3].style, color: "#000000" } });
+    const restored = withMissing(edited, cleanToolChest({ tools: starterTools }));
+    expect(restored.tools).toHaveLength(starterTools.length);
+    expect(restored.tools[0].style.color).toBe("#000000");
   });
 
   it("cleans what it imports", () => {

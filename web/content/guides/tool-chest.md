@@ -51,7 +51,7 @@ Right-click a tool, or click the **⋯** that shows when you point at it:
 
 Drag a tool to reorder it. Drop it in another group to move it there.
 
-The **⋯** at the top of the tab has **Export Tool Chest…**, **Import Tool Chest…**, **Add Starter Tools**, and **Clear Tool Chest**.
+The **⋯** at the top of the tab has **Export Tool Chest…**, **Import Tool Chest…**, **Add Starter Tools** (puts back any you deleted, leaving the ones you changed alone), and **Clear Tool Chest**.
 
 Every window shares one chest. A tool saved in one shows up in the others.
 
@@ -59,7 +59,7 @@ Every window shares one chest. A tool saved in one shows up in the others.
 
 **Export Tool Chest…** (in the tab's **⋯** menu and the Tools menu) saves every tool as a `.clumsytools` file. To share one group, right-click its heading and choose **Export**.
 
-**Import Tool Chest…** adds the tools from a file, and so does dropping a `.clumsytools` file on the window. A tool that's already in your chest is updated. If an imported tool has the same name and group as one of yours, Clumsy asks once: **Replace** yours, or **Keep Both**.
+**Import Tool Chest…** adds the tools from a file, and so does dropping a `.clumsytools` file on the window. Tools you already have, unchanged, are skipped. If an imported tool would change one of yours, or has the same name and group as one of yours, Clumsy asks once: **Replace** yours, or **Keep Both**.
 
 Send a team the same file and everyone's markups come out with the same names and colors, which is what makes a combined markup list or measurement export make sense.
 

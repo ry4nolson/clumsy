@@ -41,7 +41,7 @@ export async function importChestText(text: string, name = "That file") {
     return false;
   }
   const clashes = importClashes(readToolChest(), incoming);
-  const choice = clashes.length ? await askClashChoice(clashes.length, clashes[0].name) : "keepBoth";
+  const choice = clashes.length ? await askClashChoice(clashes.length, clashes[0].name) : "replace";
   saveChest(mergedChest(readToolChest(), incoming, choice).chest);
   return true;
 }

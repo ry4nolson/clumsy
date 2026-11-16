@@ -43,9 +43,11 @@ export function ToolSheet({ request, groups, onSave, onClose }: ToolSheetProps) 
 
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (request && dialog && !dialog.open) {
+    if (request && dialog) {
       setDraft(request.tool);
-      dialog.showModal();
+      if (!dialog.open) {
+        dialog.showModal();
+      }
     } else if (!request && dialog?.open) {
       dialog.close();
     }

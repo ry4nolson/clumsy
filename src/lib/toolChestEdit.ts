@@ -76,27 +76,57 @@ export const renamedGroup = (chest: ToolChest, from: string | null, to: string |
 
 export const groupOnly = (chest: ToolChest, group: string | null): ToolChest => withTools(chest, chest.tools.filter((tool) => sameText(tool.group, group)));
 
+const looksSame = (a: SavedTool, b: SavedTool) =>
+  JSON.stringify([a.name, a.group, a.tool, a.style, a.measure ?? null]) === JSON.stringify([b.name, b.group, b.tool, b.style, b.measure ?? null]);
+
+const sameNameAndGroup = (a: SavedTool, b: SavedTool) => sameText(a.name, b.name) && sameText(a.group, b.group);
+
 export function importClashes(current: ToolChest, incoming: ToolChest) {
-  const ids = new Set(current.tools.map((tool) => tool.id));
-  return incoming.tools.filter((tool) => !ids.has(tool.id) && current.tools.some((existing) => sameText(existing.name, tool.name) && sameText(existing.group, tool.group)));
+  return cleanToolChest(incoming).tools.filter((tool) => {
+    const twin = current.tools.find((existing) => existing.id === tool.id);
+    return twin ? !looksSame(twin, tool) : current.tools.some((existing) => sameNameAndGroup(existing, tool));
+  });
 }
+
+export const withMissing = (current: ToolChest, extra: ToolChest): ToolChest =>
+  withTools(current, [...current.tools, ...extra.tools.filter((tool) => !current.tools.some((existing) => existing.id === tool.id))].slice(0, MAX_SAVED_TOOLS));
 
 export type ClashChoice = "replace" | "keepBoth";
 
-export function mergedChest(current: ToolChest, incoming: ToolChest, choice: ClashChoice): { chest: ToolChest; added: number; replaced: number } {
-  let tools = [...current.tools];
+export function mergedChest(current: ToolChest, incoming: ToolChest, choice: ClashChoice, freshId: () => string = () => crypto.randomUUID()) {
+  const tools = [...current.tools];
+  const taken = new Set<string>();
   let added = 0;
   let replaced = 0;
+  const add = (tool: SavedTool) => {
+    if (tools.length < MAX_SAVED_TOOLS) {
+      tools.push(tool);
+      taken.add(tool.id);
+      added++;
+    }
+  };
+  const replaceAt = (index: number, tool: SavedTool) => {
+    tools[index] = { ...tool, id: tools[index].id };
+    taken.add(tools[index].id);
+    replaced++;
+  };
   for (const tool of cleanToolChest(incoming).tools) {
     const sameId = tools.findIndex((existing) => existing.id === tool.id);
-    const sameName = choice === "replace" ? tools.findIndex((existing) => sameText(existing.name, tool.name) && sameText(existing.group, tool.group)) : -1;
-    const at = sameId >= 0 ? sameId : sameName;
-    if (at >= 0) {
-      tools = [...tools.slice(0, at), tool, ...tools.slice(at + 1)];
-      replaced++;
-    } else if (tools.length < MAX_SAVED_TOOLS) {
-      tools.push(tool);
-      added++;
+    if (sameId >= 0) {
+      if (looksSame(tools[sameId], tool)) {
+        taken.add(tool.id);
+      } else if (choice === "replace" && !taken.has(tool.id)) {
+        replaceAt(sameId, tool);
+      } else {
+        add({ ...tool, id: freshId() });
+      }
+      continue;
+    }
+    const sameName = choice === "replace" ? tools.findIndex((existing) => !taken.has(existing.id) && sameNameAndGroup(existing, tool)) : -1;
+    if (sameName >= 0) {
+      replaceAt(sameName, tool);
+    } else {
+      add(tool);
     }
   }
   return { chest: withTools(current, tools), added, replaced };
