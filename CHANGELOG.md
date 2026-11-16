@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-16
+
 ### Added
 - **Linux.** Clumsy now runs on Linux (x64), as an AppImage, a `.deb`, or an `.rpm`. Installed from a package, it can be your default app for PDFs and Markdown files. Like the Windows build, it doesn't update itself yet, and printing and digital signatures are Mac-only for now
 
