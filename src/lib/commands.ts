@@ -92,6 +92,8 @@ export type CommandId =
   | "measureLength"
   | "measurePath"
   | "measureArea"
+  | "copyMeasurements"
+  | "exportMeasurements"
   | "toolStamp"
   | "addImage"
   | "sign"
@@ -258,6 +260,8 @@ export const commands: Command[] = [
   { id: "measureLength", label: "Measure Length", menu: "Tools", combos: [], needsDocument: true },
   { id: "measurePath", label: "Measure Path", menu: "Tools", combos: [], needsDocument: true },
   { id: "measureArea", label: "Measure Area", menu: "Tools", combos: [], needsDocument: true },
+  { id: "copyMeasurements", label: "Copy Measurements", menu: "Tools", combos: [], needsDocument: true },
+  { id: "exportMeasurements", label: "Export Measurements…", menu: "Tools", combos: [], needsDocument: true, needsDesktop: true },
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
   { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },

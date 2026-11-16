@@ -222,3 +222,41 @@
   white-space: nowrap;
   pointer-events: none;
 }
+
+.measurement-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.measurement-count {
+  color: var(--text-muted);
+}
+
+.measurement-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.measurement-actions button {
+  flex: 1;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: var(--hover);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.measurement-actions button:hover {
+  background: var(--active);
+}
+
+.measurement-value {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

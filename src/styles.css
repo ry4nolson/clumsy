@@ -752,7 +752,12 @@ body {
 
 .sidebar-tabs button {
   flex: 1;
+  min-width: 0;
   height: 26px;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   border: none;
   border-radius: 6px;
   background: transparent;

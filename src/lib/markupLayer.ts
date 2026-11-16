@@ -10,6 +10,7 @@ import { textMarkupFromSelection } from "./markupSelection";
 import { draftFor, drawable, insidePage, nudgeDelta, resizedMarkup } from "./markupDraft";
 import { clampShift, outerRect, type Handle, type Point } from "./markupShapes";
 import { createMarkupStore } from "./markupStore";
+import { createScaleQuestion } from "./scaleQuestion";
 import { markupDrawing, markupHitTarget, matrixAttribute, selectionOverlay, svg } from "./markupSvg";
 import { pdfDate } from "./notes";
 
@@ -42,6 +43,8 @@ export type MarkupHooks = {
   readFile(doc: PDFDocumentProxy): Promise<Markup[]>;
   readScales(doc: PDFDocumentProxy): Promise<Array<PageScale | null>>;
   stampDate(): string;
+  askScale(): Promise<boolean>;
+  listed(measurements: Markup[] | null): void;
   selected(markup: Markup | null): void;
   removed(): void;
 };
@@ -70,9 +73,13 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     addCommands: hooks.addCommands,
     readFile: hooks.readFile,
     readScales: hooks.readScales,
-    loaded: () => paintAll(),
+    loaded: () => {
+      paintAll();
+      publishList();
+    },
     changed: (pageIndex) => {
       paint(pageIndex);
+      publishList();
       if (selectedId && !store.find(selectedId)) {
         selectedId = null;
       }
@@ -85,6 +92,11 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
   const change = store.change;
 
   const publishSelection = () => hooks.selected(findMarkup(selectedId));
+
+  const publishList = () => {
+    const list = store.measurements();
+    hooks.listed(list.length || tool?.kind === "measure" ? list : null);
+  };
 
   const select = (id: string | null) => {
     if (selectedId === id) {
@@ -117,6 +129,15 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     settings: (pageIndex) => store.scaleOf(pageIndex) ?? { scale: fullSize, format: defaultFormat },
   });
 
+  const scaleQuestion = createScaleQuestion({
+    store,
+    container,
+    measuring: () => tool?.kind === "measure",
+    currentPage: () => viewer.currentPageNumber - 1,
+    ask: hooks.askScale,
+    cancel: measure.cancel,
+  });
+
   const reset = () => {
     measure.cancel();
     store.reset();
@@ -126,6 +147,7 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     selectedId = null;
     drag = null;
     hooks.selected(null);
+    publishList();
   };
 
   const resetIfNew = () => {
@@ -236,6 +258,11 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       return paint(abandoned);
     }
     if (drag || event.button !== 0 || !view || !writable()) {
+      return;
+    }
+    if (tool?.kind === "measure" && !measure.building() && scaleQuestion.blocks(pageIndex)) {
+      event.preventDefault();
+      event.stopPropagation();
       return;
     }
     if (measure.pointerDown(event, pageIndex, target.classList.contains("markup-surface"), this)) {
@@ -425,10 +452,23 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       tool = next;
       measure.setKind(next?.kind === "measure" ? next.measure : null);
       if (next?.kind === "measure") {
-        store.loadScales();
+        scaleQuestion.check();
       }
       updateClasses();
       paintAll();
+      publishList();
+    },
+    show(id: string) {
+      const markup = findMarkup(id);
+      const view = markup && pageView(markup.pageIndex);
+      if (!markup || !view?.div) {
+        return;
+      }
+      const [left, bottom, right, top] = outerRect(markup);
+      const [x, y] = view.viewport.convertToViewportPoint((left + right) / 2, (bottom + top) / 2);
+      container.scrollTo({ left: view.div.offsetLeft + x - container.clientWidth / 2, top: view.div.offsetTop + y - container.clientHeight / 2 });
+      select(id);
+      container.focus({ preventScroll: true });
     },
     setInteractive(on: boolean) {
       interactive = on;

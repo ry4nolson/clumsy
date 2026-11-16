@@ -35,6 +35,7 @@ import { useRecentFiles } from "./hooks/useRecentFiles";
 import { useRestartSession } from "./hooks/useRestartSession";
 import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useMarkupControls } from "./hooks/useMarkupControls";
+import { useMeasurementExport } from "./hooks/useMeasurementExport";
 import { useToolbarTools } from "./hooks/useToolbarTools";
 import { useViewControls } from "./hooks/useViewControls";
 import { useWorkspace } from "./hooks/useWorkspace";
@@ -149,7 +150,8 @@ export default function App() {
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
-  const markupControls = useMarkupControls(activeViewer, activeSnapshot);
+  const markupControls = useMarkupControls(activeViewer, activeSnapshot, (id, options) => runCommandRef.current(id, options), () => showSidebar("measurements"));
+  const measurementExport = useMeasurementExport(activeViewer, () => ("name" in activeTab ? activeTab.name : "Document"));
   const tools = useToolbarTools(activeViewer, activeSnapshot, editorOptions, markupControls, (id) => runCommandRef.current(id));
 
   const toggleFind = () => {
@@ -256,7 +258,7 @@ export default function App() {
     if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
-    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || markupControls.runMarkupCommand(id) || imageExport.runExportCommand(id, pages) || compress.runCompressCommand(id) || printing.runPrintCommand(id, pages) || signing.runSigningCommand(id)) {
+    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || markupControls.runMarkupCommand(id) || measurementExport.runMeasurementCommand(id) || imageExport.runExportCommand(id, pages) || compress.runCompressCommand(id) || printing.runPrintCommand(id, pages) || signing.runSigningCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {

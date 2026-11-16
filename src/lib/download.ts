@@ -17,3 +17,7 @@ export function downloadPdf(name: string, data: Uint8Array) {
 export function downloadMarkdown(name: string, source: Pick<MarkdownSource, "text" | "format">) {
   download(ensureMarkdownExtension(name), encodeText(source.text, source.format), "text/markdown");
 }
+
+export function downloadCsv(name: string, text: string) {
+  download(name, new TextEncoder().encode(text), "text/csv");
+}

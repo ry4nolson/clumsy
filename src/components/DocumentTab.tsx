@@ -28,6 +28,7 @@ import { DocumentMap } from "./DocumentMap";
 import { EditorSheets, EditorUndoBar } from "./EditorSheets";
 import { FindBar } from "./FindBar";
 import { usePageSheets } from "./PageSheets";
+import { MeasurementsList } from "./MeasurementsList";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 import { SignatureBar } from "./SignatureBar";
 import { SignatureDetailsDialog } from "./SignatureDetailsDialog";
@@ -176,7 +177,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const [findSeed, setFindSeed] = useState<string | null>(null);
   const lastQuery = useRef<FindQuery | null>(null);
   const [selection, setSelection] = useState<PageSelection>(emptySelection);
-  const pageSheets = usePageSheets((action) => onPageAction(id, action), viewer.pickLine);
+  const pageSheets = usePageSheets((action) => onPageAction(id, action), viewer);
   const lastProtection = useRef<Protection | undefined>(undefined);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -437,6 +438,18 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           comments={
             editorState.comments && (
               <CommentsList comments={editorState.comments} selected={editorState.selectedComment} pageLabels={viewer.pageLabels} onSelect={(comment) => viewer.editorUi?.showComment(comment)} />
+            )
+          }
+          measurements={
+            editorState.measurements && (
+              <MeasurementsList
+                measurements={editorState.measurements}
+                selected={editorState.markupSelection?.id ?? null}
+                pageLabels={viewer.pageLabels}
+                onSelect={(markupId) => viewer.editorUi?.markup?.show(markupId)}
+                onCopy={() => onMenuCommand("copyMeasurements", [])}
+                onExport={() => onMenuCommand("exportMeasurements", [])}
+              />
             )
           }
           signatures={signatures.hasPanel && <SignaturesList signatures={signatures} pageLabels={viewer.pageLabels} />}

@@ -153,6 +153,8 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "measureLength",
       "measurePath",
       "measureArea",
+      "copyMeasurements",
+      "exportMeasurements",
       "-",
       "addImage",
       "sign",

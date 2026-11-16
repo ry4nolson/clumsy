@@ -5,7 +5,7 @@ use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Manager, Window};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
-use crate::files::{self, AllowedFolders, is_export_image};
+use crate::files::{self, AllowedFolders, is_csv, is_export_image};
 use crate::{allowed_path, header};
 
 fn image_target(app: &AppHandle, request: &Request<'_>) -> Result<(PathBuf, bool), String> {
@@ -32,6 +32,18 @@ pub async fn write_image(app: AppHandle, request: Request<'_>) -> Result<String,
     };
     let (path, overwrite) = image_target(&app, &request)?;
     files::write_file(&path, bytes, overwrite)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn write_text_export(app: AppHandle, request: Request<'_>) -> Result<String, String> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err("Expected raw text bytes".into());
+    };
+    let encoded = header(&request, "x-path").ok_or("Missing destination path")?;
+    let decoded = percent_decode_str(encoded).decode_utf8().map_err(|err| err.to_string())?;
+    let path = allowed_path(&app, &decoded, is_csv)?;
+    files::write_file(&path, bytes, true)?;
     Ok(path.to_string_lossy().into_owned())
 }
 

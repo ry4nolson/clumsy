@@ -194,7 +194,15 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
           }
         };
         parts.eventBus.on("annotationeditormodechanged", done);
-        parts.viewer.annotationEditorMode = { mode };
+        try {
+          parts.viewer.annotationEditorMode = { mode };
+        } catch (error) {
+          parts.eventBus.off("annotationeditormodechanged", done);
+          if (mode !== AnnotationEditorType.NONE) {
+            throw error;
+          }
+          resolve();
+        }
       });
     },
     [partsRef, editorLayerReady],

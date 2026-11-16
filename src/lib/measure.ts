@@ -349,3 +349,5 @@ export function labelPoint(vertices: number[], precision = 0.5): number[] {
   }
   return [best.x, best.y];
 }
+
+export const SET_SCALE_EVENT = "clumsy-set-scale";

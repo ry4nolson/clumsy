@@ -42,6 +42,12 @@ pub fn is_export_image(path: &Path) -> bool {
     has_extension(path, &EXPORT_IMAGE_EXTENSIONS)
 }
 
+pub const CSV_EXTENSIONS: [&str; 1] = ["csv"];
+
+pub fn is_csv(path: &Path) -> bool {
+    has_extension(path, &CSV_EXTENSIONS)
+}
+
 pub fn with_extension_from(path: PathBuf, allowed: &[&str]) -> PathBuf {
     if has_extension(&path, allowed) {
         return path;
@@ -430,6 +436,13 @@ mod tests {
         assert!(!is_export_image(Path::new("/x/page.heic")));
         assert!(!is_image(Path::new("/x/notes.pdf")));
         assert!(!is_image(Path::new("/x/.ssh/id_ed25519")));
+    }
+
+    #[test]
+    fn recognizes_csv_exports() {
+        assert!(is_csv(Path::new("/x/takeoff.CSV")));
+        assert!(!is_csv(Path::new("/x/takeoff.pdf")));
+        assert!(!is_csv(Path::new("/x/takeoff.csv.png")));
     }
 
     #[test]

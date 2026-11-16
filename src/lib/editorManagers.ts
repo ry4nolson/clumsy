@@ -9,7 +9,7 @@ import { readMarkupParams, styleOf } from "./markupParams";
 import { dateLabel, isMarkDescription } from "./marks";
 import { readMarkupOffThread, readScalesOffThread } from "./pageEditWorker";
 import { passwordOf } from "./pdfjs";
-import { showError, showMessage } from "./platform";
+import { askForScale, showError, showMessage } from "./platform";
 import { MAX_SAVED_SIGNATURES, SIGNATURES_KEY, clearLegacySignature, readLegacySignature, readSignatures, withSignature, withoutSignature, writeSignatures, type SavedSignature } from "./signatures";
 
 export const SIGNATURE_HEIGHT_IN_PAGE = 40;
@@ -65,6 +65,7 @@ export type EditorUiState = CommentState & {
   description: DescriptionRequest | null;
   signatures: SignaturePreview[];
   markupSelection: Markup | null;
+  measurements: Markup[] | null;
 };
 
 export const idleEditorUi: EditorUiState = {
@@ -77,6 +78,7 @@ export const idleEditorUi: EditorUiState = {
   selectedComment: null,
   signatures: [],
   markupSelection: null,
+  measurements: null,
 };
 
 export function shapePreview(lines: SignatureLines | null): ShapePreview | null {
@@ -182,6 +184,8 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       readFile: async (doc) => readMarkupOffThread(await doc.getData(), passwordOf(doc)),
       readScales: async (doc) => readScalesOffThread(await doc.getData(), passwordOf(doc)),
       stampDate: () => dateLabel(new Date()),
+      askScale: askForScale,
+      listed: (measurements) => set({ measurements }),
       selected: (markupSelection) => set({ markupSelection }),
       removed: () => editorUndoBar.show(() => {}, "markup"),
     });

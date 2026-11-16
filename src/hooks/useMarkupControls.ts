@@ -3,7 +3,7 @@ import type { TabSnapshot } from "../components/DocumentTab";
 import type { CommandId } from "../lib/commands";
 import { measureCommands, shapeCommands } from "../lib/contextTools";
 import { colorFromHex, type MarkupStyle, type ShapeKind } from "../lib/markup";
-import type { MeasureKind } from "../lib/measure";
+import { SET_SCALE_EVENT, type MeasureKind } from "../lib/measure";
 import { MARKUP_PARAMS_KEY, cleanMarkupParams, defaultMarkupParams, paramsOfMarkup, readMarkupParams, rememberStamp, type MarkupParams, type TextMode } from "../lib/markupParams";
 import { usePersistentState } from "../lib/preferences";
 import type { PdfViewerApi } from "./usePdfViewer";
@@ -20,7 +20,9 @@ function styleChange(patch: Partial<MarkupParams>): Partial<MarkupStyle> {
   };
 }
 
-export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, snapshot: TabSnapshot | undefined) {
+type RunCommand = (id: CommandId, options?: { pages?: number[] }) => void;
+
+export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, snapshot: TabSnapshot | undefined, runCommand: RunCommand, showMeasurements: () => void) {
   const [stored, setStored] = usePersistentState<MarkupParams>(MARKUP_PARAMS_KEY, defaultMarkupParams);
   const [pickerOpen, setPickerOpen] = useState(false);
   const params = cleanMarkupParams(stored);
@@ -32,6 +34,16 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, [setStored]);
+
+  useEffect(() => {
+    const onSetScale = (event: Event) => {
+      if (event.target === activeViewer()?.containerRef.current) {
+        runCommand("setScale", { pages: (event as CustomEvent<{ pages: number[] }>).detail.pages });
+      }
+    };
+    window.addEventListener(SET_SCALE_EVENT, onSetScale);
+    return () => window.removeEventListener(SET_SCALE_EVENT, onSetScale);
+  });
 
   const remember = (patch: Partial<MarkupParams>) => setStored(cleanMarkupParams({ ...readMarkupParams(), ...patch }));
 
@@ -49,6 +61,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
 
   const chooseMeasure = (measure: MeasureKind) => {
     remember({ measure });
+    showMeasurements();
     activeViewer()?.setMarkupTool({ kind: "measure", measure });
   };
 

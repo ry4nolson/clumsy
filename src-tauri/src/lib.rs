@@ -200,6 +200,17 @@ async fn pick_image_save_path(app: AppHandle, window: Window, suggested_name: St
 }
 
 #[tauri::command]
+async fn pick_csv_save_path(app: AppHandle, window: Window, suggested_name: String) -> Option<String> {
+    let picked = file_dialog(&window)
+        .add_filter("CSV", &files::CSV_EXTENSIONS)
+        .set_file_name(suggested_name)
+        .blocking_save_file();
+    let path = files::with_extension_from(picked?.into_path().ok()?, &files::CSV_EXTENSIONS);
+    app.state::<AllowedPaths>().allow(&path);
+    Some(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 async fn pick_save_path(app: AppHandle, window: Window, suggested_name: String) -> Option<String> {
     let picked = file_dialog(&window)
         .add_filter("PDF", &["pdf"])
@@ -432,6 +443,7 @@ pub fn run() {
             pick_images,
             pick_folder,
             pick_image_save_path,
+            pick_csv_save_path,
             pick_save_path,
             pick_markdown_save_path,
             read_pdf,
@@ -444,6 +456,7 @@ pub fn run() {
             write_markdown,
             images::write_image,
             images::confirm_replace,
+            images::write_text_export,
             context_menu::show_document_menu,
             print::print_pdf,
             print::print_webview,
