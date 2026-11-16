@@ -414,7 +414,7 @@ jobs:
 
   ios:
     needs: version
-    runs-on: macos-15
+    runs-on: macos-26
     continue-on-error: true
 
     steps:
