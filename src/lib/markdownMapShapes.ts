@@ -60,40 +60,54 @@ export function collectMarks(article: HTMLElement): MapHighlight[] {
   return marks;
 }
 
-function collectBars(article: HTMLElement, origin: DOMRect): MapBars {
+export type BarCollector = { collect: (budget: number) => MapBars | null };
+
+const DEADLINE_CHECK = 64;
+
+export function barCollector(article: HTMLElement): BarCollector {
   const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
   const colors: string[] = [];
   const colorFor = new Map<string, number>();
   const found: number[] = [];
   let tallest = 0;
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node as Text;
-    let parent = text.parentElement;
-    if (!parent || !text.data.trim()) {
-      continue;
-    }
-    if (parent.matches(MARK_SELECTOR) && parent.parentElement) {
-      parent = parent.parentElement;
-    }
-    const key = textKey(parent);
-    let color = colorFor.get(key);
-    if (color === undefined) {
-      const value = getComputedStyle(parent).color;
-      color = colors.includes(value) ? colors.indexOf(value) : colors.push(value) - 1;
-      colorFor.set(key, color);
-    }
-    range.selectNodeContents(text);
-    const rects = range.getClientRects();
-    for (let index = 0; index < rects.length; index++) {
-      const rect = rects[index];
-      if (rect.width > 0 && rect.height > 0) {
-        found.push(rect.left - origin.left, rect.top - origin.top, rect.width, rect.height, color);
-        tallest = Math.max(tallest, rect.height);
+  let visited = 0;
+  return {
+    collect(budget) {
+      const origin = article.getBoundingClientRect();
+      const deadline = performance.now() + budget;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node as Text;
+        let parent = text.parentElement;
+        if (parent && text.data.trim()) {
+          if (parent.matches(MARK_SELECTOR) && parent.parentElement) {
+            parent = parent.parentElement;
+          }
+          const key = textKey(parent);
+          let color = colorFor.get(key);
+          if (color === undefined) {
+            const value = getComputedStyle(parent).color;
+            color = colors.includes(value) ? colors.indexOf(value) : colors.push(value) - 1;
+            colorFor.set(key, color);
+          }
+          range.selectNodeContents(text);
+          const rects = range.getClientRects();
+          for (let index = 0; index < rects.length; index++) {
+            const rect = rects[index];
+            if (rect.width > 0 && rect.height > 0) {
+              found.push(rect.left - origin.left, rect.top - origin.top, rect.width, rect.height, color);
+              tallest = Math.max(tallest, rect.height);
+            }
+          }
+        }
+        visited += 1;
+        if (visited % DEADLINE_CHECK === 0 && performance.now() >= deadline) {
+          return null;
+        }
       }
-    }
-  }
-  return packBars(found, colors, tallest);
+      return packBars(found, colors, tallest);
+    },
+  };
 }
 
 export function packBars(found: number[], colors: string[], tallest: number): MapBars {
@@ -110,7 +124,7 @@ export function packBars(found: number[], colors: string[], tallest: number): Ma
   return { geometry, colors, colorIndex, tallest };
 }
 
-export function collectShapes(article: HTMLElement): MapShapes {
+export function collectShapes(article: HTMLElement, bars: MapBars): MapShapes {
   const origin = article.getBoundingClientRect();
   const styles = new Map<string, BoxStyle>();
   const boxes: MapBox[] = [];
@@ -133,7 +147,7 @@ export function collectShapes(article: HTMLElement): MapShapes {
     const rect = image.getBoundingClientRect();
     return { image, x: rect.left - origin.left, y: rect.top - origin.top, width: rect.width, height: rect.height };
   }).filter((image) => image.width > 0 && image.height > 0);
-  return { width: article.offsetWidth, height: article.offsetHeight, boxes, bars: collectBars(article, origin), images, marks: collectMarks(article) };
+  return { width: article.offsetWidth, height: article.offsetHeight, boxes, bars, images, marks: collectMarks(article) };
 }
 
 export function firstBarFrom(geometry: Float32Array, top: number) {

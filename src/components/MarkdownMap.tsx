@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject, type WheelEvent } from "react";
 import { MAP_MAX_WIDTH, scrollForSlider, sliderFor, type ViewerScroll } from "../lib/documentMap";
 import { documentLayout } from "../lib/markdownMap";
-import { collectMarks, collectShapes, onlyFindMarks, paintShapes, type MapShapes } from "../lib/markdownMapShapes";
+import { barCollector, collectMarks, collectShapes, onlyFindMarks, packBars, paintShapes, type BarCollector, type MapShapes } from "../lib/markdownMapShapes";
 import type { MarkdownMode } from "../lib/tabs";
 
 const MIN_SLIDER_HEIGHT = 4;
 const COLLECT_DELAY = 120;
+const SLICE_MS = 12;
 
 type MarkdownMapProps = {
   content: RefObject<HTMLElement | null>;
@@ -75,14 +76,27 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
       return;
     }
     let timer = 0;
+    let slice = 0;
     let full = false;
+    const collectBars = (collector: BarCollector) => {
+      const bars = collector.collect(SLICE_MS);
+      if (!bars) {
+        slice = window.setTimeout(() => collectBars(collector));
+      } else if (shapesRef.current) {
+        shapesRef.current = { ...shapesRef.current, bars };
+        paint();
+      }
+      return bars;
+    };
     const collectNow = () => {
       timer = 0;
       if (!article.offsetWidth) {
         return;
       }
       if (full || !shapesRef.current) {
-        shapesRef.current = collectShapes(article);
+        window.clearTimeout(slice);
+        const bars = collectBars(barCollector(article)) ?? shapesRef.current?.bars ?? packBars([], [], 0);
+        shapesRef.current = collectShapes(article, bars);
         setSize((previous) =>
           previous.width === article.offsetWidth && previous.height === article.offsetHeight ? previous : { width: article.offsetWidth, height: article.offsetHeight },
         );
@@ -112,6 +126,7 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
       scheme.removeEventListener("change", recolor);
       article.removeEventListener("load", paint, true);
       window.clearTimeout(timer);
+      window.clearTimeout(slice);
     };
   }, [content, paint]);
 

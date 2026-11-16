@@ -412,6 +412,66 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  ios:
+    needs: version
+    runs-on: macos-15
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download the release metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/release-metadata
+
+      - name: Apply the release version
+        run: cp -R "$RUNNER_TEMP/release-metadata/metadata/." .
+
+      - name: Build and upload to TestFlight
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$APPLE_API_ISSUER" ] || [ -z "$APPLE_API_KEY" ] || [ -z "$APPLE_API_PRIVATE_KEY" ]; then
+            echo "::warning::No App Store Connect API key configured; skipping the iOS build"
+            exit 0
+          fi
+          KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$KEY_DIR"
+          export APPLE_API_KEY_PATH="$KEY_DIR/AuthKey_$APPLE_API_KEY.p8"
+          printf '%s\n' "$APPLE_API_PRIVATE_KEY" > "$APPLE_API_KEY_PATH"
+          pnpm tauri ios build --export-method app-store-connect --config "{\"bundle\":{\"iOS\":{\"bundleVersion\":\"$GITHUB_RUN_NUMBER.$GITHUB_RUN_ATTEMPT\"}}}"
+          xcrun altool --upload-app --type ios --file src-tauri/gen/apple/build/arm64/Clumsy.ipa --apiKey "$APPLE_API_KEY" --apiIssuer "$APPLE_API_ISSUER"
+
   publish:
     needs: [version, build, windows, android, linux]
     runs-on: macos-15

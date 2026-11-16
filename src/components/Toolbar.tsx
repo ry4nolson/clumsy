@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Code, EllipsisVertical, FolderOpen, Minus, Moon, PanelLeft, Plus, Redo2, RotateCw, Save, Search, Sun, Undo2 } from "lucide-react";
+import { Code, Ellipsis, EllipsisVertical, FolderOpen, Minus, Moon, PanelLeft, Plus, Redo2, RotateCw, Save, Search, Sun, Undo2 } from "lucide-react";
 import { shortcutFor, type CommandId } from "../lib/commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { usesMacKeys } from "../lib/platform";
 import type { MarkdownMode } from "../lib/tabs";
+import { usePersistentState } from "../lib/preferences";
 import { useToolbarOverflow } from "../hooks/useToolbarOverflow";
 import { IconButton } from "./IconButton";
 import { ToolbarOverflow } from "./ToolbarOverflow";
@@ -72,6 +73,8 @@ export function Toolbar(props: ToolbarProps) {
   const { toolbar, hidden } = useToolbarOverflow(order);
   const shownTools = tools.filter((tool) => !hidden.has(tool.key));
   const hiddenTools = tools.filter((tool) => hidden.has(tool.key));
+  const touch = !!props.onTouchCommand;
+  const [toolsRow, setToolsRow] = usePersistentState("clumsy.toolsRow", true);
 
   const zoomControls = (
     <>
@@ -107,113 +110,123 @@ export function Toolbar(props: ToolbarProps) {
     </select>
   );
 
-  return (
-    <header ref={toolbar} className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
-      <div className="toolbar-group" data-tauri-drag-region>
-        <IconButton title={withShortcut("Toggle sidebar", "toggleSidebar")} active={props.sidebarOpen} disabled={!hasFile} onClick={props.onToggleSidebar}>
-          <PanelLeft size={18} />
-        </IconButton>
-        <IconButton title={withShortcut("Open", "open")} onClick={props.onOpen}>
-          <FolderOpen size={18} />
-        </IconButton>
-        <IconButton title={withShortcut("Save", "save")} disabled={!hasFile} onClick={props.onSave}>
-          <Save size={18} />
-        </IconButton>
-      </div>
-
-      {hasDocument && (
-        <>
-          <div className="toolbar-group" data-tauri-drag-region>
-            <form
-              className="page-nav"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const page = pageFromInput(pageInput, pageLabels, pagesCount);
-                if (page) {
-                  props.onPage(page);
-                }
-                setPageInput(pageText);
-              }}
-            >
-              <input
-                aria-label={labeled ? "Page label or number" : "Page number"}
-                inputMode={labeled ? "text" : "numeric"}
-                className={labeled ? "labeled" : undefined}
-                value={pageInput}
-                onChange={(event) => setPageInput(event.target.value)}
-                onBlur={() => setPageInput(pageText)}
-                onFocus={(event) => event.target.select()}
-              />
-              <span>{labeled && pageText !== String(pageNumber) ? `(${pageNumber} of ${pagesCount})` : `/ ${pagesCount}`}</span>
-            </form>
-          </div>
-
-          {!hidden.has("zoom") && (
-            <div className="toolbar-group" data-tauri-drag-region data-overflow-key="zoom">
-              {zoomControls}
+  const overflow = (
+    <>
+      {hidden.has("zoom") && <div className="overflow-row">{zoomControls}</div>}
+      {hiddenTools.length > 0 && (
+        <div className="overflow-row overflow-tools" onPointerDownCapture={props.tools.onEndDrawing}>
+          {hiddenTools.map((tool) => (
+            <div key={tool.key} className="toolbar-item">
+              {tool.node}
             </div>
-          )}
-
-          {shownTools.length > 0 && (
-            <div className="toolbar-group tools" data-tauri-drag-region onPointerDownCapture={props.tools.onEndDrawing}>
-              {shownTools.map((tool) => (
-                <div key={tool.key} className="toolbar-item" data-tauri-drag-region data-overflow-key={tool.key}>
-                  {tool.node}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
+      {hidden.has("darkImages") && <div className="overflow-row">{imagesChoice}</div>}
+    </>
+  );
 
-      <div className="toolbar-group end" data-tauri-drag-region>
-        {props.onTouchCommand && hasFile && (
-          <>
-            <IconButton title="Undo" onClick={() => props.onTouchCommand?.("undo")}>
-              <Undo2 size={18} />
-            </IconButton>
-            <IconButton title="Redo" onClick={() => props.onTouchCommand?.("redo")}>
-              <Redo2 size={18} />
-            </IconButton>
-          </>
-        )}
-        {markdownMode && (
-          <IconButton title={withShortcut("Markdown source", "toggleMarkdownSource")} active={markdownMode === "source"} onClick={props.onToggleSource}>
-            <Code size={18} />
+  return (
+    <>
+      <header ref={toolbar} className={`toolbar${props.titlebarInset ? " titlebar-inset" : ""}`} data-tauri-drag-region>
+        <div className="toolbar-group" data-tauri-drag-region>
+          <IconButton title={withShortcut("Toggle sidebar", "toggleSidebar")} active={props.sidebarOpen} disabled={!hasFile} onClick={props.onToggleSidebar}>
+            <PanelLeft size={18} />
           </IconButton>
-        )}
-        {hidden.size > 0 && (
-          <ToolbarOverflow active={hidden.has(props.tools.tool)}>
-            {hidden.has("zoom") && <div className="overflow-row">{zoomControls}</div>}
-            {hiddenTools.length > 0 && (
-              <div className="overflow-row overflow-tools" onPointerDownCapture={props.tools.onEndDrawing}>
-                {hiddenTools.map((tool) => (
-                  <div key={tool.key} className="toolbar-item">
+          <IconButton title={withShortcut("Open", "open")} onClick={props.onOpen}>
+            <FolderOpen size={18} />
+          </IconButton>
+          <IconButton title={withShortcut("Save", "save")} disabled={!hasFile} onClick={props.onSave}>
+            <Save size={18} />
+          </IconButton>
+        </div>
+
+        {hasDocument && (
+          <>
+            <div className="toolbar-group" data-tauri-drag-region>
+              <form
+                className="page-nav"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const page = pageFromInput(pageInput, pageLabels, pagesCount);
+                  if (page) {
+                    props.onPage(page);
+                  }
+                  setPageInput(pageText);
+                }}
+              >
+                <input
+                  aria-label={labeled ? "Page label or number" : "Page number"}
+                  inputMode={labeled ? "text" : "numeric"}
+                  className={labeled ? "labeled" : undefined}
+                  value={pageInput}
+                  onChange={(event) => setPageInput(event.target.value)}
+                  onBlur={() => setPageInput(pageText)}
+                  onFocus={(event) => event.target.select()}
+                />
+                <span>{labeled && pageText !== String(pageNumber) ? `(${pageNumber} of ${pagesCount})` : `/ ${pagesCount}`}</span>
+              </form>
+            </div>
+
+            {!hidden.has("zoom") && (
+              <div className="toolbar-group" data-tauri-drag-region data-overflow-key="zoom">
+                {zoomControls}
+              </div>
+            )}
+
+            {shownTools.length > 0 && (
+              <div className="toolbar-group tools" data-tauri-drag-region onPointerDownCapture={props.tools.onEndDrawing}>
+                {shownTools.map((tool) => (
+                  <div key={tool.key} className="toolbar-item" data-tauri-drag-region data-overflow-key={tool.key}>
                     {tool.node}
                   </div>
                 ))}
               </div>
             )}
-            {hidden.has("darkImages") && <div className="overflow-row">{imagesChoice}</div>}
-          </ToolbarOverflow>
+          </>
         )}
-        {showImagesChoice && !hidden.has("darkImages") && (
-          <div className="toolbar-item" data-overflow-key="darkImages">
-            {imagesChoice}
-          </div>
-        )}
-        <IconButton title={props.darkPages ? "Light pages" : "Dark pages"} active={props.darkPages} disabled={!hasDocument} onClick={props.onToggleDarkPages}>
-          {props.darkPages ? <Sun size={18} /> : <Moon size={18} />}
-        </IconButton>
-        <IconButton title={withShortcut("Find", "find")} active={props.findOpen} disabled={!hasFile} onClick={props.onToggleFind}>
-          <Search size={18} />
-        </IconButton>
-        {props.onTouchCommand && (
-          <IconButton title="All commands" onClick={() => props.onTouchCommand?.("commandPalette")}>
-            <EllipsisVertical size={18} />
+
+        <div className="toolbar-group end" data-tauri-drag-region>
+          {props.onTouchCommand && hasFile && (
+            <>
+              <IconButton title="Undo" onClick={() => props.onTouchCommand?.("undo")}>
+                <Undo2 size={18} />
+              </IconButton>
+              <IconButton title="Redo" onClick={() => props.onTouchCommand?.("redo")}>
+                <Redo2 size={18} />
+              </IconButton>
+            </>
+          )}
+          {markdownMode && (
+            <IconButton title={withShortcut("Markdown source", "toggleMarkdownSource")} active={markdownMode === "source"} onClick={props.onToggleSource}>
+              <Code size={18} />
+            </IconButton>
+          )}
+          {hidden.size > 0 && touch && (
+            <IconButton title="More" active={toolsRow} onClick={() => setToolsRow(!toolsRow)}>
+              <Ellipsis size={18} />
+            </IconButton>
+          )}
+          {hidden.size > 0 && !touch && <ToolbarOverflow active={hidden.has(props.tools.tool)}>{overflow}</ToolbarOverflow>}
+          {showImagesChoice && !hidden.has("darkImages") && (
+            <div className="toolbar-item" data-overflow-key="darkImages">
+              {imagesChoice}
+            </div>
+          )}
+          <IconButton title={props.darkPages ? "Light pages" : "Dark pages"} active={props.darkPages} disabled={!hasDocument} onClick={props.onToggleDarkPages}>
+            {props.darkPages ? <Sun size={18} /> : <Moon size={18} />}
           </IconButton>
-        )}
-      </div>
-    </header>
+          <IconButton title={withShortcut("Find", "find")} active={props.findOpen} disabled={!hasFile} onClick={props.onToggleFind}>
+            <Search size={18} />
+          </IconButton>
+          {props.onTouchCommand && (
+            <IconButton title="All commands" onClick={() => props.onTouchCommand?.("commandPalette")}>
+              <EllipsisVertical size={18} />
+            </IconButton>
+          )}
+        </div>
+      </header>
+      {touch && toolsRow && hidden.size > 0 && <div className="toolbar-row">{overflow}</div>}
+    </>
   );
 }
