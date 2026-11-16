@@ -213,4 +213,19 @@ describe("measurements from other apps", () => {
     expect(dict.has(PDFName.of("Measure"))).toBe(true);
     expect(appearance(dict).text).toContain("Tj");
   });
+
+  it("leaves a restyled measurement's popup where it was", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([612, 792]);
+    const { context } = doc;
+    const page = doc.getPage(0).node;
+    setPageScale(context, page, eighth, settings.format);
+    const popup = context.register(context.obj({ Type: "Annot", Subtype: "Popup", Rect: [300, 600, 480, 700] }));
+    const line = context.register(context.obj({ Type: "Annot", Subtype: "Line", IT: "LineDimension", Rect: [95, 295, 135, 315], L: [100, 300, 130, 300], C: [1, 0, 0], Popup: popup }));
+    page.set(PDFName.of("Annots"), context.obj([line, popup]));
+    const bytes = await doc.save({ useObjectStreams: false });
+    const [found] = readMarkup(await PDFDocument.load(bytes));
+    const saved = await PDFDocument.load(await writeAnnotations(bytes, [], [{ ...found, color: [0, 0.5, 0], date }]));
+    expect(nums(saved.context.lookup(popup, PDFDict), "Rect")).toEqual([300, 600, 480, 700]);
+  });
 });

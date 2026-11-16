@@ -80,6 +80,19 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     return scales;
   };
 
+  const findMeasurements = () => {
+    viewer.eventBus.off("pagerendered", findMeasurements);
+    const owner = doc;
+    owner
+      ?.getAnnotationsByType(MEASURE_TYPES, new Set())
+      .then((annotations) => {
+        if (doc === owner && annotations.some((annotation) => MEASURE_INTENTS.has(String((annotation as { it?: string }).it)))) {
+          void loadFile();
+        }
+      })
+      .catch(() => {});
+  };
+
   const reset = () => {
     doc = viewer.pdfDocument ?? null;
     file = null;
@@ -88,16 +101,9 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     scalesReady = false;
     fileByPage = new Map();
     hiddenIds = new Set();
+    viewer.eventBus.off("pagerendered", findMeasurements);
     if (doc) {
-      const owner = doc;
-      owner
-        .getAnnotationsByType(MEASURE_TYPES, new Set())
-        .then((annotations) => {
-          if (doc === owner && annotations.some((annotation) => MEASURE_INTENTS.has(String((annotation as { it?: string }).it)))) {
-            void loadFile();
-          }
-        })
-        .catch(() => {});
+      viewer.eventBus.on("pagerendered", findMeasurements);
       claimStamps(doc, () => loadFile().then((list) => new Set(list.filter((markup) => markup.kind === "stamp").map((markup) => markup.id))));
     }
   };

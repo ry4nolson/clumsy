@@ -13,7 +13,7 @@ export const vertexCount = (build: Pick<MeasureBuild, "vertices">) => build.vert
 export const canFinish = (build: Pick<MeasureBuild, "kind" | "vertices">) => vertexCount(build) >= minVertices(build.kind);
 
 export function buildMarkup(build: MeasureBuild, style: MarkupStyle, date: string, hover: Point | null = null): Markup | null {
-  const points = hover ? [...build.vertices, ...hover] : build.vertices;
+  const points = [...build.vertices, ...(hover ?? [])];
   if (points.length < 4) {
     return null;
   }
@@ -70,7 +70,7 @@ const segmentDistance = (x: number, y: number, ax: number, ay: number, bx: numbe
   return Math.hypot(x - ax - t * (bx - ax), y - ay - t * (by - ay));
 };
 
-export function withInsertedVertex(vertices: number[], [x, y]: Point, closed: boolean) {
+export function withInsertedVertex(vertices: number[], [x, y]: Point, closed: boolean, reach = Infinity) {
   const count = vertices.length / 2;
   const segments = closed ? count : count - 1;
   let best = -1;
@@ -83,7 +83,7 @@ export function withInsertedVertex(vertices: number[], [x, y]: Point, closed: bo
       best = index;
     }
   }
-  if (best < 0) {
+  if (best < 0 || nearest > reach) {
     return null;
   }
   const result = [...vertices];

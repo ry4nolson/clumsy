@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TabSnapshot } from "../components/DocumentTab";
 import type { CommandId } from "../lib/commands";
 import { measureCommands, shapeCommands } from "../lib/contextTools";
@@ -6,6 +6,7 @@ import { colorFromHex, type MarkupStyle, type ShapeKind } from "../lib/markup";
 import { SET_SCALE_EVENT, type MeasureKind } from "../lib/measure";
 import { MARKUP_PARAMS_KEY, cleanMarkupParams, defaultMarkupParams, paramsOfMarkup, readMarkupParams, rememberStamp, type MarkupParams, type TextMode } from "../lib/markupParams";
 import { usePersistentState } from "../lib/preferences";
+import { useMeasurementExport } from "./useMeasurementExport";
 import type { PdfViewerApi } from "./usePdfViewer";
 
 const shapesByCommand = new Map(Object.entries(shapeCommands).map(([shape, id]) => [id, shape as ShapeKind]));
@@ -20,14 +21,17 @@ function styleChange(patch: Partial<MarkupParams>): Partial<MarkupStyle> {
   };
 }
 
-type RunCommand = (id: CommandId, options?: { pages?: number[] }) => void;
+type MarkupHost = { runCommand: (id: CommandId, options?: { pages?: number[] }) => void; showMeasurements: () => void; documentName: () => string };
 
-export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, snapshot: TabSnapshot | undefined, runCommand: RunCommand, showMeasurements: () => void) {
+export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, snapshot: TabSnapshot | undefined, host: MarkupHost) {
   const [stored, setStored] = usePersistentState<MarkupParams>(MARKUP_PARAMS_KEY, defaultMarkupParams);
   const [pickerOpen, setPickerOpen] = useState(false);
   const params = cleanMarkupParams(stored);
   const selection = snapshot?.markupSelection ?? null;
   const shown = selection ? paramsOfMarkup(params, selection) : params;
+  const { runMeasurementCommand } = useMeasurementExport(activeViewer, host.documentName);
+  const latest = useRef({ activeViewer, host });
+  latest.current = { activeViewer, host };
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => event.key === MARKUP_PARAMS_KEY && setStored(readMarkupParams());
@@ -37,13 +41,13 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
 
   useEffect(() => {
     const onSetScale = (event: Event) => {
-      if (event.target === activeViewer()?.containerRef.current) {
-        runCommand("setScale", { pages: (event as CustomEvent<{ pages: number[] }>).detail.pages });
+      if (event.target === latest.current.activeViewer()?.containerRef.current) {
+        latest.current.host.runCommand("setScale", { pages: (event as CustomEvent<{ pages: number[] }>).detail.pages });
       }
     };
     window.addEventListener(SET_SCALE_EVENT, onSetScale);
     return () => window.removeEventListener(SET_SCALE_EVENT, onSetScale);
-  });
+  }, []);
 
   const remember = (patch: Partial<MarkupParams>) => setStored(cleanMarkupParams({ ...readMarkupParams(), ...patch }));
 
@@ -61,7 +65,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
 
   const chooseMeasure = (measure: MeasureKind) => {
     remember({ measure });
-    showMeasurements();
+    host.showMeasurements();
     activeViewer()?.setMarkupTool({ kind: "measure", measure });
   };
 
@@ -95,7 +99,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
     } else if (id === "underlineSelection" || id === "strikeoutSelection") {
       activeViewer()?.editorUi?.markup?.applyText(id === "underlineSelection" ? "underline" : "strikeout");
     } else {
-      return false;
+      return runMeasurementCommand(id);
     }
     return true;
   };

@@ -103,11 +103,12 @@ describe("adding and removing vertices", () => {
 
   it("toggles vertices on paths and areas and recaptions them", () => {
     const area = buildMarkup(build("measure-area", [0, 0, 72, 0, 72, 72, 0, 72]), style, "D:1")!;
-    const smaller = withVertexToggled(area, "v3", [0, 0])!;
+    const smaller = withVertexToggled(area, "v3", [0, 0], 4)!;
     expect(smaller.vertices).toEqual([0, 0, 72, 0, 72, 72]);
     expect(captionText(smaller)).toBe(captionText({ ...area, vertices: [0, 0, 72, 0, 72, 72] }));
-    expect(withVertexToggled(area, undefined, [36, 1])!.vertices).toEqual([0, 0, 36, 1, 72, 0, 72, 72, 0, 72]);
+    expect(withVertexToggled(area, undefined, [36, 1], 4)!.vertices).toEqual([0, 0, 36, 1, 72, 0, 72, 72, 0, 72]);
+    expect(withVertexToggled(area, undefined, [36, 36], 4)).toBeNull();
     const length = buildMarkup(build("measure-length", [0, 0, 72, 0]), style, "D:1")!;
-    expect(withVertexToggled(length, undefined, [36, 0])).toBeNull();
+    expect(withVertexToggled(length, undefined, [36, 0], 4)).toBeNull();
   });
 });

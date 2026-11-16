@@ -15,17 +15,22 @@ export function usePageSheets(act: (action: PageAction) => void, viewer: SheetVi
   const [scale, setScale] = useState<ScaleRequest | null>(null);
   const pick = useRef<CalibrationPick | null>(null);
   const resume = useRef<{ tool: NonNullable<MarkupTool>; from: unknown } | null>(null);
-  const { pdfDocument, setMarkupTool } = viewer;
+  const { pdfDocument, markupTool, setMarkupTool } = viewer;
 
   useEffect(() => () => pick.current?.cancel(), []);
 
   useEffect(() => {
     const pending = resume.current;
-    if (pending && pdfDocument && pdfDocument !== pending.from) {
+    if (!pending) {
+      return;
+    }
+    if (pdfDocument && pdfDocument !== pending.from) {
       resume.current = null;
       void setMarkupTool(pending.tool);
+    } else if (markupTool?.kind !== "measure") {
+      resume.current = null;
     }
-  }, [pdfDocument, setMarkupTool]);
+  }, [pdfDocument, markupTool, setMarkupTool]);
 
   const sheets = (
     <>

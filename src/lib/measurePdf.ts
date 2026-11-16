@@ -36,9 +36,15 @@ const inchesPer: Record<string, number> = {
   km: 1e6 / 25.4,
 };
 
+const metricUnits = new Set(["mm", "cm", "m", "km"]);
+
 const lengthUnitOf = (unit: string): Exclude<LengthUnit, "ft-in"> | null => {
-  const inches = inchesPer[unit.trim().toLowerCase()];
-  return inches === 12 ? "ft" : inches === 1 ? "in" : inches === 1000 / 25.4 ? "m" : inches === 1 / 25.4 ? "mm" : null;
+  const key = unit.trim().toLowerCase();
+  const inches = inchesPer[key];
+  if (inches === undefined) {
+    return null;
+  }
+  return metricUnits.has(key) ? (inches < inchesPer.m ? "mm" : "m") : inches < 12 ? "in" : "ft";
 };
 
 const baseUnit = (unit: LengthUnit) => (unit === "ft-in" ? "ft" : unit);

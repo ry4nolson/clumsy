@@ -1,12 +1,36 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use percent_encoding::percent_decode_str;
 use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Manager, Window};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
-use crate::files::{self, AllowedFolders, is_csv, is_export_image};
-use crate::{allowed_path, header};
+use crate::files::{self, AllowedFolders, AllowedPaths, has_extension, is_export_image};
+use crate::{allowed_path, file_dialog, header};
+
+const CSV_EXTENSIONS: [&str; 1] = ["csv"];
+
+fn is_csv(path: &Path) -> bool {
+    has_extension(path, &CSV_EXTENSIONS)
+}
+
+fn save_dialog(app: &AppHandle, window: &Window, label: &str, extensions: &[&str], suggested_name: String) -> Option<String> {
+    let picked = file_dialog(window).add_filter(label, extensions).set_file_name(suggested_name).blocking_save_file();
+    let path = files::with_extension_from(picked?.into_path().ok()?, extensions);
+    app.state::<AllowedPaths>().allow(&path);
+    Some(path.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn pick_image_save_path(app: AppHandle, window: Window, suggested_name: String, format: String) -> Option<String> {
+    let (label, extensions): (&str, &[&str]) = if format == "jpeg" { ("JPEG", &["jpg", "jpeg"]) } else { ("PNG", &["png"]) };
+    save_dialog(&app, &window, label, extensions, suggested_name)
+}
+
+#[tauri::command]
+pub async fn pick_csv_save_path(app: AppHandle, window: Window, suggested_name: String) -> Option<String> {
+    save_dialog(&app, &window, "CSV", &CSV_EXTENSIONS, suggested_name)
+}
 
 fn image_target(app: &AppHandle, request: &Request<'_>) -> Result<(PathBuf, bool), String> {
     let decoded = |name: &str| -> Result<String, String> {
@@ -85,7 +109,16 @@ pub async fn confirm_replace(app: AppHandle, window: Window, folder: String, nam
 
 #[cfg(test)]
 mod tests {
-    use super::replace_prompt;
+    use std::path::Path;
+
+    use super::{is_csv, replace_prompt};
+
+    #[test]
+    fn recognizes_csv_exports() {
+        assert!(is_csv(Path::new("/x/takeoff.CSV")));
+        assert!(!is_csv(Path::new("/x/takeoff.pdf")));
+        assert!(!is_csv(Path::new("/x/takeoff.csv.png")));
+    }
 
     #[test]
     fn asks_before_replacing_exported_images() {

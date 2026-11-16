@@ -1,6 +1,7 @@
-import { isMeasureKind, type Markup } from "./markup";
+import { hexColor, isMeasureKind, type Markup } from "./markup";
 import { MM_PER_INCH, areaOf, formatArea, formatInches, lengthOf, pathLengthOf, type MeasureFormat, type MeasureKind } from "./measure";
 import { captionText, measurePoints, settingsOf } from "./measureMarkup";
+import { pageLabelOf } from "./pageLabels";
 
 export type MeasurementRow = {
   id: string;
@@ -24,8 +25,6 @@ export const measureTypeNames: Record<MeasureKind, string> = { "measure-length":
 const QUANTITY_PLACES = 4;
 
 const round = (value: number) => Number(value.toFixed(QUANTITY_PLACES));
-
-const hex = (color: number[]) => `#${color.map((part) => Math.round(Math.min(1, Math.max(0, part)) * 255).toString(16).padStart(2, "0")).join("")}`;
 
 export function lengthQuantity(inches: number, { unit }: MeasureFormat): [number, string] {
   if (unit === "ft-in" || unit === "ft") {
@@ -61,7 +60,7 @@ export function measurementRow(markup: Markup, pageLabels: string[] | null): Mea
   return {
     id: markup.id,
     pageIndex: markup.pageIndex,
-    page: pageLabels?.[markup.pageIndex] ?? String(markup.pageIndex + 1),
+    page: pageLabelOf(pageLabels, markup.pageIndex + 1),
     kind: markup.kind,
     type: measureTypeNames[markup.kind],
     value: captionText(markup),
@@ -70,7 +69,7 @@ export function measurementRow(markup: Markup, pageLabels: string[] | null): Mea
     quantity,
     unit,
     scale: scale.label,
-    color: hex(markup.color),
+    color: hexColor(markup.color),
   };
 }
 

@@ -4,7 +4,7 @@ import { addAppearance, fontDict, winAnsiSafe, type AppearanceFonts } from "./ma
 import { defaultFormat } from "./measure";
 import { captionText, measurePoints, settingsOf } from "./measureMarkup";
 import { measureIntents, measurementFromDict, setMeasureKeys, viewportAt, viewportsOf, type Viewport } from "./measurePdf";
-import { boxFromRect, orientedQuads, outerRect, outsetOf } from "./markupShapes";
+import { boxFromRect, orientedQuads, outerRect, outsetOf, shapeRect } from "./markupShapes";
 import { pageLeafRefs } from "./pdfStructure";
 import { stampDesign, stampLabel } from "./stampSymbols";
 
@@ -155,7 +155,7 @@ function movePopup(context: PDFContext, dict: PDFDict, before: number[] | null, 
 function updateMarkup(writer: Writer, dict: PDFDict, markup: Markup) {
   const { context } = writer;
   const original = markupFromDict(dict, markup.id, markup.pageIndex, { anyFlags: true });
-  const before = original ? outerRect(original) : rectOf(dict);
+  const before = original ? shapeRect(original) : rectOf(dict);
   const keepsAppearance = markup.kind === "stamp" && !(markup.stamp && stampDesign(markup.stamp));
   const rect = keepsAppearance ? markup.box : outerRect(markup);
   setGeometry(context, dict, markup, rect);
@@ -163,7 +163,7 @@ function updateMarkup(writer: Writer, dict: PDFDict, markup: Markup) {
   if (markup.date) {
     dict.set(name("M"), PDFString.of(markup.date));
   }
-  movePopup(context, dict, before, rect);
+  movePopup(context, dict, before, shapeRect(markup));
   if (!keepsAppearance) {
     setAppearance(writer, dict, markup, rect);
   }

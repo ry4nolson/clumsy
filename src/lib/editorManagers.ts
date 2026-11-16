@@ -9,7 +9,8 @@ import { readMarkupParams, styleOf } from "./markupParams";
 import { dateLabel, isMarkDescription } from "./marks";
 import { readMarkupOffThread, readScalesOffThread } from "./pageEditWorker";
 import { passwordOf } from "./pdfjs";
-import { askForScale, showError, showMessage } from "./platform";
+import { askForScale } from "./measureFiles";
+import { showError, showMessage } from "./platform";
 import { MAX_SAVED_SIGNATURES, SIGNATURES_KEY, clearLegacySignature, readLegacySignature, readSignatures, withSignature, withoutSignature, writeSignatures, type SavedSignature } from "./signatures";
 
 export const SIGNATURE_HEIGHT_IN_PAGE = 40;

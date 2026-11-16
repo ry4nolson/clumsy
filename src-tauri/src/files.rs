@@ -16,7 +16,7 @@ pub const IMAGE_EXTENSIONS: [&str; 12] = ["png", "jpg", "jpeg", "webp", "gif", "
 pub const EXPORT_IMAGE_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 pub const MARKDOWN_EXTENSIONS: [&str; 2] = ["md", "markdown"];
 
-fn has_extension(path: &Path, allowed: &[&str]) -> bool {
+pub(crate) fn has_extension(path: &Path, allowed: &[&str]) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| allowed.iter().any(|candidate| ext.eq_ignore_ascii_case(candidate)))
@@ -40,12 +40,6 @@ pub fn is_image(path: &Path) -> bool {
 
 pub fn is_export_image(path: &Path) -> bool {
     has_extension(path, &EXPORT_IMAGE_EXTENSIONS)
-}
-
-pub const CSV_EXTENSIONS: [&str; 1] = ["csv"];
-
-pub fn is_csv(path: &Path) -> bool {
-    has_extension(path, &CSV_EXTENSIONS)
 }
 
 pub fn with_extension_from(path: PathBuf, allowed: &[&str]) -> PathBuf {
@@ -436,13 +430,6 @@ mod tests {
         assert!(!is_export_image(Path::new("/x/page.heic")));
         assert!(!is_image(Path::new("/x/notes.pdf")));
         assert!(!is_image(Path::new("/x/.ssh/id_ed25519")));
-    }
-
-    #[test]
-    fn recognizes_csv_exports() {
-        assert!(is_csv(Path::new("/x/takeoff.CSV")));
-        assert!(!is_csv(Path::new("/x/takeoff.pdf")));
-        assert!(!is_csv(Path::new("/x/takeoff.csv.png")));
     }
 
     #[test]

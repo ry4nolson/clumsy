@@ -128,10 +128,14 @@ export function outsetOf(markup: Pick<Markup, "kind" | "box" | "width" | "ending
 
 type Outlined = Pick<Markup, "kind" | "box" | "width" | "endings" | "quads"> & Partial<Pick<Markup, "line" | "vertices" | "measure" | "rotation">>;
 
-export function outerRect(markup: Outlined) {
+export function shapeRect(markup: Outlined) {
   const pad = outsetOf(markup);
   const [left, bottom, right, top] = isTextKind(markup.kind) && markup.quads ? quadsBox(markup.quads) : markup.box;
-  const outer = [left - pad, bottom - pad, right + pad, top + pad];
+  return [left - pad, bottom - pad, right + pad, top + pad];
+}
+
+export function outerRect(markup: Outlined) {
+  const outer = shapeRect(markup);
   const corners = isMeasureKind(markup.kind) ? captionCorners({ line: null, vertices: null, measure: null, rotation: 0, ...markup }).flat() : [];
   if (!corners.length) {
     return outer;
@@ -207,7 +211,7 @@ export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line" | "ver
 
 export function clampShift(box: number[], dx: number, dy: number, [vx1, vy1, vx2, vy2]: number[]): Point {
   const [left, bottom, right, top] = box;
-  const clamp = (value: number, low: number, high: number) => (low > high ? 0 : Math.min(Math.max(value, low), high));
+  const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, Math.min(low, 0)), Math.max(high, 0));
   return [clamp(dx, vx1 - left, vx2 - right), clamp(dy, vy1 - bottom, vy2 - top)];
 }
 

@@ -1,7 +1,8 @@
 import type { CommandId } from "../lib/commands";
 import { measurementRows, measurementsCsv, measurementsTsv } from "../lib/measurements";
 import { downloadCsv } from "../lib/download";
-import { copyPlainText, isDesktop, pickCsvSavePath, showError, showMessage, writeTextExport } from "../lib/platform";
+import { copyPlainText, pickCsvSavePath, writeTextExport } from "../lib/measureFiles";
+import { isDesktop, showError, showMessage } from "../lib/platform";
 import type { PdfViewerApi } from "./usePdfViewer";
 
 const baseName = (name: string) => name.replace(/\.pdf$/i, "");

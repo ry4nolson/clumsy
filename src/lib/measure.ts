@@ -307,7 +307,59 @@ const cellAt = (x: number, y: number, half: number, vertices: number[]): Cell =>
 
 const MAX_CELLS = 5000;
 
+function pushCell(heap: Cell[], cell: Cell) {
+  heap.push(cell);
+  let index = heap.length - 1;
+  while (index > 0) {
+    const parent = (index - 1) >> 1;
+    if (heap[parent].best >= cell.best) {
+      break;
+    }
+    heap[index] = heap[parent];
+    index = parent;
+  }
+  heap[index] = cell;
+}
+
+function popCell(heap: Cell[]) {
+  const top = heap[0];
+  const last = heap.pop()!;
+  if (heap.length) {
+    heap[0] = last;
+    let index = 0;
+    for (;;) {
+      const left = index * 2 + 1;
+      let largest = index;
+      for (const child of [left, left + 1]) {
+        if (child < heap.length && heap[child].best > heap[largest].best) {
+          largest = child;
+        }
+      }
+      if (largest === index) {
+        break;
+      }
+      [heap[index], heap[largest]] = [heap[largest], heap[index]];
+      index = largest;
+    }
+  }
+  return top;
+}
+
+const labelPoints = new WeakMap<number[], number[]>();
+
 export function labelPoint(vertices: number[], precision = 0.5): number[] {
+  const known = labelPoints.get(vertices);
+  if (known && precision === 0.5) {
+    return known;
+  }
+  const point = findLabelPoint(vertices, precision);
+  if (precision === 0.5) {
+    labelPoints.set(vertices, point);
+  }
+  return point;
+}
+
+function findLabelPoint(vertices: number[], precision: number): number[] {
   if (vertices.length < 6) {
     return centroid(vertices);
   }
@@ -324,17 +376,16 @@ export function labelPoint(vertices: number[], precision = 0.5): number[] {
   if (middle.distance > best.distance) {
     best = middle;
   }
-  const queue: Cell[] = [];
+  const heap: Cell[] = [];
   const half = size / 2;
   for (let x = minX; x < maxX; x += size) {
     for (let y = minY; y < maxY; y += size) {
-      queue.push(cellAt(x + half, y + half, half, vertices));
+      pushCell(heap, cellAt(x + half, y + half, half, vertices));
     }
   }
   let examined = 0;
-  while (queue.length && examined < MAX_CELLS) {
-    queue.sort((a, b) => a.best - b.best);
-    const cell = queue.pop()!;
+  while (heap.length && examined < MAX_CELLS) {
+    const cell = popCell(heap);
     examined += 1;
     if (cell.distance > best.distance) {
       best = cell;
@@ -344,7 +395,7 @@ export function labelPoint(vertices: number[], precision = 0.5): number[] {
     }
     const quarter = cell.half / 2;
     for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      queue.push(cellAt(cell.x + dx * quarter, cell.y + dy * quarter, quarter, vertices));
+      pushCell(heap, cellAt(cell.x + dx * quarter, cell.y + dy * quarter, quarter, vertices));
     }
   }
   return [best.x, best.y];

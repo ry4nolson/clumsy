@@ -275,7 +275,7 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     const handle = target.closest<SVGElement>(".markup-handle")?.dataset.handle as Handle | undefined;
     const id = target.closest<SVGElement>(".markup")?.dataset.markup;
     const selected = event.altKey && (handle || id === selectedId) ? findMarkup(selectedId) : null;
-    const toggled = selected && withVertexToggled(selected, handle, point);
+    const toggled = selected && withVertexToggled(selected, handle, point, selected.width / 2 + 6 / view.viewport.scale);
     if (selected && toggled) {
       event.preventDefault();
       event.stopPropagation();

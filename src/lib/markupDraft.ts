@@ -60,12 +60,12 @@ export function resizedMarkup(markup: Markup, handle: Handle, point: Point, shif
   return reshapedMarkup(markup, { box: resizeBox(markup.box, handle, point, shift || markup.kind === "stamp") }, date);
 }
 
-export function withVertexToggled(markup: Markup, handle: Handle | undefined, point: Point) {
+export function withVertexToggled(markup: Markup, handle: Handle | undefined, point: Point, reach: number) {
   if (!isVertexKind(markup.kind) || !markup.vertices) {
     return null;
   }
   const kind = markup.kind as MeasureKind;
-  const vertices = handle ? withoutVertex(markup.vertices, vertexIndex(handle), minVertices(kind)) : withInsertedVertex(markup.vertices, point, kind === "measure-area");
+  const vertices = handle ? withoutVertex(markup.vertices, vertexIndex(handle), minVertices(kind)) : withInsertedVertex(markup.vertices, point, kind === "measure-area", reach);
   return vertices && reshapedMarkup(markup, { vertices }, pdfDate(new Date()));
 }
 

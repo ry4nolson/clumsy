@@ -111,7 +111,10 @@ describe("measure dictionaries", () => {
     expect(formatFromMeasure(chain(fmt({ U: PDFString.of("feet"), D: 1000 })))).toEqual({ unit: "ft", precision: 2 });
     expect(formatFromMeasure(chain(fmt({ U: PDFString.of("in"), F: "F", D: 2 })))).toEqual({ unit: "in", precision: 4 });
     expect(formatFromMeasure(chain(fmt({ U: PDFString.of("m"), F: "R" })))).toEqual({ unit: "m", precision: 0 });
-    expect(formatFromMeasure(chain(fmt({ U: PDFString.of("yd") })))).toBeNull();
+    expect(formatFromMeasure(chain(fmt({ U: PDFString.of("yd"), D: 10 })))).toEqual({ unit: "ft", precision: 1 });
+    expect(formatFromMeasure(chain(fmt({ U: PDFString.of("cm"), D: 10 })))).toEqual({ unit: "mm", precision: 1 });
+    expect(formatFromMeasure(chain(fmt({ U: PDFString.of("km") })))).toEqual({ unit: "m", precision: 2 });
+    expect(formatFromMeasure(chain(fmt({ U: PDFString.of("furlong") })))).toBeNull();
   });
 
   it("treats blank and unknown units as no scale", async () => {
