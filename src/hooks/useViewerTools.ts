@@ -8,9 +8,9 @@ import { attachMarkPlacement, type MarkPlacement } from "../lib/markPlacement";
 import type { MarkupTool } from "../lib/markupLayer";
 import type { MarkKind } from "../lib/marks";
 
-export type EditorTool = "select" | "hand" | "highlight" | "text" | "draw" | "image" | "signature" | "comment" | "mark" | "shape" | "stamp" | "underline" | "strikeout";
+export type EditorTool = "select" | "hand" | "highlight" | "text" | "draw" | "image" | "signature" | "comment" | "mark" | "shape" | "stamp" | "underline" | "strikeout" | "measure";
 
-type PdfTool = Exclude<EditorTool, "hand" | "mark" | "shape" | "stamp" | "underline" | "strikeout">;
+type PdfTool = Exclude<EditorTool, "hand" | "mark" | "shape" | "stamp" | "underline" | "strikeout" | "measure">;
 
 const markupToolName = (tool: NonNullable<MarkupTool>): EditorTool => (tool.kind === "text" ? tool.text : tool.kind);
 

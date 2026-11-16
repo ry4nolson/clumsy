@@ -19,6 +19,7 @@ const SYMBOLS: &[&str] = &[
     "checkmark.square",
     "square.on.circle",
     "seal",
+    "ruler",
 ];
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]

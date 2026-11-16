@@ -1,6 +1,6 @@
 import { hexColor, isLineKind, isMeasureKind, isTextKind, isVertexKind, type Markup } from "./markup";
 import { CAPTION_SIZE, captionBaseline, captionPlacement, captionText, vertexPath } from "./measureMarkup";
-import { handlePoints, lineEndings, outerRect, outlinePath, rectPath, segmentsPath, stampMatrix, textMarkupSegments } from "./markupShapes";
+import { handlePoints, isCorner, lineEndings, outerRect, outlinePath, rectPath, segmentsPath, stampMatrix, textMarkupSegments } from "./markupShapes";
 import { CAP_HEIGHT, stampDesign, type StampDesign } from "./stampSymbols";
 
 export const SVG = "http://www.w3.org/2000/svg";
@@ -136,7 +136,7 @@ export function selectionOverlay(markup: Markup, viewport: ScreenViewport) {
   const [cx, cy] = viewport.convertToViewportPoint((left + right) / 2, (bottom + top) / 2);
   for (const [handle, [x, y]] of handlePoints(markup)) {
     const [hx, hy] = viewport.convertToViewportPoint(x, y);
-    const cursor = handle === "start" || handle === "end" ? null : (hx - cx) * (hy - cy) > 0 ? "nwse" : "nesw";
+    const cursor = !isCorner(handle) ? null : (hx - cx) * (hy - cy) > 0 ? "nwse" : "nesw";
     group.append(svg("rect", { class: "markup-handle", "data-handle": handle, "data-cursor": cursor, x: hx - HANDLE_SIZE / 2, y: hy - HANDLE_SIZE / 2, width: HANDLE_SIZE, height: HANDLE_SIZE, rx: 1.5 }));
   }
   return group;

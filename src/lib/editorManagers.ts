@@ -7,7 +7,7 @@ import type { Markup } from "./markup";
 import { attachMarkup, type MarkupLayer } from "./markupLayer";
 import { readMarkupParams, styleOf } from "./markupParams";
 import { dateLabel, isMarkDescription } from "./marks";
-import { readMarkupOffThread } from "./pageEditWorker";
+import { readMarkupOffThread, readScalesOffThread } from "./pageEditWorker";
 import { passwordOf } from "./pdfjs";
 import { showError, showMessage } from "./platform";
 import { MAX_SAVED_SIGNATURES, SIGNATURES_KEY, clearLegacySignature, readLegacySignature, readSignatures, withSignature, withoutSignature, writeSignatures, type SavedSignature } from "./signatures";
@@ -180,6 +180,7 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       addCommands: comments.addCommands,
       style: () => styleOf(readMarkupParams()),
       readFile: async (doc) => readMarkupOffThread(await doc.getData(), passwordOf(doc)),
+      readScales: async (doc) => readScalesOffThread(await doc.getData(), passwordOf(doc)),
       stampDate: () => dateLabel(new Date()),
       selected: (markupSelection) => set({ markupSelection }),
       removed: () => editorUndoBar.show(() => {}, "markup"),

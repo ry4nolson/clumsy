@@ -2,28 +2,16 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { UndoableCommand } from "./commentManager";
 import { isTypingTarget } from "./commands";
-import { hideAnnotations } from "./hiddenAnnotations";
-import {
-  MARKUP_KEY_PREFIX,
-  editedFileIds,
-  markupIn,
-  mayBeMarkup,
-  movedMarkup,
-  removedMarkup,
-  restyledMarkup,
-  sameStyle,
-  visibleMarkup,
-  type Markup,
-  type MarkupStyle,
-  type ShapeKind,
-  type TextMarkupKind,
-} from "./markup";
+import { mayBeMarkup, movedMarkup, removedMarkup, restyledMarkup, sameStyle, type Markup, type MarkupStyle, type ShapeKind, type TextMarkupKind } from "./markup";
+import { defaultFormat, fullSize, type MeasureKind } from "./measure";
+import type { PageScale } from "./measurePdf";
+import { createMeasureTool } from "./measureTool";
 import { textMarkupFromSelection } from "./markupSelection";
-import { draftFor, drawable, insidePage, nudgeDelta, resizedMarkup, undoBursts } from "./markupDraft";
+import { draftFor, drawable, insidePage, nudgeDelta, resizedMarkup } from "./markupDraft";
 import { clampShift, outerRect, type Handle, type Point } from "./markupShapes";
+import { createMarkupStore } from "./markupStore";
 import { markupDrawing, markupHitTarget, matrixAttribute, selectionOverlay, svg } from "./markupSvg";
 import { pdfDate } from "./notes";
-import { claimStamps } from "./pdfjs";
 
 type Viewport = {
   width: number;
@@ -39,15 +27,20 @@ type MarkupPageView = {
   viewport: Viewport;
   pdfPage: { getAnnotations(): Promise<unknown[]>; rotate: number; view: number[] } | null;
   renderingState?: number;
-  reset(options: Record<string, boolean>): void;
 };
 
-export type MarkupTool = { kind: "shape"; shape: ShapeKind } | { kind: "stamp"; stamp: string } | { kind: "text"; text: TextMarkupKind } | null;
+export type MarkupTool =
+  | { kind: "shape"; shape: ShapeKind }
+  | { kind: "stamp"; stamp: string }
+  | { kind: "text"; text: TextMarkupKind }
+  | { kind: "measure"; measure: MeasureKind }
+  | null;
 
 export type MarkupHooks = {
   addCommands(command: UndoableCommand): void;
   style(): MarkupStyle;
   readFile(doc: PDFDocumentProxy): Promise<Markup[]>;
+  readScales(doc: PDFDocumentProxy): Promise<Array<PageScale | null>>;
   stampDate(): string;
   selected(markup: Markup | null): void;
   removed(): void;
@@ -62,28 +55,34 @@ type ActiveDrag = Drag & { layer: SVGSVGElement };
 const MIN_HIT = 6;
 const DRAG_THRESHOLD = 3;
 const RENDERED = 3;
-const KEEP_LAYERS = { keepAnnotationLayer: true, keepAnnotationEditorLayer: true, keepXfaLayer: true, keepTextLayer: true, keepCanvasWrapper: true };
 
 const now = () => pdfDate(new Date());
 
 export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: MarkupHooks) {
   const container = viewer.container as HTMLDivElement;
-  let doc: PDFDocumentProxy | null = null;
-  let file: Promise<Markup[]> | null = null;
-  let fileByPage = new Map<number, Markup[]>();
-  let hiddenIds = new Set<string>();
   let tool: MarkupTool = null;
   let interactive = false;
   let selectedId: string | null = null;
   let drag: ActiveDrag | null = null;
-  const burstType = undoBursts(1000);
 
   const pageView = (pageIndex: number) => viewer.getPageView(pageIndex) as unknown as MarkupPageView | undefined;
-  const changes = () => markupIn(doc?.annotationStorage ?? []);
-  const allMarkup = () => visibleMarkup([...fileByPage.values()].flat(), changes());
-  const findMarkup = (id: string | null) => (id && allMarkup().find((markup) => markup.id === id)) || null;
-  const drawing = () => tool?.kind === "shape" || tool?.kind === "stamp";
-  const writable = () => !!doc && (viewer.pdfDocument ?? null) === doc;
+  const store = createMarkupStore(viewer, {
+    addCommands: hooks.addCommands,
+    readFile: hooks.readFile,
+    readScales: hooks.readScales,
+    loaded: () => paintAll(),
+    changed: (pageIndex) => {
+      paint(pageIndex);
+      if (selectedId && !store.find(selectedId)) {
+        selectedId = null;
+      }
+      publishSelection();
+    },
+  });
+  const findMarkup = store.find;
+  const drawing = () => tool?.kind === "shape" || tool?.kind === "stamp" || tool?.kind === "measure";
+  const writable = store.writable;
+  const change = store.change;
 
   const publishSelection = () => hooks.selected(findMarkup(selectedId));
 
@@ -103,42 +102,34 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     publishSelection();
   };
 
-  const loadFile = () => {
-    const owner = doc;
-    if (!owner) {
-      return Promise.resolve([]);
-    }
-    file ??= hooks
-      .readFile(owner)
-      .catch(() => [])
-      .then((list) => {
-        if (doc === owner) {
-          fileByPage = new Map();
-          for (const markup of list) {
-            fileByPage.set(markup.pageIndex, [...(fileByPage.get(markup.pageIndex) ?? []), markup]);
-          }
-          paintAll();
-        }
-        return list;
-      });
-    return file;
-  };
+  const measure = createMeasureTool({
+    view: pageView,
+    point: (pageIndex, clientX, clientY) => {
+      const view = pageView(pageIndex);
+      return view?.div ? localPoint(view, clientX, clientY) : null;
+    },
+    repaint: (pageIndex) => paint(pageIndex),
+    finish: (created) => {
+      change(created, created);
+      select(created.id);
+    },
+    style: () => hooks.style(),
+    settings: (pageIndex) => store.scaleOf(pageIndex) ?? { scale: fullSize, format: defaultFormat },
+  });
 
   const reset = () => {
-    doc = viewer.pdfDocument ?? null;
-    file = null;
-    fileByPage = new Map();
-    hiddenIds = new Set();
+    measure.cancel();
+    store.reset();
+    if (tool?.kind === "measure") {
+      store.loadScales();
+    }
     selectedId = null;
     drag = null;
     hooks.selected(null);
-    if (doc) {
-      claimStamps(doc, () => loadFile().then((list) => new Set(list.filter((markup) => markup.kind === "stamp").map((markup) => markup.id))));
-    }
   };
 
   const resetIfNew = () => {
-    if ((viewer.pdfDocument ?? null) !== doc) {
+    if (store.isStale()) {
       reset();
     }
   };
@@ -156,6 +147,10 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
   };
 
   const previewOf = (pageIndex: number): Markup | null => {
+    const building = measure.preview(pageIndex);
+    if (building) {
+      return building;
+    }
     if (!drag || drag.pageIndex !== pageIndex) {
       return null;
     }
@@ -175,7 +170,7 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       return;
     }
     const preview = previewOf(pageIndex);
-    const markups = visibleMarkup(fileByPage.get(pageIndex) ?? [], changes(), pageIndex).map((markup) => (preview && markup.id === preview.id ? preview : markup));
+    const markups = store.onPage(pageIndex).map((markup) => (preview && markup.id === preview.id ? preview : markup));
     if (preview && !markups.some((markup) => markup.id === preview.id)) {
       markups.push(preview);
     }
@@ -198,7 +193,7 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     layer.setAttribute("viewBox", `0 0 ${viewport.width} ${viewport.height}`);
     layer.dataset.page = String(pageIndex);
     const content = svg("g", { class: "markup-content", transform: matrixAttribute(viewport.transform) });
-    const edited = editedFileIds(changes());
+    const edited = store.edited();
     for (const markup of markups) {
       const group = svg("g", { class: "markup", "data-markup": markup.id });
       if (markup.fresh || edited.has(markup.id) || markup === preview) {
@@ -214,63 +209,11 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
   const paintAll = () => {
     for (let index = 0; index < viewer.pagesCount; index++) {
       const view = pageView(index);
-      if (view?.div?.querySelector(":scope > svg.markup-layer") || (view?.renderingState === RENDERED && (fileByPage.has(index) || drawing()))) {
+      if (view?.div?.querySelector(":scope > svg.markup-layer") || (view?.renderingState === RENDERED && (store.hasFileMarkup(index) || drawing()))) {
         paint(index);
       }
     }
   };
-
-  const pageOf = (id: string) => [...fileByPage.values()].flat().find((markup) => markup.id === id)?.pageIndex;
-
-  const syncHidden = () => {
-    if (!doc) {
-      return;
-    }
-    const ids = editedFileIds(changes());
-    if (!hideAnnotations(doc, ids)) {
-      return;
-    }
-    const pages = new Set([...ids, ...hiddenIds].filter((id) => ids.has(id) !== hiddenIds.has(id)).map(pageOf));
-    hiddenIds = ids;
-    for (const pageIndex of pages) {
-      const view = pageIndex === undefined ? null : pageView(pageIndex);
-      view?.reset(KEEP_LAYERS);
-    }
-    viewer.update();
-  };
-
-  const put = (id: string, value: Markup | null, pageIndex: number) => {
-    const storage = doc?.annotationStorage;
-    if (!storage) {
-      return;
-    }
-    storage.remove(MARKUP_KEY_PREFIX + id);
-    if (value) {
-      storage.setValue(MARKUP_KEY_PREFIX + id, { ...value });
-    }
-    syncHidden();
-    paint(pageIndex);
-    if (selectedId && !findMarkup(selectedId)) {
-      selectedId = null;
-    }
-    publishSelection();
-  };
-
-  const commit = (entries: Array<{ id: string; pageIndex: number; after: Markup | null }>, coalesce?: string) => {
-    if (!writable() || !entries.length) {
-      return false;
-    }
-    const befores = entries.map(({ id }) => (doc!.annotationStorage.getRawValue(MARKUP_KEY_PREFIX + id) as Markup | undefined) ?? null);
-    hooks.addCommands({
-      cmd: () => entries.forEach(({ id, pageIndex, after }) => put(id, after, pageIndex)),
-      undo: () => entries.forEach(({ id, pageIndex }, index) => put(id, befores[index], pageIndex)),
-      mustExec: true,
-      ...(coalesce && { type: burstType(coalesce), overwriteIfSameType: true, keepUndo: true }),
-    });
-    return true;
-  };
-
-  const change = (markup: Markup, after: Markup | null, coalesce?: string) => commit([{ id: markup.id, pageIndex: markup.pageIndex, after }], coalesce && `${coalesce}:${markup.id}`);
 
   const startDrag = (event: PointerEvent, layer: SVGSVGElement, next: Drag) => {
     event.preventDefault();
@@ -295,6 +238,12 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     if (drag || event.button !== 0 || !view || !writable()) {
       return;
     }
+    if (measure.pointerDown(event, pageIndex, target.classList.contains("markup-surface"), this)) {
+      event.preventDefault();
+      event.stopPropagation();
+      container.focus({ preventScroll: true });
+      return;
+    }
     const point = localPoint(view, event.clientX, event.clientY);
     const handle = target.closest<SVGElement>(".markup-handle")?.dataset.handle as Handle | undefined;
     const id = target.closest<SVGElement>(".markup")?.dataset.markup;
@@ -311,6 +260,9 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
   }
 
   function onPointerMove(this: SVGSVGElement, event: PointerEvent) {
+    if (measure.pointerMove(event)) {
+      return;
+    }
     const view = drag && pageView(drag.pageIndex);
     if (!drag || !view?.pdfPage || event.pointerId !== drag.pointerId) {
       return;
@@ -338,6 +290,9 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
   }
 
   function onPointerUp(this: SVGSVGElement, event: PointerEvent) {
+    if (measure.pointerUp(event)) {
+      return;
+    }
     const ended = drag;
     if (!ended || event.pointerId !== ended.pointerId) {
       return;
@@ -382,6 +337,11 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
   const visible = () => container.contains(document.activeElement) && !container.closest("[inert]") && !document.querySelector("dialog[open], :popover-open");
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (measure.building() && visible() && !isTypingTarget(event.target) && measure.key(event)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     const markup = findMarkup(selectedId);
     if (!markup || !visible() || isTypingTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) {
       return;
@@ -411,7 +371,7 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       return false;
     }
     const created = textMarkupFromSelection(container, (pageIndex) => pageView(pageIndex)?.viewport ?? null, kind, hooks.style(), now());
-    commit(created.map((markup) => ({ id: markup.id, pageIndex: markup.pageIndex, after: markup })));
+    store.commit(created.map((markup) => ({ id: markup.id, pageIndex: markup.pageIndex, after: markup })));
     if (created.length) {
       document.getSelection()?.removeAllRanges();
     }
@@ -432,12 +392,12 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     resetIfNew();
     const pageIndex = source.id - 1;
     paint(pageIndex);
-    if (!file) {
+    if (!store.loaded()) {
       source.pdfPage
         ?.getAnnotations()
         .then((annotations) => {
           if ((annotations as Array<{ annotationType: number }>).some(mayBeMarkup)) {
-            loadFile();
+            store.loadFile();
           }
         })
         .catch(() => undefined);
@@ -463,6 +423,10 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
         select(null);
       }
       tool = next;
+      measure.setKind(next?.kind === "measure" ? next.measure : null);
+      if (next?.kind === "measure") {
+        store.loadScales();
+      }
       updateClasses();
       paintAll();
     },

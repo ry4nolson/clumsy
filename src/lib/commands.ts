@@ -89,6 +89,9 @@ export type CommandId =
   | "shapeCloud"
   | "shapeLine"
   | "shapeArrow"
+  | "measureLength"
+  | "measurePath"
+  | "measureArea"
   | "toolStamp"
   | "addImage"
   | "sign"
@@ -252,6 +255,9 @@ export const commands: Command[] = [
   { id: "shapeLine", label: "Line", menu: "Tools", combos: [], needsDocument: true },
   { id: "shapeArrow", label: "Arrow", menu: "Tools", combos: [], needsDocument: true },
   { id: "toolStamp", label: "Stamps…", menu: "Tools", combos: [], needsDocument: true },
+  { id: "measureLength", label: "Measure Length", menu: "Tools", combos: [], needsDocument: true },
+  { id: "measurePath", label: "Measure Path", menu: "Tools", combos: [], needsDocument: true },
+  { id: "measureArea", label: "Measure Area", menu: "Tools", combos: [], needsDocument: true },
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
   { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },

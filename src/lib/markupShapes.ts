@@ -3,7 +3,12 @@ import { captionCorners } from "./measureMarkup";
 
 export type Point = [number, number];
 export type Corner = "nw" | "ne" | "sw" | "se";
-export type Handle = Corner | "start" | "end";
+export type VertexHandle = `v${number}`;
+export type Handle = Corner | "start" | "end" | VertexHandle;
+
+const corners = new Set<Handle>(["nw", "ne", "sw", "se"]);
+export const isCorner = (handle: Handle): handle is Corner => corners.has(handle);
+export const vertexIndex = (handle: Handle) => (handle.startsWith("v") ? Number(handle.slice(1)) : -1);
 export type Rect = { left: number; bottom: number; right: number; top: number };
 export type Ending = { d: string; closed: boolean };
 
@@ -182,7 +187,7 @@ export function resizeBox(box: number[], corner: Corner, [x, y]: Point, keepAspe
   return normalizeBox([ax, ay, ax + dx, ay + dy]);
 }
 
-export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line">): Array<[Handle, Point]> {
+export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line" | "vertices">): Array<[Handle, Point]> {
   if (isLineKind(markup.kind) && markup.line) {
     const [x1, y1, x2, y2] = markup.line;
     return [
@@ -190,7 +195,11 @@ export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line">): Arr
       ["end", [x2, y2]],
     ];
   }
-  if (isTextKind(markup.kind) || isVertexKind(markup.kind)) {
+  if (isVertexKind(markup.kind)) {
+    const vertices = markup.vertices ?? [];
+    return Array.from({ length: vertices.length / 2 }, (_, index): [Handle, Point] => [`v${index}`, [vertices[index * 2], vertices[index * 2 + 1]]]);
+  }
+  if (isTextKind(markup.kind)) {
     return [];
   }
   return (["nw", "ne", "se", "sw"] as Corner[]).map((corner) => [corner, cornerPoint(markup.box, corner)]);

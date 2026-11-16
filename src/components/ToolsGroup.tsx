@@ -7,9 +7,10 @@ import type { SignaturePreview } from "../lib/editorManagers";
 import type { ShapeKind } from "../lib/markup";
 import type { MarkupParams, TextMode } from "../lib/markupParams";
 import type { MarkKind } from "../lib/marks";
+import type { MeasureKind } from "../lib/measure";
 import { showContextMenu } from "../lib/platform";
 import { IconButton } from "./IconButton";
-import { ShapesTool, StampTool, TextMarkupSettings, TextModeChoice } from "./MarkupTools";
+import { MeasureTool, ShapesTool, StampTool, TextMarkupSettings, TextModeChoice } from "./MarkupTools";
 import { SignaturePath } from "./SignatureDialog";
 import { closeToolMenu, ToolMenu } from "./ToolMenu";
 
@@ -38,6 +39,8 @@ export type ToolsProps = {
   onMarkupParams: (patch: Partial<MarkupParams>) => void;
   onTextMode: (mode: TextMode) => void;
   onStamps: () => void;
+  onMeasure: (kind: MeasureKind) => void;
+  onSetScale: () => void;
 };
 
 export type ContextMenuFor = (tool: EditorTool) => (event: MouseEvent<HTMLButtonElement>) => void;
@@ -206,6 +209,7 @@ export function toolEntries(props: ToolsProps): ToolEntry[] {
     { key: "signature", node: <SignatureTool props={props} /> },
     { key: "stamp", node: <StampTool props={props} onContextMenu={toolMenu} /> },
     { key: "mark", node: <MarkTool props={props} /> },
+    { key: "measure", node: <MeasureTool props={props} onContextMenu={toolMenu} /> },
   ];
 }
 
