@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-16
+
 ### Added
 - **Measure.** A new Measure tool measures lengths, paths, and areas on drawings, with a live reading as you click. Pages > Set Scale sets a drawing's scale from architectural, engineering, or metric presets, or by measuring a dimension you know. Measuring on a page with no scale asks first. Drag any corner to adjust a measurement, and Option-click (Alt-click on Windows) to add or remove a point. Measurements save as standard PDF measurements, so other PDF apps show them too
 - **Markups.** A new Markups tab in the sidebar (View > Markups, ⇧⌘M) lists every markup in the document: shapes, stamps, measurements, highlights, drawings, text boxes, and notes, including ones made in other apps. It groups them by subject with a count and total length and area for each, so stamping a symbol on every fixture or outlet is a takeoff. Filter by type, subject, author, status, or pages, search, and sort. Set a review status (Accepted, Rejected, Completed, and so on) on one or several at once; statuses are saved the standard way, so other PDF apps show them. Copy or export the list or a one-row-per-subject summary as CSV for a spreadsheet. Add your name in the tab to have it saved as the author of new markup
