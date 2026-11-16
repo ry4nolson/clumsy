@@ -13,7 +13,7 @@ import {
   type SignField,
 } from "./pdfSignFields";
 import { pageLeafRefs } from "./pdfStructure";
-import { hasEncryptEntry } from "./protection";
+import { hasEncryptEntry, sectionAt, type XrefSection } from "./protection";
 import { addSignatureAppearance } from "./signatureAppearance";
 import { CONTENTS_HEX_LENGTH, type PrepareSignatureOptions, type PreparedSignature, type SignaturePlaceholder, type ValidationMaterial } from "./signatureTypes";
 
@@ -26,16 +26,6 @@ const BYTE_RANGE_PLACEHOLDER = `[${Array(4).fill("0".repeat(10)).join(" ")}]`;
 
 export const ENCRYPTED_MESSAGE = "Password-protected PDFs can't be signed digitally yet.";
 export const DAMAGED_MESSAGE = "This PDF is damaged, so Clumsy can't add to it without rewriting it, which would break its signatures.";
-
-type Section = "table" | "stream";
-
-export function sectionAt(bytes: Uint8Array, offset: number): Section | null {
-  if (!(offset > 0 && offset < bytes.length)) {
-    return null;
-  }
-  const head = latin1.decode(bytes.subarray(offset, offset + 64));
-  return /^\s*xref\b/.test(head) ? "table" : /^\s*\d+\s+\d+\s+obj\b/.test(head) ? "stream" : null;
-}
 
 async function loadForUpdate(bytes: Uint8Array) {
   if (hasEncryptEntry(bytes) === true) {
@@ -57,7 +47,7 @@ async function loadForUpdate(bytes: Uint8Array) {
   return { doc, section };
 }
 
-async function commitUpdate(doc: PDFDocument, section: Section, input: Uint8Array) {
+async function commitUpdate(doc: PDFDocument, section: XrefSection, input: Uint8Array) {
   const output = await doc.save({ useObjectStreams: section === "stream", addDefaultPage: false, updateFieldAppearances: false });
   if (output.length <= input.length || output.subarray(0, input.length).some((byte, index) => byte !== input[index])) {
     throw new Error("The signature couldn't be added as an incremental update.");

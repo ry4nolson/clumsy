@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Comments, shapes, and stamps saved into many PDFs no longer go missing in some other PDF apps, or when printing from Clumsy on a Mac. Clumsy showed them, but the update was indexed in a form those apps couldn't read
+
 ## [0.20.0] - 2026-11-16
 
 ### Added

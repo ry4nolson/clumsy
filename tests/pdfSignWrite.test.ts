@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFString, decodePDFRawStream } from "@cantoo/pdf-lib";
-import { appendDss, pdfDate, prepareDocTimestamp, prepareSignature, sectionAt } from "../src/lib/pdfSignWrite";
+import { appendDss, pdfDate, prepareDocTimestamp, prepareSignature } from "../src/lib/pdfSignWrite";
+import { sectionAt } from "../src/lib/protection";
 import { scanSignatures } from "../src/lib/pdfSignatures";
 import { rotationMatrix, splitBox, winAnsiLine } from "../src/lib/signatureAppearance";
 import { CONTENTS_HEX_LENGTH, type PrepareSignatureOptions, type PreparedSignature, type ValidationMaterial } from "../src/lib/signatureTypes";
