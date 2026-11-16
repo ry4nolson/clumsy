@@ -255,7 +255,7 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
 
   ios:
-    runs-on: macos-15
+    runs-on: macos-26
     continue-on-error: true
 
     steps:
