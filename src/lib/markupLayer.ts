@@ -1,13 +1,13 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { UndoableCommand } from "./commentManager";
-import { isTypingTarget } from "./commands";
-import { mayBeMarkup, movedMarkup, removedMarkup, restyledMarkup, sameStyle, type Markup, type MarkupStyle, type ShapeKind, type TextMarkupKind } from "./markup";
+import { mayBeMarkup, movedMarkup, restyledMarkup, sameStyle, type Markup, type MarkupStyle, type ShapeKind, type TextMarkupKind } from "./markup";
 import { defaultFormat, fullSize, type MeasureKind } from "./measure";
 import type { PageScale } from "./measurePdf";
 import { createMeasureTool } from "./measureTool";
 import { textMarkupFromSelection } from "./markupSelection";
-import { draftFor, drawable, insidePage, nudgeDelta, resizedMarkup } from "./markupDraft";
+import { draftFor, drawable, insidePage, resizedMarkup, withVertexToggled } from "./markupDraft";
+import { attachMarkupKeys } from "./markupKeys";
 import { clampShift, outerRect, type Handle, type Point } from "./markupShapes";
 import { createMarkupStore } from "./markupStore";
 import { createScaleQuestion } from "./scaleQuestion";
@@ -274,7 +274,13 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     const point = localPoint(view, event.clientX, event.clientY);
     const handle = target.closest<SVGElement>(".markup-handle")?.dataset.handle as Handle | undefined;
     const id = target.closest<SVGElement>(".markup")?.dataset.markup;
-    if (handle && selectedId) {
+    const selected = event.altKey && (handle || id === selectedId) ? findMarkup(selectedId) : null;
+    const toggled = selected && withVertexToggled(selected, handle, point);
+    if (selected && toggled) {
+      event.preventDefault();
+      event.stopPropagation();
+      change(selected, toggled);
+    } else if (handle && selectedId) {
       startDrag(event, this, { mode: "resize", pageIndex, pointerId: event.pointerId, id: selectedId, handle, preview: null });
     } else if (id) {
       select(id);
@@ -346,46 +352,6 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     paint(ended.pageIndex);
   }
 
-  const nudge = (markup: Markup, key: string, step: number) => {
-    const view = pageView(markup.pageIndex);
-    const delta = view?.pdfPage && nudgeDelta(view.viewport, key, step);
-    const [dx, dy] = delta ? clampShift(outerRect(markup), delta[0], delta[1], view.pdfPage!.view) : [0, 0];
-    if (dx || dy) {
-      change(markup, movedMarkup(markup, dx, dy, now()), "nudge");
-    }
-  };
-
-  const remove = (markup: Markup) => {
-    if (change(markup, removedMarkup(markup, now()))) {
-      hooks.removed();
-    }
-  };
-
-  const visible = () => container.contains(document.activeElement) && !container.closest("[inert]") && !document.querySelector("dialog[open], :popover-open");
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (measure.building() && visible() && !isTypingTarget(event.target) && measure.key(event)) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      return;
-    }
-    const markup = findMarkup(selectedId);
-    if (!markup || !visible() || isTypingTarget(event.target) || event.metaKey || event.ctrlKey || event.altKey) {
-      return;
-    }
-    if (event.key === "Escape") {
-      select(null);
-    } else if (event.key === "Backspace" || event.key === "Delete") {
-      remove(markup);
-    } else if (event.key.startsWith("Arrow")) {
-      nudge(markup, event.key, event.shiftKey ? 10 : 1);
-    } else {
-      return;
-    }
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  };
-
   const onContainerPointerDown = (event: PointerEvent) => {
     const target = event.target as Element;
     if (selectedId && !target.closest?.(".markup-layer .markup, .markup-handle")) {
@@ -440,7 +406,16 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
   eventBus.on("pagerendered", onRendered);
   eventBus.on("scalechanging", paintAll);
   eventBus.on("rotationchanging", paintAll);
-  window.addEventListener("keydown", onKeyDown, true);
+  const detachKeys = attachMarkupKeys({
+    container,
+    building: measure.building,
+    buildKey: measure.key,
+    selected: () => findMarkup(selectedId),
+    deselect: () => select(null),
+    pageView,
+    change,
+    removed: hooks.removed,
+  });
   container.addEventListener("pointerdown", onContainerPointerDown, true);
   container.addEventListener("pointerup", onContainerPointerUp);
 
@@ -493,7 +468,7 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       eventBus.off("pagerendered", onRendered);
       eventBus.off("scalechanging", paintAll);
       eventBus.off("rotationchanging", paintAll);
-      window.removeEventListener("keydown", onKeyDown, true);
+      detachKeys();
       container.removeEventListener("pointerdown", onContainerPointerDown, true);
       container.removeEventListener("pointerup", onContainerPointerUp);
       container.classList.remove("markup-select", "markup-drawing");

@@ -41,6 +41,11 @@
           "summary": "Rectangles, clouds, and arrows for pointing at things. Review stamps and electrical symbols for drawings."
         },
         {
+          "slug": "measure",
+          "title": "Measuring drawings",
+          "summary": "Set a drawing's scale, measure lengths, paths, and areas, and send the totals to a spreadsheet."
+        },
+        {
           "slug": "forms",
           "title": "Filling in forms",
           "summary": "Tab through real form fields, drop checkmarks and dates on paper forms, and flatten the result."

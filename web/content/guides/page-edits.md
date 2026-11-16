@@ -34,6 +34,10 @@ Books number their front matter i, ii, iii and start again at 1. Appendices go A
 
 Labels follow their pages. Move chapter 3 ahead of chapter 2 and each page keeps the label it had.
 
+## Page scale
+
+**Pages > Set Scale** tells Clumsy a drawing's scale, such as 1/4" = 1'-0", so [measurements](/guides/measure) read in real feet and inches. Like other page edits, it can be undone.
+
 ## Undo
 
 Every page edit can be undone with [[⌘Z]] and redone with [[⇧⌘Z]], going back 20 steps per document. Nothing touches the file on disk until you save.

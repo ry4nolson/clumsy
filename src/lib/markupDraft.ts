@@ -1,6 +1,6 @@
 import { isBoxKind, isLineKind, isVertexKind, newMarkup, normalizeBox, reshapedMarkup, type Markup, type MarkupStyle } from "./markup";
-import { snapPoint } from "./measure";
-import { withVertex } from "./measureBuild";
+import { snapPoint, type MeasureKind } from "./measure";
+import { minVertices, withInsertedVertex, withVertex, withoutVertex } from "./measureBuild";
 import type { MarkupTool } from "./markupLayer";
 import { constrainEnd, isCorner, resizeBox, stampBox, vertexIndex, type Handle, type Point } from "./markupShapes";
 import { pdfDate } from "./notes";
@@ -58,6 +58,15 @@ export function resizedMarkup(markup: Markup, handle: Handle, point: Point, shif
     return null;
   }
   return reshapedMarkup(markup, { box: resizeBox(markup.box, handle, point, shift || markup.kind === "stamp") }, date);
+}
+
+export function withVertexToggled(markup: Markup, handle: Handle | undefined, point: Point) {
+  if (!isVertexKind(markup.kind) || !markup.vertices) {
+    return null;
+  }
+  const kind = markup.kind as MeasureKind;
+  const vertices = handle ? withoutVertex(markup.vertices, vertexIndex(handle), minVertices(kind)) : withInsertedVertex(markup.vertices, point, kind === "measure-area");
+  return vertices && reshapedMarkup(markup, { vertices }, pdfDate(new Date()));
 }
 
 export function nudgeDelta(viewport: Viewport, key: string, step: number): Point | null {

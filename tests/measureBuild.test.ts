@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { toolCommand } from "../src/lib/contextTools";
-import { resizedMarkup } from "../src/lib/markupDraft";
+import { resizedMarkup, withVertexToggled } from "../src/lib/markupDraft";
 import { cleanMarkupParams } from "../src/lib/markupParams";
 import { handlePoints } from "../src/lib/markupShapes";
 import { defaultFormat, fullSize, scalePresets } from "../src/lib/measure";
-import { buildMarkup, canFinish, finishedMarkup, measurable, vertexNear, withVertex, type MeasureBuild } from "../src/lib/measureBuild";
+import { buildMarkup, canFinish, finishedMarkup, measurable, vertexNear, withInsertedVertex, withVertex, withoutVertex, type MeasureBuild } from "../src/lib/measureBuild";
 import { captionText } from "../src/lib/measureMarkup";
 
 const style = { color: [1, 0, 0], fill: true, width: 2, opacity: 1 };
@@ -82,5 +82,32 @@ describe("the measure tool's settings", () => {
     expect(cleanMarkupParams({ measure: "measure-volume" }).measure).toBe("measure-length");
     expect(toolCommand("measure", null, "rectangle", "measure-path")).toBe("measurePath");
     expect(toolCommand("measure")).toBe("measureLength");
+  });
+});
+
+describe("adding and removing vertices", () => {
+  const square = [0, 0, 100, 0, 100, 100, 0, 100];
+
+  it("inserts a point into the nearest segment, including an area's closing edge", () => {
+    expect(withInsertedVertex(square, [50, 2], true)).toEqual([0, 0, 50, 2, 100, 0, 100, 100, 0, 100]);
+    expect(withInsertedVertex(square, [1, 40], true)).toEqual([...square, 1, 40]);
+    expect(withInsertedVertex(square, [1, 40], false)).toEqual([0, 0, 1, 40, 100, 0, 100, 100, 0, 100]);
+  });
+
+  it("removes a point only while enough remain", () => {
+    expect(withoutVertex(square, 1, 3)).toEqual([0, 0, 100, 100, 0, 100]);
+    expect(withoutVertex([0, 0, 100, 0, 100, 100], 0, 3)).toBeNull();
+    expect(withoutVertex(square, 9, 3)).toBeNull();
+    expect(withoutVertex(square, -1, 3)).toBeNull();
+  });
+
+  it("toggles vertices on paths and areas and recaptions them", () => {
+    const area = buildMarkup(build("measure-area", [0, 0, 72, 0, 72, 72, 0, 72]), style, "D:1")!;
+    const smaller = withVertexToggled(area, "v3", [0, 0])!;
+    expect(smaller.vertices).toEqual([0, 0, 72, 0, 72, 72]);
+    expect(captionText(smaller)).toBe(captionText({ ...area, vertices: [0, 0, 72, 0, 72, 72] }));
+    expect(withVertexToggled(area, undefined, [36, 1])!.vertices).toEqual([0, 0, 36, 1, 72, 0, 72, 72, 0, 72]);
+    const length = buildMarkup(build("measure-length", [0, 0, 72, 0]), style, "D:1")!;
+    expect(withVertexToggled(length, undefined, [36, 0])).toBeNull();
   });
 });

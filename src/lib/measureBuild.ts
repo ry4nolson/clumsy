@@ -54,3 +54,39 @@ export function withVertex(vertices: number[], index: number, [x, y]: Point) {
   next[index * 2 + 1] = y;
   return next;
 }
+
+export function withoutVertex(vertices: number[], index: number, min: number) {
+  if (index < 0 || index * 2 >= vertices.length || vertices.length / 2 <= min) {
+    return null;
+  }
+  const next = [...vertices];
+  next.splice(index * 2, 2);
+  return next;
+}
+
+const segmentDistance = (x: number, y: number, ax: number, ay: number, bx: number, by: number) => {
+  const length = (bx - ax) ** 2 + (by - ay) ** 2;
+  const t = length ? Math.min(1, Math.max(0, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / length)) : 0;
+  return Math.hypot(x - ax - t * (bx - ax), y - ay - t * (by - ay));
+};
+
+export function withInsertedVertex(vertices: number[], [x, y]: Point, closed: boolean) {
+  const count = vertices.length / 2;
+  const segments = closed ? count : count - 1;
+  let best = -1;
+  let nearest = Infinity;
+  for (let index = 0; index < segments; index += 1) {
+    const next = (index + 1) % count;
+    const distance = segmentDistance(x, y, vertices[index * 2], vertices[index * 2 + 1], vertices[next * 2], vertices[next * 2 + 1]);
+    if (distance < nearest) {
+      nearest = distance;
+      best = index;
+    }
+  }
+  if (best < 0) {
+    return null;
+  }
+  const result = [...vertices];
+  result.splice((best + 1) * 2, 0, x, y);
+  return result;
+}
