@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A21B4F6D02E7B1EBA28C8EF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 94C7C89BA6E94899E10390D5 /* PrivacyInfo.xcprivacy */; };
 		1132F93220B8FBAB20673127 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB4209C03A2337B3C63EACAE /* WebKit.framework */; };
 		33F49FD51CB93AB0E30F8626 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 35ED7F6823A897ADF1313EB9 /* Metal.framework */; };
 		3FB7230039D39E6A955DF680 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 79F3B264B45055BFD3B9B026 /* Security.framework */; };
@@ -25,6 +26,8 @@
 		028A8A332C35D6817D44928C /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		06458388110A4693A440C08F /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		0665D77AB071CC20D1516796 /* identities.rs */ = {isa = PBXFileReference; path = identities.rs; sourceTree = "<group>"; };
+		072B68741898511336FCF9E6 /* uploads.rs */ = {isa = PBXFileReference; path = uploads.rs; sourceTree = "<group>"; };
+		0B51AD3EAA313DA17437CAAF /* launch_urls.rs */ = {isa = PBXFileReference; path = launch_urls.rs; sourceTree = "<group>"; };
 		0C97BC270F440D202A87CADA /* navigation.rs */ = {isa = PBXFileReference; path = navigation.rs; sourceTree = "<group>"; };
 		0E968D05521E8331EF25D672 /* windows.rs */ = {isa = PBXFileReference; path = windows.rs; sourceTree = "<group>"; };
 		123B90975EE02D17DF6AD1D4 /* test_pki.rs */ = {isa = PBXFileReference; path = test_pki.rs; sourceTree = "<group>"; };
@@ -36,6 +39,7 @@
 		35ED7F6823A897ADF1313EB9 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		378D830F1BB009D1ADA81342 /* revocation.rs */ = {isa = PBXFileReference; path = revocation.rs; sourceTree = "<group>"; };
 		397A399979F680C6FE5CD48C /* print_layout.rs */ = {isa = PBXFileReference; path = print_layout.rs; sourceTree = "<group>"; };
+		47329BD0EE8CBC90CFE1409D /* documents.rs */ = {isa = PBXFileReference; path = documents.rs; sourceTree = "<group>"; };
 		4B50106B20D6230E1B3AD16F /* clumsy_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = clumsy_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		515A1611461563BCAB3CC1CB /* default_app.rs */ = {isa = PBXFileReference; path = default_app.rs; sourceTree = "<group>"; };
 		550D5F9B4353BA77619C00B6 /* files.rs */ = {isa = PBXFileReference; path = files.rs; sourceTree = "<group>"; };
@@ -53,6 +57,7 @@
 		7F47D471AEDB0EB2B60A2514 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		81091C141BE10565D8E128D2 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		89B50455919A5780C58C50E4 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		94C7C89BA6E94899E10390D5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AACB217AC7EA3C5C90E2B5F0 /* panel.rs */ = {isa = PBXFileReference; path = panel.rs; sourceTree = "<group>"; };
 		AC3501F4387CB3F379248254 /* validation.rs */ = {isa = PBXFileReference; path = validation.rs; sourceTree = "<group>"; };
 		AC9B3915F583268F773C3C28 /* tsa.rs */ = {isa = PBXFileReference; path = tsa.rs; sourceTree = "<group>"; };
@@ -146,9 +151,11 @@
 			children = (
 				C13837D1B60A0D3168273182 /* context_menu.rs */,
 				515A1611461563BCAB3CC1CB /* default_app.rs */,
+				47329BD0EE8CBC90CFE1409D /* documents.rs */,
 				550D5F9B4353BA77619C00B6 /* files.rs */,
 				20463D9B8D28A52EB6EC50CC /* form_question.rs */,
 				585A5CE8A6361AD1FE227F40 /* images.rs */,
+				0B51AD3EAA313DA17437CAAF /* launch_urls.rs */,
 				06458388110A4693A440C08F /* lib.rs */,
 				028A8A332C35D6817D44928C /* main.rs */,
 				0C97BC270F440D202A87CADA /* navigation.rs */,
@@ -157,6 +164,7 @@
 				30BE8D2571E79A51DE1D396C /* recent.rs */,
 				2E160A28C4D3F4A4686AA08E /* session.rs */,
 				D567817ECC26DB36A798040E /* updates.rs */,
+				072B68741898511336FCF9E6 /* uploads.rs */,
 				0E968D05521E8331EF25D672 /* windows.rs */,
 				B29713268FB75155C2876361 /* signatures */,
 			);
@@ -169,6 +177,7 @@
 			children = (
 				E0BE08AF292B8A5850D0AB85 /* clumsy_iOS.entitlements */,
 				5ACB5FF67B8B38E1A333F4AA /* Info.plist */,
+				94C7C89BA6E94899E10390D5 /* PrivacyInfo.xcprivacy */,
 			);
 			path = clumsy_iOS;
 			sourceTree = "<group>";
@@ -222,6 +231,20 @@
 				159D0A0F4FED8537D389C6BF /* Frameworks */,
 				F0CA880F4881BCE9ED1BD0A5 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		"TEMP_95B13F22-9DD6-4B5D-A3AF-1457D7DD7568" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
+		"TEMP_E183C353-7457-4BE2-A4B8-A32C739F3822" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -284,6 +307,7 @@
 			files = (
 				EA7EE9CC0F512DF51493B501 /* Assets.xcassets in Resources */,
 				FD15C325732F57B2B1E076D5 /* LaunchScreen.storyboard in Resources */,
+				0A21B4F6D02E7B1EBA28C8EF /* PrivacyInfo.xcprivacy in Resources */,
 				76843B3DB7C412BE7CABDCE9 /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -377,7 +401,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -434,7 +458,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

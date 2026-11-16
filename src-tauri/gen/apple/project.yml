@@ -2,7 +2,7 @@ name: clumsy
 options:
   bundleIdPrefix: com.ry4nolson.clumsy
   deploymentTarget:
-    iOS: 15.0
+    iOS: 18.4
 fileGroups: [../../src]
 configs:
   debug: debug
