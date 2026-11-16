@@ -1,11 +1,12 @@
 import { PDFArray, PDFBool, PDFDict, PDFHexString, PDFName, PDFNumber, PDFString, type PDFContext, type PDFObject } from "@cantoo/pdf-lib";
-import { areaPlaces, decimalPrecisions, fractionPrecisions, isFractional, type LengthUnit, type MeasureFormat, type MeasureKind, type MeasureScale } from "./measure";
+import { areaPlaces, decimalPrecisions, defaultFormat, fractionPrecisions, isFractional, type LengthUnit, type MeasureFormat, type MeasureKind, type MeasureScale } from "./measure";
 
 export type FormatDisplay = "D" | "F" | "R" | "T";
 export type NumberFormat = { unit: string; factor: number; display: FormatDisplay; denominator: number };
 export type MeasureFormats = { ratio: string; x: NumberFormat[]; d: NumberFormat[]; a: NumberFormat[] };
 export type Viewport = { box: number[]; name: string | null; scale: MeasureScale | null; format: MeasureFormat | null };
 export type Measurement = { kind: MeasureKind; points: number[]; leadered: boolean; scale: MeasureScale | null; format: MeasureFormat | null; caption: string | null };
+export type PageScale = { scale: MeasureScale; format: MeasureFormat };
 export type MeasureKeys = { kind: MeasureKind; points: number[]; scale: MeasureScale; format: MeasureFormat; caption: string };
 
 export const VIEWPORT_NAME = "Clumsy";
@@ -189,6 +190,13 @@ export function pageBoxOf(page: PDFDict) {
     }
   }
   return [0, 0, 612, 792];
+}
+
+export function pageScaleOf(page: PDFDict): PageScale | null {
+  const scaled = viewportsOf(page).filter((viewport) => viewport.scale);
+  const [x1, y1, x2, y2] = pageBoxOf(page);
+  const chosen = scaled.find((viewport) => viewport.name === VIEWPORT_NAME) ?? viewportAt(scaled, (x1 + x2) / 2, (y1 + y2) / 2);
+  return chosen?.scale ? { scale: chosen.scale, format: chosen.format ?? defaultFormat } : null;
 }
 
 const isOwnViewport = (context: PDFContext, entry: PDFObject) => {

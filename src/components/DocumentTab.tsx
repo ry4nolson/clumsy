@@ -11,14 +11,15 @@ import type { CommandId } from "../lib/commands";
 import type { ViewState } from "../lib/documentWindows";
 import type { SignaturePreview } from "../lib/editorManagers";
 import type { Markup } from "../lib/markup";
+import type { MeasureFormat, MeasureScale } from "../lib/measure";
 import { PasswordCancelledError, loadPdf, passwordOf } from "../lib/pdfjs";
 import { passwordAnswers } from "../lib/passwordAnswers";
-import { passwordRoleOffThread } from "../lib/pageEditWorker";
+import { passwordRoleOffThread, readScalesOffThread } from "../lib/pageEditWorker";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
 import { isExternalUrl } from "../lib/markdownLinks";
 import { getRecentFiles, readPdfFromPath, type PdfSource } from "../lib/platform";
 import type { Protection } from "../lib/protection";
-import { runEnd, type LabelNumbering } from "../lib/pageLabels";
+import { pageLabelOf, runEnd, type LabelNumbering } from "../lib/pageLabels";
 import { documentView, scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
 import { ChangesList } from "./ChangesList";
 import { CommentsList } from "./CommentsList";
@@ -26,8 +27,7 @@ import { CompareBar } from "./CompareBar";
 import { DocumentMap } from "./DocumentMap";
 import { EditorSheets, EditorUndoBar } from "./EditorSheets";
 import { FindBar } from "./FindBar";
-import { PageLabelsDialog, type PageLabelsRequest } from "./PageLabelsDialog";
-import { PasswordSetDialog } from "./PasswordSetDialog";
+import { usePageSheets } from "./PageSheets";
 import { Sidebar, type SidebarTab } from "./Sidebar";
 import { SignatureBar } from "./SignatureBar";
 import { SignatureDetailsDialog } from "./SignatureDetailsDialog";
@@ -64,6 +64,7 @@ export type PageAction =
   | { kind: "move"; pages: number[]; slot: number }
   | { kind: "delete" }
   | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null }
+  | { kind: "scale"; pages: number[]; scale: MeasureScale | null; format: MeasureFormat }
   | { kind: "protect"; password: string };
 
 export type DocumentHandle = {
@@ -75,6 +76,7 @@ export type DocumentHandle = {
   findAgain: (previous: boolean) => void;
   editPageLabels: (pages?: number[]) => void;
   editPassword: () => void;
+  editScale: (pages: number[]) => void;
 };
 
 export type DocumentTabProps = {
@@ -174,8 +176,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const [findSeed, setFindSeed] = useState<string | null>(null);
   const lastQuery = useRef<FindQuery | null>(null);
   const [selection, setSelection] = useState<PageSelection>(emptySelection);
-  const [labelsRequest, setLabelsRequest] = useState<PageLabelsRequest | null>(null);
-  const [passwordRequest, setPasswordRequest] = useState<{ changing: boolean } | null>(null);
+  const pageSheets = usePageSheets((action) => onPageAction(id, action));
   const lastProtection = useRef<Protection | undefined>(undefined);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -363,9 +364,24 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         const current = viewer.pageNumber - 1;
         const pages = explicit ?? targetPages(followCurrentPage(selectionRef.current, current), current);
         const range = pages.length > 1 ? [Math.min(...pages), Math.max(...pages)] : [pages[0] ?? current, runEnd(viewer.pageLabels, pages[0] ?? current, viewer.pagesCount)];
-        setLabelsRequest({ pagesCount: viewer.pagesCount, labels: viewer.pageLabels, from: range[0], to: range[1] });
+        pageSheets.editLabels({ pagesCount: viewer.pagesCount, labels: viewer.pageLabels, from: range[0], to: range[1] });
       },
-      editPassword: () => setPasswordRequest({ changing: !!callbacks.current.protection }),
+      editPassword: () => pageSheets.editPassword({ changing: !!callbacks.current.protection }),
+      editScale: (pages) => {
+        const doc = viewer.pdfDocument;
+        if (!doc || !pages.length) {
+          return;
+        }
+        doc
+          .getData()
+          .then((bytes) => readScalesOffThread(bytes, passwordOf(doc)))
+          .catch(() => [])
+          .then((scales) => {
+            if (viewer.pdfDocument === doc) {
+              pageSheets.editScale({ pages, pagesCount: viewer.pagesCount, pageName: `Page ${pageLabelOf(viewer.pageLabels, pages[0] + 1)}`, scales });
+            }
+          });
+      },
     }),
     [viewer, closeFind, runFind],
   );
@@ -462,22 +478,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       )}
       <EditorSheets editorUi={viewer.editorUi} state={editorState} />
       <SignatureDetailsDialog signatures={signatures} />
-      <PageLabelsDialog
-        request={labelsRequest}
-        onApply={(from, to, numbering) => {
-          setLabelsRequest(null);
-          onPageAction(id, { kind: "label", from, to, numbering });
-        }}
-        onClose={() => setLabelsRequest(null)}
-      />
-      <PasswordSetDialog
-        request={passwordRequest}
-        onSet={(password) => {
-          setPasswordRequest(null);
-          onPageAction(id, { kind: "protect", password });
-        }}
-        onClose={() => setPasswordRequest(null)}
-      />
+      {pageSheets.sheets}
     </div>
   );
 });

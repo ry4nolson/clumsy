@@ -109,6 +109,7 @@ export type CommandId =
   | "deletePages"
   | "extractPages"
   | "pageLabels"
+  | "setScale"
   | "nextTab"
   | "previousTab"
   | "splitRight"
@@ -273,6 +274,7 @@ export const commands: Command[] = [
   { id: "exportSelectedPagesAsImages", label: "Export Selected Pages as Images…", menu: "Pages", combos: [], needsDocument: true, needsDesktop: true },
   { id: "printSelectedPages", label: "Print Selected Pages…", menu: "Pages", combos: [], needsDocument: true, needsPrinting: true },
   { id: "pageLabels", label: "Page Labels…", menu: "Pages", combos: [], needsDocument: true },
+  { id: "setScale", label: "Set Scale…", menu: "Pages", combos: [], needsDocument: true },
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
   { id: "previousTab", label: "Show Previous Tab", menu: "Window", combos: ["mod+shift+[", "ctrl+shift+Tab"] },

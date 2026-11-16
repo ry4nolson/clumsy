@@ -13,7 +13,7 @@ export type ScaleGroup = "Architectural" | "Engineering" | "Metric";
 export type ScalePreset = MeasureScale & { group: ScaleGroup };
 
 export const POINTS_PER_INCH = 72;
-const MM_PER_INCH = 25.4;
+export const MM_PER_INCH = 25.4;
 
 export const lengthUnits: LengthUnit[] = ["ft-in", "ft", "in", "m", "mm"];
 

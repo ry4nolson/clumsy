@@ -125,7 +125,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
     "Go",
     ["previousPage", "nextPage", "firstPage", "lastPage", "-", "goBack", "goForward", "-", "quickOpen", "goToPage", "-", "nextField", "previousField", "-", "nextChange", "previousChange"],
   ],
-  ["Pages", ["insertPages", "-", "rotatePagesLeft", "rotatePagesRight", "-", "deletePages", "extractPages", "exportSelectedPagesAsImages", "printSelectedPages", "-", "pageLabels"]],
+  ["Pages", ["insertPages", "-", "rotatePagesLeft", "rotatePagesRight", "-", "deletePages", "extractPages", "exportSelectedPagesAsImages", "printSelectedPages", "-", "pageLabels", "setScale"]],
   [
     "Tools",
     [

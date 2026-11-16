@@ -61,6 +61,7 @@ export function pageSection(pages: number[], pagesCount: number, pageLabels: str
       ...(canPrint ? [item("printSelectedPages", `Print ${plural}…`)] : []),
       item("insertPages", "Insert Pages from File…"),
       item("pageLabels", "Page Labels…"),
+      item("setScale", "Set Scale…"),
       separator,
       item("deletePages", `Delete ${plural}`, { enabled: count < pagesCount }),
     ],

@@ -1,3 +1,4 @@
+import type { MeasureFormat, MeasureScale } from "./measure";
 import type { LabelNumbering } from "./pageLabels";
 
 export type PageEdit =
@@ -6,6 +7,7 @@ export type PageEdit =
   | { kind: "rotate"; pages: number[]; by: 90 | -90 }
   | { kind: "insert"; data: Uint8Array; at: number }
   | { kind: "label"; from: number; to: number; numbering: LabelNumbering | null }
+  | { kind: "scale"; pages: number[]; scale: MeasureScale | null; format: MeasureFormat }
   | { kind: "flatten" }
   | { kind: "protect"; password: string | null };
 
@@ -47,6 +49,7 @@ export function pageAfterEdit(edit: PageEdit, page: number, count: number, inser
     }
     case "rotate":
     case "label":
+    case "scale":
     case "flatten":
     case "protect":
       return page;
@@ -73,6 +76,7 @@ export function selectionAfterEdit(edit: PageEdit, count: number, insertedCount 
       return uniqueSorted(edit.pages).map((page) => order.indexOf(page)).filter((page) => page >= 0);
     }
     case "rotate":
+    case "scale":
       return uniqueSorted(edit.pages);
     case "insert": {
       const at = Math.min(Math.max(0, edit.at), count);

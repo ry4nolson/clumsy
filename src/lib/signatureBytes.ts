@@ -196,6 +196,8 @@ export function rewriteAction(edit: PageEdit, protectedBefore: boolean) {
       return "Inserting pages";
     case "label":
       return "Changing page labels";
+    case "scale":
+      return edit.scale ? "Setting the scale" : "Removing the scale";
     case "flatten":
       return "Flattening the form";
     case "protect":

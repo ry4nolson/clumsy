@@ -1,4 +1,4 @@
-import { EncryptedPDFError, PDFDocument, degrees } from "@cantoo/pdf-lib";
+import { EncryptedPDFError, PDFDict, PDFDocument, degrees } from "@cantoo/pdf-lib";
 import type { CompressProgress, CompressSettings } from "./compressPlan";
 import { canvasCodec } from "./imageCodec";
 import { failureOf, resultBuffers, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
@@ -6,6 +6,7 @@ import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pa
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
 import { readMarkup } from "./markupPdf";
+import { pageScaleOf, setPageScale } from "./measurePdf";
 import { writeAnnotationsReporting } from "./notesPdf";
 import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { compressImages } from "./pdfCompress";
@@ -87,6 +88,11 @@ export async function applyPageEdit(bytes: Uint8Array, edit: PageEdit, password?
     }
     case "label":
       writePageLabels(doc, edit.numbering && relabelRange(labels, refs.length, edit.from, edit.to, edit.numbering));
+      return save(doc);
+    case "scale":
+      for (const page of uniqueSorted(edit.pages).filter((index) => index >= 0 && index < refs.length)) {
+        setPageScale(doc.context, doc.context.lookup(refs[page], PDFDict), edit.scale, edit.format);
+      }
       return save(doc);
     case "flatten":
       if (!(await flattenForm(doc))) {
@@ -183,6 +189,10 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
       return writeAnnotationsReporting(job.bytes, job.notes, job.markup, job.password);
     case "readMarkup":
       return { bytes: new Uint8Array(), markup: readMarkup(await load(job.bytes, job.password)) };
+    case "readScales": {
+      const doc = await load(job.bytes, job.password);
+      return { bytes: new Uint8Array(), scales: pageLeafRefs(doc).map((ref) => pageScaleOf(doc.context.lookup(ref, PDFDict))) };
+    }
     case "role":
       return { bytes: new Uint8Array(), role: await passwordRole(job.bytes, job.password).catch(() => null) };
     case "combine":
