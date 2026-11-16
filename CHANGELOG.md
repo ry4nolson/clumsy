@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Tab menu.** Right-click a tab for the things you do to a whole file: Close Tab, Close Other Tabs, Close Tabs to the Right, Save, Save As, Copy Path, Show in Finder, Compare With (another open PDF or a file), Split Right, Move Tab to New Window, Print, Export Pages as Images, Compress, and Set Password
+
+### Changed
+- Right-clicking the toolbar, tab bar, sidebar, or Document Map on a Mac no longer shows the web view's own menu with Reload
+
 ## [0.20.0] - 2026-11-16
 
 ### Added

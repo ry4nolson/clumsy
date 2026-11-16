@@ -7,7 +7,7 @@ import type { TextMode } from "./markupParams";
 import type { MarkKind } from "./marks";
 import { pageLabelOf } from "./pageLabels";
 
-export type LocalMenuAction = "openLink" | "followLink" | "addCommentHere";
+export type LocalMenuAction = "openLink" | "followLink" | "addCommentHere" | "closeOtherTabs" | "closeTabsToRight" | `compareWithTab:${string}`;
 export type DocumentMenuId = CommandId | LocalMenuAction;
 
 export type MenuEntry =

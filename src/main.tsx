@@ -1,13 +1,15 @@
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { installTouchShell } from "./lib/backButton";
-import { isMac, isMobile, showContextMenu } from "./lib/platform";
+import { isMac, isMobile, showContextMenu, showDocumentMenu } from "./lib/platform";
 import { blockWebviewMenu } from "./lib/shellMenu";
 import "./styles.css";
 import "./touch.css";
 
-if (!isMac && !isMobile) {
-  blockWebviewMenu((copy) => void showContextMenu([{ label: "Copy", run: copy }]));
+if (!isMobile) {
+  blockWebviewMenu((copy, point) =>
+    void (isMac ? showDocumentMenu({ palette: null, sections: [{ items: [{ kind: "copy", label: "Copy" }] }] }, point, () => undefined) : showContextMenu([{ label: "Copy", run: copy }])),
+  );
 }
 
 if (isMobile) {

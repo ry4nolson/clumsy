@@ -33,6 +33,7 @@ import { useUpdatePrompt } from "./hooks/useUpdatePrompt";
 import { useQuickPick } from "./hooks/useQuickPick";
 import { useRecentFiles } from "./hooks/useRecentFiles";
 import { useRestartSession } from "./hooks/useRestartSession";
+import { useTabMenu } from "./hooks/useTabMenu";
 import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useMarkupControls } from "./hooks/useMarkupControls";
 import { useToolbarTools } from "./hooks/useToolbarTools";
@@ -390,6 +391,7 @@ export default function App() {
     }
   });
 
+  const openTabMenu = useTabMenu(workspaceApi, { onCommand: (id) => runCommandRef.current(id), onCompare: comparison.compareTabs });
   const tabItems = Object.fromEntries(Object.values(workspace.tabs).map((tab) => [tab.id, tabItemFor(tab, allSnapshots)]));
 
   const viewer = activeHandle()?.viewer;
@@ -434,6 +436,7 @@ export default function App() {
         overlay={dropHover === "open" && <div className="drop-overlay">Drop to open</div>}
         onSelectTab={selectTab}
         onCloseTab={closeTab}
+        onTabMenu={openTabMenu}
         onNewTab={(paneId) => newTab(paneId)}
         onFocusPane={(paneId) => update((current) => ws.focusPane(current, paneId))}
         onMoveTab={moveTab}

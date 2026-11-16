@@ -31,6 +31,7 @@ type PaneGridProps = {
   children: ReactNode;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onTabMenu: (tabId: string, point: { x: number; y: number }) => void;
   onNewTab: (paneId: string) => void;
   onFocusPane: (paneId: string) => void;
   onMoveTab: (tabId: string, target: TabDropTarget) => void;
@@ -96,6 +97,7 @@ export function PaneGrid({
   children,
   onSelectTab,
   onCloseTab,
+  onTabMenu,
   onNewTab,
   onFocusPane,
   onMoveTab,
@@ -250,6 +252,7 @@ export function PaneGrid({
               onClose={onCloseTab}
               onNewTab={() => onNewTab(pane.id)}
               onTabPointerDown={startTabDrag}
+              onTabMenu={onTabMenu}
             />
             <div className="pane-overlay" style={{ gridColumn: index * 2 + 1 }}>
               {target?.kind === "pane" && target.paneId === pane.id && <div className="pane-drop pane-drop-whole" />}
