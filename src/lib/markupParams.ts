@@ -1,4 +1,5 @@
 import { colorFromHex, hexColor, shapeKinds, type Markup, type MarkupStyle, type ShapeKind } from "./markup";
+import { measureKinds, type MeasureKind } from "./measure";
 import { isKnownStamp } from "./stampSymbols";
 
 export const MARKUP_PARAMS_KEY = "clumsy.markupParams";
@@ -7,11 +8,11 @@ export const MAX_RECENT_STAMPS = 8;
 
 export type TextMode = "highlight" | "underline" | "strikeout";
 
-export type MarkupParams = { color: string; fill: boolean; width: number; opacity: number; shape: ShapeKind; textMode: TextMode };
+export type MarkupParams = { color: string; fill: boolean; width: number; opacity: number; shape: ShapeKind; textMode: TextMode; measure: MeasureKind };
 
 export const markupColors = ["#e5484d", "#f76b15", "#2e7d32", "#1565c0", "#000000"];
 
-export const defaultMarkupParams: MarkupParams = { color: markupColors[0], fill: false, width: 2, opacity: 1, shape: "rectangle", textMode: "highlight" };
+export const defaultMarkupParams: MarkupParams = { color: markupColors[0], fill: false, width: 2, opacity: 1, shape: "rectangle", textMode: "highlight", measure: "measure-length" };
 
 type Store = Pick<Storage, "getItem" | "setItem">;
 
@@ -27,6 +28,7 @@ export function cleanMarkupParams(value: unknown): MarkupParams {
     opacity: number(raw.opacity, 0.1, 1, defaultMarkupParams.opacity),
     shape: shapeKinds.includes(raw.shape as ShapeKind) ? (raw.shape as ShapeKind) : defaultMarkupParams.shape,
     textMode: raw.textMode === "underline" || raw.textMode === "strikeout" ? raw.textMode : "highlight",
+    measure: measureKinds.includes(raw.measure as MeasureKind) ? (raw.measure as MeasureKind) : defaultMarkupParams.measure,
   };
 }
 

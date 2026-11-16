@@ -3,13 +3,14 @@ import { AnnotationEditorParamsType, AnnotationEditorType } from "pdfjs-dist";
 import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { EditorManagers } from "../lib/editorManagers";
 import type { HandTool } from "../lib/handTool";
+import { pickCalibration } from "../lib/calibrationPick";
 import { attachMarkPlacement, type MarkPlacement } from "../lib/markPlacement";
 import type { MarkupTool } from "../lib/markupLayer";
 import type { MarkKind } from "../lib/marks";
 
-export type EditorTool = "select" | "hand" | "highlight" | "text" | "draw" | "image" | "signature" | "comment" | "mark" | "shape" | "stamp" | "underline" | "strikeout";
+export type EditorTool = "select" | "hand" | "highlight" | "text" | "draw" | "image" | "signature" | "comment" | "mark" | "shape" | "stamp" | "underline" | "strikeout" | "measure";
 
-type PdfTool = Exclude<EditorTool, "hand" | "mark" | "shape" | "stamp" | "underline" | "strikeout">;
+type PdfTool = Exclude<EditorTool, "hand" | "mark" | "shape" | "stamp" | "underline" | "strikeout" | "measure">;
 
 const markupToolName = (tool: NonNullable<MarkupTool>): EditorTool => (tool.kind === "text" ? tool.text : tool.kind);
 
@@ -193,7 +194,15 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
           }
         };
         parts.eventBus.on("annotationeditormodechanged", done);
-        parts.viewer.annotationEditorMode = { mode };
+        try {
+          parts.viewer.annotationEditorMode = { mode };
+        } catch (error) {
+          parts.eventBus.off("annotationeditormodechanged", done);
+          if (mode !== AnnotationEditorType.NONE) {
+            throw error;
+          }
+          resolve();
+        }
       });
     },
     [partsRef, editorLayerReady],
@@ -322,6 +331,11 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     [partsRef, setTool, setEditorParam],
   );
 
+  const pickLine = useCallback(() => {
+    const parts = partsRef.current;
+    return parts?.viewer.pdfDocument ? pickCalibration(parts.viewer.container, parts.viewer) : null;
+  }, [partsRef]);
+
   return {
     tool: handTool ? ("hand" as const) : mark ? ("mark" as const) : markupTool ? markupToolName(markupTool) : editorTool,
     mark,
@@ -338,5 +352,6 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     setEditorDefaults,
     addImage,
     sign,
+    pickLine,
   };
 }

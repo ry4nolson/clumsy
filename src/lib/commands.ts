@@ -89,6 +89,14 @@ export type CommandId =
   | "shapeCloud"
   | "shapeLine"
   | "shapeArrow"
+  | "measureLength"
+  | "measurePath"
+  | "measureArea"
+  | "showMarkups"
+  | "copyMarkups"
+  | "copyMarkupSummary"
+  | "exportMarkups"
+  | "exportMarkupSummary"
   | "toolStamp"
   | "addImage"
   | "sign"
@@ -109,6 +117,7 @@ export type CommandId =
   | "deletePages"
   | "extractPages"
   | "pageLabels"
+  | "setScale"
   | "nextTab"
   | "previousTab"
   | "splitRight"
@@ -192,6 +201,7 @@ export const commands: Command[] = [
   { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["mod+b"], needsDocument: true, markdown: true },
   { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["mod+shift+e"], needsDocument: true },
   { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true, markdown: true },
+  { id: "showMarkups", label: "Markups", menu: "View", combos: ["mod+shift+m"], needsDocument: true },
   { id: "toggleMarkdownSource", label: "Markdown Source", menu: "View", combos: ["mod+shift+v"], needsMarkdown: true },
   { id: "toggleDocumentMap", label: "Document Map", menu: "View", combos: ["alt+mod+b"] },
   { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true, markdown: true },
@@ -251,6 +261,13 @@ export const commands: Command[] = [
   { id: "shapeLine", label: "Line", menu: "Tools", combos: [], needsDocument: true },
   { id: "shapeArrow", label: "Arrow", menu: "Tools", combos: [], needsDocument: true },
   { id: "toolStamp", label: "Stamps…", menu: "Tools", combos: [], needsDocument: true },
+  { id: "measureLength", label: "Measure Length", menu: "Tools", combos: [], needsDocument: true },
+  { id: "measurePath", label: "Measure Path", menu: "Tools", combos: [], needsDocument: true },
+  { id: "measureArea", label: "Measure Area", menu: "Tools", combos: [], needsDocument: true },
+  { id: "copyMarkups", label: "Copy Markups", menu: "Tools", combos: [], needsDocument: true },
+  { id: "copyMarkupSummary", label: "Copy Markup Summary", menu: "Tools", combos: [], needsDocument: true },
+  { id: "exportMarkups", label: "Export Markups…", menu: "Tools", combos: [], needsDocument: true, needsDesktop: true },
+  { id: "exportMarkupSummary", label: "Export Markup Summary…", menu: "Tools", combos: [], needsDocument: true, needsDesktop: true },
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
   { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },
@@ -273,6 +290,7 @@ export const commands: Command[] = [
   { id: "exportSelectedPagesAsImages", label: "Export Selected Pages as Images…", menu: "Pages", combos: [], needsDocument: true, needsDesktop: true },
   { id: "printSelectedPages", label: "Print Selected Pages…", menu: "Pages", combos: [], needsDocument: true, needsPrinting: true },
   { id: "pageLabels", label: "Page Labels…", menu: "Pages", combos: [], needsDocument: true },
+  { id: "setScale", label: "Set Scale…", menu: "Pages", combos: [], needsDocument: true },
 
   { id: "nextTab", label: "Show Next Tab", menu: "Window", combos: ["mod+shift+]", "ctrl+Tab"] },
   { id: "previousTab", label: "Show Previous Tab", menu: "Window", combos: ["mod+shift+[", "ctrl+shift+Tab"] },

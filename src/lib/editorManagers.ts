@@ -7,8 +7,10 @@ import type { Markup } from "./markup";
 import { attachMarkup, type MarkupLayer } from "./markupLayer";
 import { readMarkupParams, styleOf } from "./markupParams";
 import { dateLabel, isMarkDescription } from "./marks";
-import { readMarkupOffThread } from "./pageEditWorker";
+import { readMarkupOffThread, readScalesOffThread } from "./pageEditWorker";
+import { createMarkupList, type MarkupList } from "./markupList";
 import { passwordOf } from "./pdfjs";
+import { askForScale } from "./measureFiles";
 import { showError, showMessage } from "./platform";
 import { MAX_SAVED_SIGNATURES, SIGNATURES_KEY, clearLegacySignature, readLegacySignature, readSignatures, withSignature, withoutSignature, writeSignatures, type SavedSignature } from "./signatures";
 
@@ -65,6 +67,7 @@ export type EditorUiState = CommentState & {
   description: DescriptionRequest | null;
   signatures: SignaturePreview[];
   markupSelection: Markup | null;
+  markupVersion: number;
 };
 
 export const idleEditorUi: EditorUiState = {
@@ -77,6 +80,7 @@ export const idleEditorUi: EditorUiState = {
   selectedComment: null,
   signatures: [],
   markupSelection: null,
+  markupVersion: 0,
 };
 
 export function shapePreview(lines: SignatureLines | null): ShapePreview | null {
@@ -167,6 +171,8 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
 
   const comments = createCommentManager(eventBus, linkService, { set, selected: () => state.selectedComment, undoBar: editorUndoBar });
   let markup: MarkupLayer | null = null;
+  let markupList: MarkupList | null = null;
+  const markupChanged = () => set({ markupVersion: state.markupVersion + 1 });
 
   const scripting = createFormScripting(eventBus, {
     alert: (text) => showMessage(text, "Message from this form"),
@@ -180,9 +186,21 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       addCommands: comments.addCommands,
       style: () => styleOf(readMarkupParams()),
       readFile: async (doc) => readMarkupOffThread(await doc.getData(), passwordOf(doc)),
+      readScales: async (doc) => readScalesOffThread(await doc.getData(), passwordOf(doc)),
       stampDate: () => dateLabel(new Date()),
+      askScale: askForScale,
+      listed: () => markupList?.changed(),
       selected: (markupSelection) => set({ markupSelection }),
       removed: () => editorUndoBar.show(() => {}, "markup"),
+    });
+    markupList?.dispose();
+    markupList = createMarkupList(viewer, {
+      markup: () => markup,
+      revealNote: comments.revealNote,
+      noteRemoval: comments.noteRemoval,
+      addCommands: comments.addCommands,
+      removed: () => editorUndoBar.show(() => {}, "markup"),
+      changed: markupChanged,
     });
   };
 
@@ -339,6 +357,9 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
     get markup() {
       return markup;
     },
+    get markupList() {
+      return markupList;
+    },
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -359,6 +380,7 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
     dispose() {
       window.removeEventListener("storage", onStorage);
       markup?.dispose();
+      markupList?.dispose();
       comments.dispose();
       scripting.dispose();
     },

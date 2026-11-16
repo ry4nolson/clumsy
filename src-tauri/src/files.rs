@@ -16,7 +16,7 @@ pub const IMAGE_EXTENSIONS: [&str; 12] = ["png", "jpg", "jpeg", "webp", "gif", "
 pub const EXPORT_IMAGE_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
 pub const MARKDOWN_EXTENSIONS: [&str; 2] = ["md", "markdown"];
 
-fn has_extension(path: &Path, allowed: &[&str]) -> bool {
+pub(crate) fn has_extension(path: &Path, allowed: &[&str]) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| allowed.iter().any(|candidate| ext.eq_ignore_ascii_case(candidate)))

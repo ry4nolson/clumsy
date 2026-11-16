@@ -25,7 +25,7 @@ export function useToolbarTools(
     editorParams: editorOptions.shown,
     highlightsShown,
     signatures: snapshot?.signatures ?? [],
-    onTool: (next) => runCommand(toolCommand(next, snapshot?.mark ?? null, markupControls.params.shape)),
+    onTool: (next) => runCommand(toolCommand(next, snapshot?.mark ?? null, markupControls.params.shape, markupControls.params.measure)),
     onEndDrawing: () => activeViewer()?.endDrawing(),
     onToolColor: (color) => colorParam !== undefined && editorOptions.change(colorParam, color),
     onEditorParam: editorOptions.change,
@@ -49,5 +49,7 @@ export function useToolbarTools(
     onMarkupParams: markupControls.change,
     onTextMode: markupControls.chooseTextMode,
     onStamps: () => runCommand("toolStamp"),
+    onMeasure: markupControls.chooseMeasure,
+    onSetScale: () => runCommand("setScale"),
   };
 }

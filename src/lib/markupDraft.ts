@@ -1,6 +1,8 @@
-import { isBoxKind, isLineKind, newMarkup, normalizeBox, reshapedMarkup, type Markup, type MarkupStyle } from "./markup";
+import { isBoxKind, isLineKind, isVertexKind, newMarkup, normalizeBox, reshapedMarkup, type Markup, type MarkupStyle } from "./markup";
+import { snapPoint, type MeasureKind } from "./measure";
+import { minVertices, withInsertedVertex, withVertex, withoutVertex } from "./measureBuild";
 import type { MarkupTool } from "./markupLayer";
-import { constrainEnd, resizeBox, stampBox, type Handle, type Point } from "./markupShapes";
+import { constrainEnd, isCorner, resizeBox, stampBox, vertexIndex, type Handle, type Point } from "./markupShapes";
 import { pdfDate } from "./notes";
 import { reviewStamp, stampAspect } from "./stampSymbols";
 
@@ -13,7 +15,7 @@ export type Draft = { pageIndex: number; start: Point; end: Point; shift: boolea
 type Viewport = { scale: number; convertToPdfPoint(x: number, y: number): number[] };
 
 export function draftFor(tool: MarkupTool, draft: Draft, style: MarkupStyle, stampDate: () => string): Markup | null {
-  if (!tool || tool.kind === "text") {
+  if (!tool || tool.kind === "text" || tool.kind === "measure") {
     return null;
   }
   const id = `markup-${crypto.randomUUID()}`;
@@ -44,10 +46,27 @@ export function resizedMarkup(markup: Markup, handle: Handle, point: Point, shif
     const line = handle === "start" ? [...constrainEnd(markup.kind, [x2, y2], point, shift), x2, y2] : [x1, y1, ...constrainEnd(markup.kind, [x1, y1], point, shift)];
     return reshapedMarkup(markup, { line }, date);
   }
-  if (!isBoxKind(markup.kind) || handle === "start" || handle === "end") {
+  const vertex = vertexIndex(handle);
+  if (isVertexKind(markup.kind) && markup.vertices && vertex >= 0 && vertex * 2 < markup.vertices.length) {
+    const vertices = markup.vertices;
+    const neighbor = vertex > 0 ? vertex - 1 : vertex + 1;
+    const anchor: Point = [vertices[neighbor * 2], vertices[neighbor * 2 + 1]];
+    const moved = (shift && neighbor * 2 < vertices.length ? snapPoint(anchor, point) : point) as Point;
+    return reshapedMarkup(markup, { vertices: withVertex(vertices, vertex, moved) }, date);
+  }
+  if (!isBoxKind(markup.kind) || !isCorner(handle)) {
     return null;
   }
   return reshapedMarkup(markup, { box: resizeBox(markup.box, handle, point, shift || markup.kind === "stamp") }, date);
+}
+
+export function withVertexToggled(markup: Markup, handle: Handle | undefined, point: Point, reach: number) {
+  if (!isVertexKind(markup.kind) || !markup.vertices) {
+    return null;
+  }
+  const kind = markup.kind as MeasureKind;
+  const vertices = handle ? withoutVertex(markup.vertices, vertexIndex(handle), minVertices(kind)) : withInsertedVertex(markup.vertices, point, kind === "measure-area", reach);
+  return vertices && reshapedMarkup(markup, { vertices }, pdfDate(new Date()));
 }
 
 export function nudgeDelta(viewport: Viewport, key: string, step: number): Point | null {

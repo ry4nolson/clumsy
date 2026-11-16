@@ -112,6 +112,10 @@ describe("resizing", () => {
   it("keeps a moved markup on the page", () => {
     expect(clampShift([10, 10, 50, 50], -40, 0, [0, 0, 612, 792])).toEqual([-10, 0]);
     expect(clampShift([10, 10, 50, 50], 5, 800, [0, 0, 612, 792])).toEqual([5, 742]);
+    expect(clampShift([10, 700, 50, 800], 5, 0, [0, 0, 612, 792])).toEqual([5, 0]);
+    expect(clampShift([10, 700, 50, 800], 0, 4, [0, 0, 612, 792])).toEqual([0, 0]);
+    expect(clampShift([10, 700, 50, 800], 0, -20, [0, 0, 612, 792])).toEqual([0, -20]);
+    expect(clampShift([-10, 0, 700, 50], 30, 0, [0, 0, 612, 792])).toEqual([0, 0]);
   });
 
   it("nudges in screen directions on a rotated view", () => {

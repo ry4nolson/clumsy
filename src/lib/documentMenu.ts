@@ -2,6 +2,7 @@ import type { EditorTool } from "../hooks/useViewerTools";
 import type { CommandId } from "./commands";
 import { cleanContextTools, toolbarTools, toolCommand } from "./contextTools";
 import type { ShapeKind } from "./markup";
+import type { MeasureKind } from "./measure";
 import type { TextMode } from "./markupParams";
 import type { MarkKind } from "./marks";
 import { pageLabelOf } from "./pageLabels";
@@ -61,13 +62,14 @@ export function pageSection(pages: number[], pagesCount: number, pageLabels: str
       ...(canPrint ? [item("printSelectedPages", `Print ${plural}…`)] : []),
       item("insertPages", "Insert Pages from File…"),
       item("pageLabels", "Page Labels…"),
+      item("setScale", "Set Scale…"),
       separator,
       item("deletePages", `Delete ${plural}`, { enabled: count < pagesCount }),
     ],
   };
 }
 
-export type MarkupChoice = { shape: ShapeKind; textMode: TextMode };
+export type MarkupChoice = { shape: ShapeKind; textMode: TextMode; measure?: MeasureKind };
 
 const textModeCommands: Record<TextMode, CommandId> = { highlight: "toolHighlight", underline: "toolUnderline", strikeout: "toolStrikeout" };
 const isTextTool = (tool: EditorTool) => tool === "highlight" || tool === "underline" || tool === "strikeout";
@@ -77,7 +79,7 @@ export function toolPalette(activeTool: EditorTool, mark: MarkKind | null, conte
   const items = toolbarTools
     .filter((info) => chosen.has(info.tool))
     .map((info) => ({
-      id: info.tool === "highlight" ? textModeCommands[markup.textMode] : toolCommand(info.tool, mark, markup.shape),
+      id: info.tool === "highlight" ? textModeCommands[markup.textMode] : toolCommand(info.tool, mark, markup.shape, markup.measure),
       label: info.label,
       symbol: info.symbol,
       checked: info.tool === "highlight" ? isTextTool(activeTool) : info.tool === activeTool,

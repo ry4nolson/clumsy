@@ -2,7 +2,7 @@ import "./polyfills";
 import { AnnotationLayer, GlobalWorkerOptions, PasswordResponses, getDocument, type PDFDocumentProxy } from "pdfjs-dist";
 import { withoutTextBoxComment } from "./comments";
 import { isClaimedShape, isStamp } from "./markup";
-import { isStickyNote } from "./notes";
+import { isStateReply, isStickyNote } from "./notes";
 import workerUrl from "./pdfWorker?worker&url";
 
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -20,7 +20,7 @@ export function claimStamps(doc: PDFDocumentProxy, claims: () => Promise<Set<str
 
 const renderAnnotationLayer = AnnotationLayer.prototype.render;
 AnnotationLayer.prototype.render = async function (params) {
-  const shown = params.annotations.filter((annotation) => !isStickyNote(annotation) && !isClaimedShape(annotation));
+  const shown = params.annotations.filter((annotation) => !isStickyNote(annotation) && !isClaimedShape(annotation) && !isStateReply(annotation));
   const transport = transportOf((this as unknown as { page?: unknown }).page);
   const claims = transport && shown.some(isStamp) ? await stampClaims.get(transport)?.().catch(() => null) : null;
   const annotations = shown.map((annotation) => (claims?.has(annotation.id) ? { ...annotation, isEditable: false } : annotation)).map(withoutTextBoxComment);

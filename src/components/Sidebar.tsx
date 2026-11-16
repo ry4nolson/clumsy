@@ -5,7 +5,7 @@ import { Outline } from "./Outline";
 import { SidebarShell } from "./SidebarShell";
 import { Thumbnails } from "./Thumbnails";
 
-export type SidebarTab = "thumbnails" | "outline" | "changes" | "comments" | "signatures";
+export type SidebarTab = "thumbnails" | "outline" | "changes" | "comments" | "markups" | "signatures";
 
 type SidebarProps = {
   tab: SidebarTab;
@@ -24,12 +24,13 @@ type SidebarProps = {
   onOpenUrl: (url: string) => void;
   changes?: ReactNode;
   comments?: ReactNode;
+  markups?: ReactNode;
   signatures?: ReactNode;
 };
 
 export function Sidebar(props: SidebarProps) {
-  const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes, comments, signatures } = props;
-  const missing = (props.tab === "changes" && !changes) || (props.tab === "comments" && !comments) || (props.tab === "signatures" && !signatures);
+  const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes, comments, markups, signatures } = props;
+  const missing = (props.tab === "changes" && !changes) || (props.tab === "comments" && !comments) || (props.tab === "markups" && !markups) || (props.tab === "signatures" && !signatures);
   const tab = missing ? "thumbnails" : props.tab;
   return (
     <SidebarShell>
@@ -50,6 +51,11 @@ export function Sidebar(props: SidebarProps) {
             Comments
           </button>
         )}
+        {markups && (
+          <button type="button" role="tab" aria-selected={tab === "markups"} onClick={() => onTab("markups")}>
+            Markups
+          </button>
+        )}
         {signatures && (
           <button type="button" role="tab" aria-selected={tab === "signatures"} onClick={() => onTab("signatures")}>
             Signatures
@@ -61,6 +67,8 @@ export function Sidebar(props: SidebarProps) {
           changes
         ) : tab === "comments" ? (
           comments
+        ) : tab === "markups" ? (
+          markups
         ) : tab === "signatures" ? (
           signatures
         ) : tab === "thumbnails" ? (

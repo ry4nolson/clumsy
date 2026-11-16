@@ -1,5 +1,6 @@
 import type { CompressProgress, CompressSettings } from "./compressPlan";
 import type { Markup } from "./markup";
+import type { PageScale } from "./measurePdf";
 import type { StickyNote } from "./notes";
 import { PageEditError, type PageEdit } from "./pageEditPlan";
 import type { PasswordRole } from "./pdfDecrypt";
@@ -13,6 +14,7 @@ export type PageEditJob =
   | { op: "encrypt"; bytes: Uint8Array; password: string }
   | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string }
   | { op: "readMarkup"; bytes: Uint8Array; password?: string }
+  | { op: "readScales"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
   | { op: "combine"; files: Uint8Array[] }
   | { op: "compress"; bytes: Uint8Array; settings: CompressSettings; password?: string }
@@ -28,6 +30,8 @@ export type PageEditResult = {
   unchanged?: boolean;
   role?: PasswordRole | null;
   markup?: Markup[];
+  subjects?: Record<string, string>;
+  scales?: Array<PageScale | null>;
   scan?: SignatureScan;
   placeholder?: SignaturePlaceholder;
   fieldName?: string;
@@ -53,6 +57,7 @@ export function jobBuffers(job: PageEditJob) {
     case "encrypt":
     case "annotations":
     case "readMarkup":
+    case "readScales":
     case "role":
     case "scanSignatures":
     case "prepareSignature":

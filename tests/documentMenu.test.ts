@@ -43,6 +43,7 @@ describe("pageSection", () => {
       "Print Page…",
       "Insert Pages from File…",
       "Page Labels…",
+      "Set Scale…",
       "-",
       "Delete Page",
     ]);
@@ -60,6 +61,7 @@ describe("pageSection", () => {
       "Print 3 Pages…",
       "Insert Pages from File…",
       "Page Labels…",
+      "Set Scale…",
       "-",
       "Delete 3 Pages",
     ]);

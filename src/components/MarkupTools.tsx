@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Circle, Cloud, MoveUpRight, Slash, Square, Stamp } from "lucide-react";
+import { Circle, Cloud, MoveUpRight, Pentagon, Ruler, Slash, Spline, Square, Stamp } from "lucide-react";
 import type { ShapeKind } from "../lib/markup";
+import type { MeasureKind } from "../lib/measure";
 import { markupColors, type MarkupParams, type TextMode } from "../lib/markupParams";
 import { IconButton } from "./IconButton";
 import { closeToolMenu, ToolMenu } from "./ToolMenu";
@@ -12,6 +13,12 @@ const shapes: Array<{ kind: ShapeKind; label: string; icon: ReactNode }> = [
   { kind: "cloud", label: "Cloud", icon: <Cloud size={16} /> },
   { kind: "line", label: "Line", icon: <Slash size={16} /> },
   { kind: "arrow", label: "Arrow", icon: <MoveUpRight size={16} /> },
+];
+
+const measures: Array<{ kind: MeasureKind; label: string; icon: ReactNode }> = [
+  { kind: "measure-length", label: "Length", icon: <Ruler size={16} /> },
+  { kind: "measure-path", label: "Path", icon: <Spline size={16} /> },
+  { kind: "measure-area", label: "Area", icon: <Pentagon size={16} /> },
 ];
 
 const textModes: Array<{ mode: TextMode; label: string }> = [
@@ -113,5 +120,60 @@ export function StampTool({ props, onContextMenu }: { props: ToolsProps; onConte
     <IconButton title="Stamps…" active={props.tool === "stamp"} onContextMenu={onContextMenu("stamp")} onClick={props.onStamps}>
       <Stamp size={18} />
     </IconButton>
+  );
+}
+
+export function MeasureTool({ props, onContextMenu }: { props: ToolsProps; onContextMenu: ContextMenuFor }) {
+  const active = props.tool === "measure";
+  const { markup } = props;
+  const current = measures.find((measure) => measure.kind === markup.measure) ?? measures[0];
+  return (
+    <ToolMenu
+      label="Measure options"
+      active={active}
+      keepOpenWhenInactive
+      button={
+        <IconButton title={`Measure: ${current.label}`} active={active} onContextMenu={onContextMenu("measure")} onClick={() => props.onMeasure(markup.measure)}>
+          {current.icon}
+        </IconButton>
+      }
+    >
+      <div className="tool-menu-items">
+        {measures.map(({ kind, label, icon }) => (
+          <button
+            key={kind}
+            type="button"
+            className="tool-menu-item"
+            aria-pressed={markup.measure === kind}
+            onClick={(event) => {
+              closeToolMenu(event.currentTarget);
+              props.onMeasure(kind);
+            }}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="tool-menu-item"
+          onClick={(event) => {
+            closeToolMenu(event.currentTarget);
+            props.onSetScale();
+          }}
+        >
+          Set Scale…
+        </button>
+      </div>
+      <MarkupColors params={markup} onChange={props.onMarkupParams} />
+      {markup.measure === "measure-area" && (
+        <label className="tool-menu-check">
+          <input type="checkbox" checked={markup.fill} onChange={(event) => props.onMarkupParams({ fill: event.target.checked })} />
+          Fill
+        </label>
+      )}
+      <Slider label="Thickness" value={markup.width} min={0.5} max={12} step={0.5} format={(value) => `${value} pt`} onChange={(width) => props.onMarkupParams({ width })} />
+      <Slider label="Opacity" value={markup.opacity} min={0.1} max={1} step={0.05} format={(value) => `${Math.round(value * 100)}%`} onChange={(opacity) => props.onMarkupParams({ opacity })} />
+    </ToolMenu>
   );
 }

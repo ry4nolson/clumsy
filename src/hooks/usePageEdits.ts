@@ -186,7 +186,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         selectionAfterEdit(edit, before.count, inserted),
         baseline,
         (old) => pageAfterEdit(edit, old, before.count, inserted),
-        edit.kind === "rotate" || edit.kind === "protect",
+        edit.kind === "rotate" || edit.kind === "scale" || edit.kind === "protect",
       );
     }
     edits.undo = trimHistory([...edits.undo, { ...before, bytes: original }]);
@@ -406,6 +406,7 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         setPassword: () => handle.editPassword(),
         removePassword: () => tab.protection && editPages(tab.id, { kind: "protect", password: null }),
         pageLabels: () => handle.editPageLabels(explicit?.length ? explicit : undefined),
+        setScale: () => handle.editScale(pages),
         insertPages: () => insertFiles(tab.id, pickImages(true), Math.max(...pages) + 1),
         extractPages: () =>
           enqueue(tab.id, async () => {
@@ -435,6 +436,8 @@ export function usePageEdits({ workspaceRef, snapshotsRef, handles, update, open
         runCommand("deletePages");
       } else if (action.kind === "label") {
         editPages(tabId, { kind: "label", from: action.from, to: action.to, numbering: action.numbering });
+      } else if (action.kind === "scale") {
+        editPages(tabId, { kind: "scale", pages: action.pages, scale: action.scale, format: action.format });
       } else if (action.kind === "protect") {
         editPages(tabId, { kind: "protect", password: action.password });
       }

@@ -1,5 +1,6 @@
-import { hexColor, isLineKind, isTextKind, type Markup } from "./markup";
-import { handlePoints, lineEndings, outerRect, outlinePath, rectPath, segmentsPath, stampMatrix, textMarkupSegments } from "./markupShapes";
+import { hexColor, isLineKind, isMeasureKind, isTextKind, isVertexKind, type Markup } from "./markup";
+import { CAPTION_SIZE, captionBaseline, captionPlacement, captionText, vertexPath } from "./measureMarkup";
+import { handlePoints, isCorner, lineEndings, outerRect, outlinePath, rectPath, segmentsPath, stampMatrix, textMarkupSegments } from "./markupShapes";
 import { CAP_HEIGHT, stampDesign, type StampDesign } from "./stampSymbols";
 
 export const SVG = "http://www.w3.org/2000/svg";
@@ -43,6 +44,22 @@ export function designElements(design: StampDesign, color: string) {
   return [...shapes, ...labels];
 }
 
+function captionElement(markup: Markup, color: string) {
+  const placement = captionPlacement(markup);
+  const [cos, sin] = [Math.cos(placement.angle), Math.sin(placement.angle)];
+  const text = svg("text", {
+    transform: matrixAttribute([cos, sin, sin, -cos, placement.x, placement.y]),
+    y: -captionBaseline(placement),
+    "font-size": CAPTION_SIZE,
+    "font-family": LABEL_FONT,
+    "text-anchor": "middle",
+    fill: color,
+    stroke: "none",
+  });
+  text.textContent = captionText(markup);
+  return text;
+}
+
 export function markupDrawing(markup: Markup) {
   const color = hexColor(markup.color);
   const group = svg("g", { "stroke-opacity": markup.opacity, "fill-opacity": markup.opacity, "stroke-linecap": "round", "stroke-linejoin": "round" });
@@ -55,6 +72,12 @@ export function markupDrawing(markup: Markup) {
     for (const ending of lineEndings(markup)) {
       group.append(svg("path", { d: ending.d, ...stroke, fill: ending.closed ? hexColor(markup.fill ?? markup.color) : "none" }));
     }
+  } else if (isVertexKind(markup.kind)) {
+    const d = vertexPath(markup.vertices ?? [], markup.kind === "measure-area");
+    if (markup.fill) {
+      group.append(svg("path", { d, fill: hexColor(markup.fill), "fill-opacity": markup.opacity * markup.fillAlpha, stroke: "none" }));
+    }
+    group.append(svg("path", { d, ...stroke }));
   } else if (markup.kind === "stamp") {
     const design = markup.stamp ? stampDesign(markup.stamp, markup.stampDate) : null;
     if (design) {
@@ -71,6 +94,9 @@ export function markupDrawing(markup: Markup) {
       group.append(svg("path", { d, ...stroke }));
     }
   }
+  if (isMeasureKind(markup.kind)) {
+    group.append(captionElement(markup, color));
+  }
   return group;
 }
 
@@ -85,6 +111,10 @@ export function markupHitTarget(markup: Markup, minWidth: number) {
   if (isLineKind(markup.kind)) {
     const [x1, y1, x2, y2] = markup.line ?? markup.box;
     return svg("path", { d: `M ${x1} ${y1} L ${x2} ${y2}`, class: "markup-hit", "stroke-width": width });
+  }
+  if (isVertexKind(markup.kind)) {
+    const d = vertexPath(markup.vertices ?? [], markup.kind === "measure-area");
+    return svg("path", { d, class: markup.fill ? "markup-hit filled" : "markup-hit", "stroke-width": width });
   }
   return svg("path", { d: outlinePath(markup.kind, markup.box), class: markup.fill ? "markup-hit filled" : "markup-hit", "stroke-width": width });
 }
@@ -106,7 +136,7 @@ export function selectionOverlay(markup: Markup, viewport: ScreenViewport) {
   const [cx, cy] = viewport.convertToViewportPoint((left + right) / 2, (bottom + top) / 2);
   for (const [handle, [x, y]] of handlePoints(markup)) {
     const [hx, hy] = viewport.convertToViewportPoint(x, y);
-    const cursor = handle === "start" || handle === "end" ? null : (hx - cx) * (hy - cy) > 0 ? "nwse" : "nesw";
+    const cursor = !isCorner(handle) ? null : (hx - cx) * (hy - cy) > 0 ? "nwse" : "nesw";
     group.append(svg("rect", { class: "markup-handle", "data-handle": handle, "data-cursor": cursor, x: hx - HANDLE_SIZE / 2, y: hy - HANDLE_SIZE / 2, width: HANDLE_SIZE, height: HANDLE_SIZE, rx: 1.5 }));
   }
   return group;

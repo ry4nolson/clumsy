@@ -280,6 +280,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          key: macos-26
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

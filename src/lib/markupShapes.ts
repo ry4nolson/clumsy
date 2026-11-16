@@ -1,8 +1,14 @@
-import { isLineKind, isTextKind, normalizeBox, quadsBox, type Markup, type MarkupKind } from "./markup";
+import { isLineKind, isMeasureKind, isTextKind, isVertexKind, normalizeBox, pointsBox, quadsBox, type Markup, type MarkupKind } from "./markup";
+import { captionCorners } from "./measureMarkup";
 
 export type Point = [number, number];
 export type Corner = "nw" | "ne" | "sw" | "se";
-export type Handle = Corner | "start" | "end";
+export type VertexHandle = `v${number}`;
+export type Handle = Corner | "start" | "end" | VertexHandle;
+
+const corners = new Set<Handle>(["nw", "ne", "sw", "se"]);
+export const isCorner = (handle: Handle): handle is Corner => corners.has(handle);
+export const vertexIndex = (handle: Handle) => (handle.startsWith("v") ? Number(handle.slice(1)) : -1);
 export type Rect = { left: number; bottom: number; right: number; top: number };
 export type Ending = { d: string; closed: boolean };
 
@@ -108,6 +114,7 @@ export function outsetOf(markup: Pick<Markup, "kind" | "box" | "width" | "ending
       return cloudOutset(markup.box) + markup.width / 2 + 1;
     case "line":
     case "arrow":
+    case "measure-length":
       return (markup.endings ?? []).some((ending) => ending && ending !== "None") ? endingSize(markup.width) + markup.width : markup.width + 1;
     case "underline":
     case "strikeout":
@@ -119,15 +126,27 @@ export function outsetOf(markup: Pick<Markup, "kind" | "box" | "width" | "ending
   }
 }
 
-export function outerRect(markup: Pick<Markup, "kind" | "box" | "width" | "endings" | "quads">) {
+type Outlined = Pick<Markup, "kind" | "box" | "width" | "endings" | "quads"> & Partial<Pick<Markup, "line" | "vertices" | "measure" | "rotation">>;
+
+export function shapeRect(markup: Outlined) {
   const pad = outsetOf(markup);
   const [left, bottom, right, top] = isTextKind(markup.kind) && markup.quads ? quadsBox(markup.quads) : markup.box;
   return [left - pad, bottom - pad, right + pad, top + pad];
 }
 
+export function outerRect(markup: Outlined) {
+  const outer = shapeRect(markup);
+  const corners = isMeasureKind(markup.kind) ? captionCorners({ line: null, vertices: null, measure: null, rotation: 0, ...markup }).flat() : [];
+  if (!corners.length) {
+    return outer;
+  }
+  const caption = pointsBox(corners);
+  return [Math.min(outer[0], caption[0]), Math.min(outer[1], caption[1]), Math.max(outer[2], caption[2]), Math.max(outer[3], caption[3])];
+}
+
 export function boxFromRect(kind: MarkupKind, rect: number[], width: number, inner: number[] | null) {
   const [left, bottom, right, top] = normalizeBox(rect);
-  if (kind === "stamp" || isLineKind(kind) || isTextKind(kind)) {
+  if (kind === "stamp" || isLineKind(kind) || isTextKind(kind) || isVertexKind(kind)) {
     return [left, bottom, right, top];
   }
   const [dl, db, dr, dt] = inner ?? [width / 2, width / 2, width / 2, width / 2];
@@ -172,13 +191,17 @@ export function resizeBox(box: number[], corner: Corner, [x, y]: Point, keepAspe
   return normalizeBox([ax, ay, ax + dx, ay + dy]);
 }
 
-export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line">): Array<[Handle, Point]> {
+export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line" | "vertices">): Array<[Handle, Point]> {
   if (isLineKind(markup.kind) && markup.line) {
     const [x1, y1, x2, y2] = markup.line;
     return [
       ["start", [x1, y1]],
       ["end", [x2, y2]],
     ];
+  }
+  if (isVertexKind(markup.kind)) {
+    const vertices = markup.vertices ?? [];
+    return Array.from({ length: vertices.length / 2 }, (_, index): [Handle, Point] => [`v${index}`, [vertices[index * 2], vertices[index * 2 + 1]]]);
   }
   if (isTextKind(markup.kind)) {
     return [];
@@ -188,7 +211,7 @@ export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line">): Arr
 
 export function clampShift(box: number[], dx: number, dy: number, [vx1, vy1, vx2, vy2]: number[]): Point {
   const [left, bottom, right, top] = box;
-  const clamp = (value: number, low: number, high: number) => (low > high ? 0 : Math.min(Math.max(value, low), high));
+  const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, Math.min(low, 0)), Math.max(high, 0));
   return [clamp(dx, vx1 - left, vx2 - right), clamp(dy, vy1 - bottom, vy2 - top)];
 }
 

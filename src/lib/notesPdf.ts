@@ -26,6 +26,43 @@ const annotsOf = (context: PDFContext, page: PDFDict) => {
   return created;
 };
 
+const STATE_REPLY_FLAGS = 2;
+
+function annotationRef(context: PDFContext, page: PDFDict, id: string) {
+  const ref = refFromId(id);
+  if (ref && context.lookupMaybe(ref, PDFDict)) {
+    return ref;
+  }
+  const annots = page.lookupMaybe(PDFName.of("Annots"), PDFArray)?.asArray() ?? [];
+  return annots.find((entry): entry is PDFRef => entry instanceof PDFRef && context.lookupMaybe(entry, PDFDict)?.lookupMaybe(PDFName.of("NM"), PDFString, PDFHexString)?.decodeText() === id) ?? null;
+}
+
+function addStateReply(context: PDFContext, pageRef: PDFRef, page: PDFDict, note: StickyNote) {
+  const parent = note.reply && annotationRef(context, page, note.reply.to);
+  if (!note.reply || !parent) {
+    return;
+  }
+  const date = PDFString.of(note.date ?? "");
+  const reply = context.register(
+    context.obj({
+      Type: "Annot",
+      Subtype: "Text",
+      Rect: note.rect,
+      F: STATE_REPLY_FLAGS,
+      IRT: parent,
+      StateModel: PDFString.of("Review"),
+      State: PDFString.of(note.reply.state),
+      Contents: PDFHexString.fromText(note.text),
+      ...(note.author ? { T: PDFHexString.fromText(note.author) } : {}),
+      NM: PDFHexString.fromText(note.id),
+      CreationDate: date,
+      M: date,
+      P: pageRef,
+    }),
+  );
+  annotsOf(context, page).push(reply);
+}
+
 function addNote(context: PDFContext, pageRef: PDFRef, page: PDFDict, note: StickyNote) {
   const [, , right, top] = note.rect;
   const date = PDFString.of(note.date ?? "");
@@ -40,6 +77,8 @@ function addNote(context: PDFContext, pageRef: PDFRef, page: PDFDict, note: Stic
       F: NOTE_FLAGS,
       C: (note.color ?? []).map((value) => value / 255),
       Contents: PDFHexString.fromText(note.text),
+      ...(note.author ? { T: PDFHexString.fromText(note.author) } : {}),
+      NM: PDFHexString.fromText(note.id),
       CreationDate: date,
       M: date,
       P: pageRef,
@@ -137,7 +176,7 @@ export async function writeAnnotationsReporting(bytes: Uint8Array, notes: Sticky
       continue;
     }
     if (note.fresh) {
-      if (!note.deleted) {
+      if (!note.deleted && !note.reply) {
         addNote(context, pageRef, page, note);
       }
       continue;
@@ -154,6 +193,13 @@ export async function writeAnnotationsReporting(bytes: Uint8Array, notes: Sticky
     }
   }
   applyMarkup(doc, markup, pages);
+  for (const note of notes) {
+    const pageRef = note.fresh && !note.deleted && note.reply ? pages[note.pageIndex] : undefined;
+    const page = pageRef && context.lookupMaybe(pageRef, PDFDict);
+    if (pageRef && page) {
+      addStateReply(context, pageRef, page, note);
+    }
+  }
   if (incremental) {
     return { bytes: await doc.commit(), removedSignatures };
   }

@@ -116,7 +116,7 @@ fn readable_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool
     })
 }
 
-fn file_dialog<R: Runtime>(window: &Window<R>) -> FileDialogBuilder<R> {
+pub(crate) fn file_dialog<R: Runtime>(window: &Window<R>) -> FileDialogBuilder<R> {
     let dialog = window.dialog().file();
     #[cfg(any(windows, target_os = "macos"))]
     let dialog = dialog.set_parent(window);
@@ -187,18 +187,6 @@ async fn pick_folder(app: AppHandle, window: Window) -> Option<String> {
     let folder = file_dialog(&window).set_can_create_directories(true).blocking_pick_folder()?.into_path().ok()?;
     app.state::<AllowedFolders>().allow(&folder);
     Some(folder.to_string_lossy().into_owned())
-}
-
-#[tauri::command]
-async fn pick_image_save_path(app: AppHandle, window: Window, suggested_name: String, format: String) -> Option<String> {
-    let (label, extensions): (&str, &[&str]) = if format == "jpeg" { ("JPEG", &["jpg", "jpeg"]) } else { ("PNG", &["png"]) };
-    let picked = file_dialog(&window)
-        .add_filter(label, extensions)
-        .set_file_name(suggested_name)
-        .blocking_save_file();
-    let path = files::with_extension_from(picked?.into_path().ok()?, extensions);
-    app.state::<AllowedPaths>().allow(&path);
-    Some(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -433,7 +421,8 @@ pub fn run() {
             pick_image,
             pick_images,
             pick_folder,
-            pick_image_save_path,
+            images::pick_image_save_path,
+            images::pick_csv_save_path,
             pick_save_path,
             pick_markdown_save_path,
             read_pdf,
@@ -446,6 +435,7 @@ pub fn run() {
             write_markdown,
             images::write_image,
             images::confirm_replace,
+            images::write_text_export,
             context_menu::show_document_menu,
             print::print_pdf,
             print::print_webview,
