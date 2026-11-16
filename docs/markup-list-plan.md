@@ -4,13 +4,16 @@ Written 2026-11-14 against `main` after the measurement and tool chest plans. Ro
 
 The markup list is every markup in the document as a row in a table: page, type, subject, author, date, color, comment, status, and the value for measurements. You can sort, filter, jump to a markup, set its status, and export. It's how a reviewer turns a marked-up drawing set into a punch list, and how an estimator turns takeoffs into a spreadsheet. It also makes the tool chest's names pay off, since "Drywall" and "Conduit run" become a column you can sort by.
 
+A takeoff is mostly counting. A lighting takeoff, for example, counts every fixture and switch on the reflected ceiling and electrical plans by type, and measures the wiring runs. That is what estimators use Bluebeam's markups list for: place a named symbol on each fixture, then read "2x4 LED Troffer (24)" off the list and send the counts to a spreadsheet. So counts per subject are part of phase 1, not an extra (see Counts).
+
 ## What's already there
 
 - **Comments sidebar tab** (`CommentsList.tsx`): shows comments while Comments mode is on, with clicks going through `linkService.goToXY`, `waitForEditorsRendered`, and `selectComment`.
 - **Sticky notes** read every `/Text` annotation in the file with `getAnnotationsByType` when the Comments list opens (`stickyNotes.ts`).
 - **Clumsy-owned markup:** the file's shapes, stamps, and text markup from the `readMarkup` worker job, plus unsaved changes in `annotationStorage` (`markupIn`, `notesIn`).
 - **The Changes tab** already solves a long list: it renders at most 400 rows around the one in view (`changeWindow`), with Show earlier and Show later.
-- **The measurement plan's** Measurements tab and CSV export, including a new allowlisted `.csv` write in Rust.
+- **Measurement** (the `measurement` branch, PR 31): the Measurements tab with total length and area, Copy and CSV export, and the allowlisted `.csv` write in Rust (`pick_csv_save_path`, `write_text_export`).
+- **Stamps already carry a subject:** Clumsy writes each stamp's name as `/Subj` ("Duplex Receptacle", "Recessed Downlight", "Recessed Troffer 2x4"), and the electrical symbols cover the common fixtures and devices. So counting Clumsy's stamps works before the tool chest ships; the tool chest adds names like "Type A fixture" or "Exit sign, battery" for the cases a symbol's own name doesn't cover.
 
 ## Rows come from three places
 
@@ -19,6 +22,8 @@ The markup list is every markup in the document as a row in a table: page, type,
 3. **pdf.js's unsaved editors:** new highlights, drawings, text boxes, stamps, and signatures that only exist as editors until Save. Reading those without tripping pdf.js internals is the spike's first question.
 
 `src/lib/markupRows.ts` (new, pure, tested) merges the three into one `MarkupRow[]`: `id`, `pageIndex`, `pageLabel`, `type`, `subject`, `author`, `date`, `color`, `comment`, `status`, `measure` (value and unit), `source` (`file`, `clumsy`, `editor`), and `readOnly` (leadered dimensions, locked annotations).
+
+Subject matters more than it looks, because it's what counts group by. Clumsy-claimed kinds get it from `readMarkup`. For everything else, including other apps' stamps and symbols (Bluebeam's count tools appear to write the tool's name there; the spike confirms), pdf.js's annotation data may not carry `/Subj`; if it doesn't, the worker reads `/Subj` for every listed annotation in one pass, like `readMarkup` (spike).
 
 ## Status
 
@@ -42,21 +47,31 @@ Rows show `/T` when an annotation has it. Clumsy doesn't write `/T` today, so it
 - **Select several** (⇧/⌘-click) to set status or delete together, as one undoable change.
 - **Long lists** render the same way the Changes tab does: a window of rows around the one in view. annotations-5000 is the test.
 
+## Counts
+
+- **Group by subject** is the default view once any markup has a subject. Each group header shows the subject, the count of its markups, and its measurement totals when it has any: "Duplex Receptacle (24)", "Conduit run (12) · 438' 3"", "Drywall (6) · 1,240 sq ft". Groups collapse and expand, and collapsing every group leaves a one-line-per-type summary, which is the takeoff.
+- **The group key** is the subject. Markup without one falls back to its type ("Rectangle", "Highlight"), so nothing is left out. Subjects compare case-insensitively after trimming, so "Troffer" and "troffer " are one group, shown with the first spelling.
+- **Filters apply to counts.** Filtering to a page, a page range, a color, or a status recounts every group, so "receptacles on pages 3 to 6" or "open items only" works. A Page filter that takes the current page, the selected pages, or a typed range (`parsePageRange`) covers counting one floor of a drawing set.
+- **The totals strip** shows the total count for the current filter alongside total length and area.
+- **Counting is placing a stamp.** The Stamps tool stays armed after a click, so dropping a symbol on every fixture is one click each. Each stamp is one row and adds one to its group.
+- **Copy Summary** and **Export Summary…** write one row per group: Subject, Type, Count, Length, Area, Unit. That's the sheet an estimator pastes into a bid. Export Markups… still writes one row per markup, with a Subject column, so a pivot table gets the same numbers.
+
 ## Export
 
-- **Export Markups…** writes CSV with every column plus x/y and color hex, through the `.csv` write the measurement plan adds. Filters apply, so "export only open Drywall items" works.
+- **Export Markups…** writes CSV with every column plus x/y and color hex, through the `.csv` write measurement added. Filters apply, so "export only open Drywall items" works.
 - **Copy Markups** puts the same rows on the clipboard as tab-separated text.
+- **Export Summary…** and **Copy Summary** write the grouped counts (see Counts), with the same filters and the same formula guard on every cell (`measurementsCsv`'s leading `'`).
 - **Markup summary PDF** (phase 2): a report laid out like the comparison report (`comparisonReport.ts`, standard Helvetica), with a thumbnail crop of each markup. Bluebeam's summary is what people send to the architect.
 
 ## Code
 
-- `src/lib/markupRows.ts`: merging, sorting, filtering, totals, CSV rows.
+- `src/lib/markupRows.ts`: merging, sorting, filtering, totals, CSV rows, and `groupRows` (group key, count, length and area totals per group, summary rows).
 - `src/lib/reviewState.ts`: reading state replies, picking the latest, and the note change that adds one.
 - `src/hooks/useMarkupList.ts`: gathers the three sources for a tab, refreshes on `annotationstorage` changes, page edits, and reloads, cancels stale reads.
 - `src/components/MarkupList.tsx`: the tab, column picker, filters, row window (styles in `Markup.css`).
 - `Sidebar.tsx`: `"markups"` in `SidebarTab`. `stickyNotes.ts` and `CommentsList.tsx`: skip state replies.
 - `notesPdf.ts`: write state replies. `markupPdf.ts`: `/T` when an author is set.
-- `commands.ts` / `menu.ts`: Show Markups, Export Markups…, Copy Markups, and the status commands for the right-click menu on selected markup.
+- `commands.ts` / `menu.ts`: Show Markups, Export Markups…, Copy Markups, Export Summary…, Copy Summary, and the status commands for the right-click menu on selected markup.
 
 ## Spike first
 
@@ -64,10 +79,12 @@ Rows show `/T` when an annotation has it. Clumsy doesn't write `/T` today, so it
 2. **`getAnnotationsByType` on annotations-5000:** time on the main thread and in the worker. Batch by page if it blocks.
 3. **State replies from Acrobat and Bluebeam files:** confirm both use `/StateModel /Review`, and check what Bluebeam's own status column stores beyond it.
 4. **An author parameter** on pdf.js 6.4.299's editors.
+5. **`/Subj` for annotations Clumsy doesn't claim:** whether pdf.js's annotation data exposes it; if not, time a worker pass over annotations-5000 that reads `/Subj` per annotation. Check what a Bluebeam count tool and an Acrobat stamp write there.
 
 ## Tests (Linux container)
 
 - `markupRows.test.ts`: merging file rows with Clumsy changes (edited, deleted, new), editor rows, readOnly rows. Sort stability, every filter, totals by unit, CSV quoting.
+- Counts: grouping by subject with the type fallback, case and whitespace folding, counts and totals after each filter, summary rows and their CSV, a group whose markups mix lengths and areas.
 - `reviewState.test.ts`: latest state wins by date then order, `/StateModel /Marked` ignored, a state reply written and read back, undo.
 - Sticky notes and Comments ignore state replies.
 - Commands placed once.
@@ -78,6 +95,7 @@ Rows show `/T` when an annotation has it. Clumsy doesn't write `/T` today, so it
 - Set statuses here, Save, open in Acrobat and Bluebeam: they show the same status.
 - Click through rows of each source: each one goes to and selects (or flashes) the right markup.
 - Filter, then export: the CSV opens in Excel and Numbers with only the filtered rows.
+- A lighting takeoff: on a two-sheet electrical plan, stamp 24 duplex receptacles and 10 downlights across both pages and draw three conduit runs. The list reads "Duplex Receptacle (24)", "Recessed Downlight (10)", and the runs' total length; filtering to one page recounts both groups; Export Summary… gives three rows that open in Excel. A Bluebeam file with count markups shows the same counts here.
 - annotations-5000: the tab opens and scrolls without freezing the window. Note the times in `docs/perf-baseline.md`.
 - Windows build: the same.
 
@@ -87,6 +105,7 @@ Rows show `/T` when an annotation has it. Clumsy doesn't write `/T` today, so it
 2. **Author name is opt-in, empty by default.** Decided: yes. Writing the Mac's full name into files people send out shouldn't happen silently.
 3. **Status through the spec's review state replies,** not a Clumsy-only key. Decided: yes, it's what makes statuses round-trip with Acrobat and Bluebeam.
 4. **The summary PDF waits for phase 2.** Decided: yes, CSV and copy cover the punch list first.
+5. **Counts per subject are phase 1** (added 2026-11-16). Estimators asked for it first: counting fixtures and devices from the markup list is the core of a lighting takeoff, and the list isn't useful to them without it.
 
 ## Done when
 
