@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-16
+
 ### Added
 - **iPad and iPhone (experimental).** Clumsy now builds for iPad and iPhone: open PDFs and Markdown files from the Files app and mark them up, with the same touch layout as Android. Test builds go out through TestFlight; it isn't on the App Store yet
 
