@@ -46,6 +46,7 @@ import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
 import { pickImage } from "./lib/imageFiles";
 import {
   canPrint,
+  canSetDefaultApp,
   canSignDigitally,
   clearRecentFiles,
   closeWindow,
@@ -214,6 +215,7 @@ export default function App() {
     canPrint,
     canSignDigitally,
     desktopShell: !isMobile,
+    canSetDefaultApp,
     documentMapAvailable: viewMenuState.documentMapAvailable,
     isMac: usesMacKeys,
     tabs: documentTabs.map((tab) => ({ id: tab.id, name: tab.name, path: tab.path })),

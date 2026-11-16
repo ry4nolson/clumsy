@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Linux.** Clumsy now runs on Linux (x64), as an AppImage, a `.deb`, or an `.rpm`. Installed from a package, it can be your default app for PDFs and Markdown files. Like the Windows build, it doesn't update itself yet, and printing and digital signatures are Mac-only for now
+
+### Changed
+- On Windows and Linux, opening a file while Clumsy is running adds a tab to the window you already have instead of starting a second copy
+- Where Clumsy can't update itself (Windows and Linux), a new version offers **Download** right away instead of an Install button that couldn't work
+
+### Fixed
+- The Windows menu no longer lists **Make Clumsy the Default PDF App**, which did nothing there
+
 ## [0.17.0] - 2026-11-15
 
 ### Added

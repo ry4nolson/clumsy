@@ -175,3 +175,81 @@ jobs:
           path: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
           retention-days: 7
           if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev rpm xvfb imagemagick
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm tauri build --bundles deb,rpm,appimage
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clumsy-linux-x64
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Launch the app
+        env:
+          WEBKIT_DISABLE_DMABUF_RENDERER: 1
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 1400x900x24" dbus-run-session -- bash -c '
+            src-tauri/target/release/clumsy &
+            pid=$!
+            sleep 20
+            kill -0 $pid
+            import -window root clumsy-linux.png
+            kill $pid
+          '
+
+      - name: Upload the launch screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clumsy-linux-screenshot
+          path: clumsy-linux.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib

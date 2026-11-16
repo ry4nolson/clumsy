@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { revealLabel } from "./commands";
 import type { ExportFormat } from "./imageExport";
 import type { ImageFile } from "./imagePdf";
 import {
@@ -123,7 +124,7 @@ export function downloadImage(name: string, data: Uint8Array, type: string) {
 }
 
 export async function offerToShowExport(summary: string, path: string) {
-  if (await ask(summary, { title: "Export finished", kind: "info", okLabel: "Show in Finder", cancelLabel: "Done" })) {
+  if (await ask(summary, { title: "Export finished", kind: "info", okLabel: revealLabel, cancelLabel: "Done" })) {
     await revealInFinder(path);
   }
 }

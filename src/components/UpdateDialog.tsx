@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { UpdateInstall } from "../hooks/useUpdateInstall";
-import { openExternal } from "../lib/platform";
+import { canInstallUpdates, openExternal } from "../lib/platform";
 import { appVersion, installProgress, isInstalling, type InstallState, type UpdateAvailable } from "../lib/updates";
 import { ChangelogList } from "./ChangelogList";
 
@@ -26,6 +26,8 @@ export function InstallProgress({ install }: { install: InstallState }) {
   );
 }
 
+const READY = canInstallUpdates ? "ready" : "available";
+
 function summary(offer: UpdateAvailable, install: InstallState) {
   if (install.state === "installed") {
     return `Clumsy v${install.version} is installed. Restart to start using it, or it opens next time you launch Clumsy.`;
@@ -34,8 +36,8 @@ function summary(offer: UpdateAvailable, install: InstallState) {
     return install.message;
   }
   return offer.releases.length > 1
-    ? `Clumsy v${offer.latest} is ready (${offer.releases.length} releases since v${appVersion}).`
-    : `Clumsy v${offer.latest} is ready. You’re on v${appVersion}.`;
+    ? `Clumsy v${offer.latest} is ${READY} (${offer.releases.length} releases since v${appVersion}).`
+    : `Clumsy v${offer.latest} is ${READY}. You’re on v${appVersion}.`;
 }
 
 export function UpdateDialog({ offer, updateInstall, onLater, onSkip, onDownload, onRestart }: UpdateDialogProps) {
@@ -96,7 +98,7 @@ export function UpdateDialog({ offer, updateInstall, onLater, onSkip, onDownload
           <button type="button" className="button primary" onClick={onRestart}>
             Restart Now
           </button>
-        ) : install.state === "failed" ? (
+        ) : install.state === "failed" || !canInstallUpdates ? (
           <button
             type="button"
             className="button primary"

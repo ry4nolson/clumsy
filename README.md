@@ -61,8 +61,7 @@ Download it from [getclumsy.app](https://getclumsy.app), or grab a build from th
 
 - **Mac:** `Clumsy-MacOS-Universal.dmg`, for macOS 15.4 or later on Apple Silicon and Intel, signed and notarized. After that, Clumsy updates itself: it offers each new version and installs it in place.
 - **Windows:** `Clumsy-Windows-Installer.exe`, for Windows 10 and 11. It isn't code-signed yet, so Windows warns before running it (More info, then Run anyway), and it doesn't update itself yet. Printing and digital signatures are Mac-only for now.
-
-Linux builds are planned.
+- **Linux:** `Clumsy-Linux-x64.AppImage`, `Clumsy-Linux-x64.deb` (Debian, Ubuntu 22.04 or later), or `Clumsy-Linux-x64.rpm` (Fedora, openSUSE), for x64. It doesn't update itself yet, and printing and digital signatures aren't there yet either.
 
 ## Development
 
