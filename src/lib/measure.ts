@@ -231,18 +231,20 @@ export function lineCaption([x1, y1, x2, y2]: number[], pageRotation = 0): Capti
 }
 
 export function pathCaption(vertices: number[], pageRotation = 0): Caption {
-  const half = pathLengthOf(vertices) / 2;
-  let walked = 0;
+  let longest: number[] | undefined;
+  let longestLength = 0;
   for (let index = 2; index + 1 < vertices.length; index += 2) {
-    const [x1, y1, x2, y2] = [vertices[index - 2], vertices[index - 1], vertices[index], vertices[index + 1]];
-    const length = Math.hypot(x2 - x1, y2 - y1);
-    if (walked + length >= half && length > 0) {
-      const along = (half - walked) / length;
-      return { x: x1 + (x2 - x1) * along, y: y1 + (y2 - y1) * along, angle: uprightAngle(Math.atan2(y2 - y1, x2 - x1), pageRotation) };
+    const segment = vertices.slice(index - 2, index + 2);
+    const length = Math.hypot(segment[2] - segment[0], segment[3] - segment[1]);
+    if (length > longestLength) {
+      [longest, longestLength] = [segment, length];
     }
-    walked += length;
   }
-  return { x: vertices[0] ?? 0, y: vertices[1] ?? 0, angle: 0 };
+  if (!longest) {
+    return { x: vertices[0] ?? 0, y: vertices[1] ?? 0, angle: 0 };
+  }
+  const [x1, y1, x2, y2] = longest;
+  return { x: (x1 + x2) / 2, y: (y1 + y2) / 2, angle: uprightAngle(Math.atan2(y2 - y1, x2 - x1), pageRotation) };
 }
 
 export function snapPoint([x1, y1]: number[], [x2, y2]: number[]) {

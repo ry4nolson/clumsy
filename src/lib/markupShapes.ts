@@ -1,4 +1,5 @@
-import { isLineKind, isTextKind, normalizeBox, quadsBox, type Markup, type MarkupKind } from "./markup";
+import { isLineKind, isMeasureKind, isTextKind, isVertexKind, normalizeBox, pointsBox, quadsBox, type Markup, type MarkupKind } from "./markup";
+import { captionCorners } from "./measureMarkup";
 
 export type Point = [number, number];
 export type Corner = "nw" | "ne" | "sw" | "se";
@@ -108,6 +109,7 @@ export function outsetOf(markup: Pick<Markup, "kind" | "box" | "width" | "ending
       return cloudOutset(markup.box) + markup.width / 2 + 1;
     case "line":
     case "arrow":
+    case "measure-length":
       return (markup.endings ?? []).some((ending) => ending && ending !== "None") ? endingSize(markup.width) + markup.width : markup.width + 1;
     case "underline":
     case "strikeout":
@@ -119,15 +121,23 @@ export function outsetOf(markup: Pick<Markup, "kind" | "box" | "width" | "ending
   }
 }
 
-export function outerRect(markup: Pick<Markup, "kind" | "box" | "width" | "endings" | "quads">) {
+type Outlined = Pick<Markup, "kind" | "box" | "width" | "endings" | "quads"> & Partial<Pick<Markup, "line" | "vertices" | "measure" | "rotation">>;
+
+export function outerRect(markup: Outlined) {
   const pad = outsetOf(markup);
   const [left, bottom, right, top] = isTextKind(markup.kind) && markup.quads ? quadsBox(markup.quads) : markup.box;
-  return [left - pad, bottom - pad, right + pad, top + pad];
+  const outer = [left - pad, bottom - pad, right + pad, top + pad];
+  const corners = isMeasureKind(markup.kind) ? captionCorners({ line: null, vertices: null, measure: null, rotation: 0, ...markup }).flat() : [];
+  if (!corners.length) {
+    return outer;
+  }
+  const caption = pointsBox(corners);
+  return [Math.min(outer[0], caption[0]), Math.min(outer[1], caption[1]), Math.max(outer[2], caption[2]), Math.max(outer[3], caption[3])];
 }
 
 export function boxFromRect(kind: MarkupKind, rect: number[], width: number, inner: number[] | null) {
   const [left, bottom, right, top] = normalizeBox(rect);
-  if (kind === "stamp" || isLineKind(kind) || isTextKind(kind)) {
+  if (kind === "stamp" || isLineKind(kind) || isTextKind(kind) || isVertexKind(kind)) {
     return [left, bottom, right, top];
   }
   const [dl, db, dr, dt] = inner ?? [width / 2, width / 2, width / 2, width / 2];
@@ -180,7 +190,7 @@ export function handlePoints(markup: Pick<Markup, "kind" | "box" | "line">): Arr
       ["end", [x2, y2]],
     ];
   }
-  if (isTextKind(markup.kind)) {
+  if (isTextKind(markup.kind) || isVertexKind(markup.kind)) {
     return [];
   }
   return (["nw", "ne", "se", "sw"] as Corner[]).map((corner) => [corner, cornerPoint(markup.box, corner)]);

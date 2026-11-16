@@ -1,10 +1,13 @@
+import type { MeasureFormat, MeasureKind, MeasureScale } from "./measure";
+
 export const MARKUP_KEY_PREFIX = "clumsy-markup:";
 export const STAMP_NAME_PREFIX = "Clumsy:";
 export const FILL_ALPHA = 0.3;
 
 export type ShapeKind = "rectangle" | "ellipse" | "cloud" | "line" | "arrow";
 export type TextMarkupKind = "underline" | "strikeout";
-export type MarkupKind = ShapeKind | TextMarkupKind | "stamp";
+export type MarkupKind = ShapeKind | TextMarkupKind | MeasureKind | "stamp";
+export type MeasureSettings = { scale: MeasureScale; format: MeasureFormat };
 
 export const shapeKinds: ShapeKind[] = ["rectangle", "ellipse", "cloud", "line", "arrow"];
 
@@ -17,6 +20,8 @@ export type Markup = {
   box: number[];
   line: number[] | null;
   quads: number[] | null;
+  vertices: number[] | null;
+  measure: MeasureSettings | null;
   color: number[];
   fill: number[] | null;
   fillAlpha: number;
@@ -37,20 +42,29 @@ const SQUARE = 5;
 const CIRCLE = 6;
 const UNDERLINE = 10;
 const STRIKEOUT = 12;
+const POLYGON = 7;
+const POLYLINE = 8;
 const STAMP = 13;
 
 const claimedTypes = new Set([LINE, SQUARE, CIRCLE, UNDERLINE, STRIKEOUT]);
-export const markupTypes = new Set([...claimedTypes, STAMP]);
+const measureIntents = new Map([
+  [POLYGON, "PolygonDimension"],
+  [POLYLINE, "PolyLineDimension"],
+]);
 
-type AnnotationInfo = { annotationType: number; inReplyTo?: unknown; id?: string };
+type AnnotationInfo = { annotationType: number; inReplyTo?: unknown; id?: string; it?: string };
 
-export const isClaimedShape = (annotation: AnnotationInfo) => claimedTypes.has(annotation.annotationType) && !annotation.inReplyTo;
+const isMeasureShape = (annotation: AnnotationInfo) => !!annotation.it && measureIntents.get(annotation.annotationType) === annotation.it;
+
+export const isClaimedShape = (annotation: AnnotationInfo) => (claimedTypes.has(annotation.annotationType) || isMeasureShape(annotation)) && !annotation.inReplyTo;
 
 export const isStamp = (annotation: AnnotationInfo) => annotation.annotationType === STAMP;
 
-export const mayBeMarkup = (annotation: AnnotationInfo) => markupTypes.has(annotation.annotationType) && !annotation.inReplyTo;
+export const mayBeMarkup = (annotation: AnnotationInfo) => isClaimedShape(annotation) || (isStamp(annotation) && !annotation.inReplyTo);
 
-export const isLineKind = (kind: MarkupKind) => kind === "line" || kind === "arrow";
+export const isMeasureKind = (kind: MarkupKind): kind is MeasureKind => kind === "measure-length" || kind === "measure-path" || kind === "measure-area";
+export const isVertexKind = (kind: MarkupKind) => kind === "measure-path" || kind === "measure-area";
+export const isLineKind = (kind: MarkupKind) => kind === "line" || kind === "arrow" || kind === "measure-length";
 export const isTextKind = (kind: MarkupKind): kind is TextMarkupKind => kind === "underline" || kind === "strikeout";
 export const isBoxKind = (kind: MarkupKind) => kind === "rectangle" || kind === "ellipse" || kind === "cloud" || kind === "stamp";
 
@@ -58,11 +72,13 @@ export function normalizeBox([x1, y1, x2, y2]: number[]) {
   return [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)];
 }
 
-export function quadsBox(quads: number[]) {
-  const xs = quads.filter((_, index) => index % 2 === 0);
-  const ys = quads.filter((_, index) => index % 2 === 1);
+export function pointsBox(points: number[]) {
+  const xs = points.filter((_, index) => index % 2 === 0);
+  const ys = points.filter((_, index) => index % 2 === 1);
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 }
+
+export const quadsBox = pointsBox;
 
 export const hasOwnedChanges = (storage: Iterable<[string, unknown]>, notePrefix: string) =>
   [...storage].some(([key]) => key.startsWith(MARKUP_KEY_PREFIX) || key.startsWith(notePrefix));
@@ -87,17 +103,22 @@ export const editedFileIds = (changes: Markup[]) => new Set(changes.filter((mark
 
 type NewMarkup = Pick<Markup, "id" | "pageIndex" | "kind" | "box"> & Partial<Markup>;
 
+const defaultEndings = (kind: MarkupKind) =>
+  kind === "arrow" ? ["None", "OpenArrow"] : kind === "line" ? ["None", "None"] : kind === "measure-length" ? ["OpenArrow", "OpenArrow"] : null;
+
 export function newMarkup(fields: NewMarkup, style: MarkupStyle, date: string): Markup {
   return {
     line: null,
     quads: null,
+    vertices: null,
+    measure: null,
     color: style.color,
     fill: style.fill ? style.color : null,
     fillAlpha: FILL_ALPHA,
     width: style.width,
     opacity: style.opacity,
     dash: null,
-    endings: fields.kind === "arrow" ? ["None", "OpenArrow"] : fields.kind === "line" ? ["None", "None"] : null,
+    endings: defaultEndings(fields.kind),
     stamp: null,
     stampDate: null,
     rotation: 0,
@@ -111,10 +132,13 @@ export function newMarkup(fields: NewMarkup, style: MarkupStyle, date: string): 
 
 export function movedMarkup(markup: Markup, dx: number, dy: number, date: string): Markup {
   const shift = (values: number[] | null) => values && values.map((value, index) => value + (index % 2 ? dy : dx));
-  return { ...markup, box: shift(markup.box)!, line: shift(markup.line), quads: shift(markup.quads), date };
+  return { ...markup, box: shift(markup.box)!, line: shift(markup.line), quads: shift(markup.quads), vertices: shift(markup.vertices), date };
 }
 
-export function reshapedMarkup(markup: Markup, geometry: { box?: number[]; line?: number[] }, date: string): Markup {
+export function reshapedMarkup(markup: Markup, geometry: { box?: number[]; line?: number[]; vertices?: number[] }, date: string): Markup {
+  if (geometry.vertices) {
+    return { ...markup, vertices: geometry.vertices, box: pointsBox(geometry.vertices), date };
+  }
   if (geometry.line) {
     const [x1, y1, x2, y2] = geometry.line;
     return { ...markup, line: geometry.line, box: normalizeBox([x1, y1, x2, y2]), date };
@@ -124,7 +148,7 @@ export function reshapedMarkup(markup: Markup, geometry: { box?: number[]; line?
 
 const sameColor = (a: number[], b: number[]) => a.length === b.length && a.every((value, index) => Math.abs(value - b[index]) < 1 / 512);
 
-const fillable = (kind: MarkupKind) => kind === "rectangle" || kind === "ellipse" || kind === "cloud";
+const fillable = (kind: MarkupKind) => kind === "rectangle" || kind === "ellipse" || kind === "cloud" || kind === "measure-area";
 
 export function restyledMarkup(markup: Markup, style: Partial<MarkupStyle>, date: string): Markup {
   const color = style.color ?? markup.color;
@@ -170,4 +194,7 @@ export const kindLabels: Record<MarkupKind, string> = {
   underline: "Underline",
   strikeout: "Strikethrough",
   stamp: "Stamp",
+  "measure-length": "Length",
+  "measure-path": "Perimeter",
+  "measure-area": "Area",
 };

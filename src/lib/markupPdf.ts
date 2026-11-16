@@ -1,6 +1,9 @@
 import { PDFArray, PDFBool, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext, type PDFDocument, type PDFObject } from "@cantoo/pdf-lib";
-import { STAMP_NAME_PREFIX, isLineKind, isTextKind, kindLabels, quadsBox, type Markup, type MarkupKind } from "./markup";
-import { addAppearance, boldFontDict, winAnsiSafe } from "./markupAppearance";
+import { STAMP_NAME_PREFIX, isLineKind, isMeasureKind, isTextKind, isVertexKind, kindLabels, pointsBox, quadsBox, type Markup, type MarkupKind, type MeasureSettings } from "./markup";
+import { addAppearance, fontDict, winAnsiSafe, type AppearanceFonts } from "./markupAppearance";
+import { defaultFormat } from "./measure";
+import { captionText, measurePoints, settingsOf } from "./measureMarkup";
+import { measureIntents, measurementFromDict, setMeasureKeys, viewportAt, viewportsOf, type Viewport } from "./measurePdf";
 import { boxFromRect, orientedQuads, outerRect, outsetOf } from "./markupShapes";
 import { pageLeafRefs } from "./pdfStructure";
 import { stampDesign, stampLabel } from "./stampSymbols";
@@ -23,7 +26,9 @@ const round = (value: number) => Math.round(value * 1000) / 1000;
 const numbers = (context: PDFContext, values: number[]) => context.obj(values.map(round));
 
 const subtypeOf = (kind: MarkupKind) =>
-  ({ rectangle: "Square", cloud: "Square", ellipse: "Circle", line: "Line", arrow: "Line", underline: "Underline", strikeout: "StrikeOut", stamp: "Stamp" })[kind];
+  isMeasureKind(kind)
+    ? measureIntents[kind].subtype
+    : { rectangle: "Square", cloud: "Square", ellipse: "Circle", line: "Line", arrow: "Line", underline: "Underline", strikeout: "StrikeOut", stamp: "Stamp" }[kind];
 
 function borderStyle(context: PDFContext, markup: Markup, existing?: PDFDict) {
   const style = existing ? (existing.clone(context) as PDFDict) : context.obj({});
@@ -39,7 +44,9 @@ function borderStyle(context: PDFContext, markup: Markup, existing?: PDFDict) {
 
 function setGeometry(context: PDFContext, dict: PDFDict, markup: Markup, rect: number[]) {
   dict.set(name("Rect"), numbers(context, rect));
-  if (isLineKind(markup.kind) && markup.line) {
+  if (isMeasureKind(markup.kind)) {
+    setMeasureKeys(context, dict, { kind: markup.kind, points: measurePoints(markup), ...settingsOf(markup), caption: captionText(markup) });
+  } else if (isLineKind(markup.kind) && markup.line) {
     dict.set(name("L"), numbers(context, markup.line));
   } else if (isTextKind(markup.kind) && markup.quads) {
     dict.set(name("QuadPoints"), numbers(context, markup.quads));
@@ -68,10 +75,10 @@ function setStyle(context: PDFContext, dict: PDFDict, markup: Markup) {
   }
 }
 
-type Writer = { context: PDFContext; font: () => PDFRef };
+type Writer = { context: PDFContext; fonts: AppearanceFonts };
 
-function setAppearance({ context, font }: Writer, dict: PDFDict, markup: Markup, rect: number[]) {
-  dict.set(name("AP"), context.obj({ N: addAppearance(context, markup, rect, font) }));
+function setAppearance({ context, fonts }: Writer, dict: PDFDict, markup: Markup, rect: number[]) {
+  dict.set(name("AP"), context.obj({ N: addAppearance(context, markup, rect, fonts) }));
 }
 
 function addMarkup(writer: Writer, pageRef: PDFRef, page: PDFDict, markup: Markup) {
@@ -194,8 +201,10 @@ export function removeAnnotation(context: PDFContext, page: PDFDict, ref: PDFRef
 
 export function applyMarkup(doc: PDFDocument, markup: Markup[], pages = pageLeafRefs(doc)) {
   const { context } = doc;
-  let fontRef: PDFRef | null = null;
-  const writer: Writer = { context, font: () => (fontRef ??= boldFontDict(context)) };
+  let boldRef: PDFRef | null = null;
+  let regularRef: PDFRef | null = null;
+  const fonts = { bold: () => (boldRef ??= fontDict(context, "Helvetica-Bold")), regular: () => (regularRef ??= fontDict(context, "Helvetica")) };
+  const writer: Writer = { context, fonts };
   for (const change of markup) {
     const pageRef = pages[change.pageIndex];
     const page = pageRef && context.lookupMaybe(pageRef, PDFDict);
@@ -248,6 +257,10 @@ function borderOf(dict: PDFDict) {
 }
 
 function kindOf(dict: PDFDict): MarkupKind | null {
+  const measurement = measurementFromDict(dict);
+  if (measurement) {
+    return measurement.leadered ? null : measurement.kind;
+  }
   const subtype = dict.lookupMaybe(name("Subtype"), PDFName)?.decodeText();
   switch (subtype) {
     case "Square":
@@ -278,11 +291,19 @@ const isMeasurement = (dict: PDFDict) =>
   !!dict.lookupMaybe(name("LL"), PDFNumber)?.asNumber() ||
   !!dict.lookupMaybe(name("LLO"), PDFNumber)?.asNumber();
 
-export function markupFromDict(dict: PDFDict, id: string, pageIndex: number, { anyFlags = false, pageRotation = 0 } = {}): Markup | null {
+type ReadOptions = { anyFlags?: boolean; pageRotation?: number; viewports?: () => Viewport[] };
+
+function measureOf(dict: PDFDict, points: number[], viewports?: () => Viewport[]): MeasureSettings | null {
+  const own = measurementFromDict(dict);
+  const scaled = own?.scale ? own : viewports && points.length >= 2 ? viewportAt(viewports(), points[0], points[1]) : null;
+  return scaled?.scale ? { scale: scaled.scale, format: scaled.format ?? defaultFormat } : null;
+}
+
+export function markupFromDict(dict: PDFDict, id: string, pageIndex: number, { anyFlags = false, pageRotation = 0, viewports }: ReadOptions = {}): Markup | null {
   const kind = kindOf(dict);
   const rect = rectOf(dict);
   const flags = dict.lookupMaybe(name("F"), PDFNumber)?.asNumber() ?? 0;
-  if (!kind || !rect || dict.has(name("IRT")) || (!anyFlags && flags & SKIPPED_FLAGS) || (isLineKind(kind) && isMeasurement(dict))) {
+  if (!kind || !rect || dict.has(name("IRT")) || (!anyFlags && flags & SKIPPED_FLAGS) || (isLineKind(kind) && !isMeasureKind(kind) && isMeasurement(dict))) {
     return null;
   }
   const { width, dash } = borderOf(dict);
@@ -292,8 +313,15 @@ export function markupFromDict(dict: PDFDict, id: string, pageIndex: number, { a
   if ((isLineKind(kind) && line?.length !== 4) || (isTextKind(kind) && (!quads || quads.length < 8))) {
     return null;
   }
+  const vertices = isVertexKind(kind) ? numbersOf(dict.lookupMaybe(name("Vertices"), PDFArray)) : null;
   const inner = numbersOf(dict.lookupMaybe(name("RD"), PDFArray));
-  const box = line ? [Math.min(line[0], line[2]), Math.min(line[1], line[3]), Math.max(line[0], line[2]), Math.max(line[1], line[3])] : quads ? quadsBox(quads) : boxFromRect(kind, rect, width, inner?.length === 4 ? inner : null);
+  const box = line
+    ? [Math.min(line[0], line[2]), Math.min(line[1], line[3]), Math.max(line[0], line[2]), Math.max(line[1], line[3])]
+    : quads
+      ? quadsBox(quads)
+      : vertices
+        ? pointsBox(vertices)
+        : boxFromRect(kind, rect, width, inner?.length === 4 ? inner : null);
   const stampName = kind === "stamp" ? dict.lookupMaybe(name("Name"), PDFName)!.decodeText().slice(STAMP_NAME_PREFIX.length) : null;
   return {
     id,
@@ -302,6 +330,8 @@ export function markupFromDict(dict: PDFDict, id: string, pageIndex: number, { a
     box: kind === "stamp" ? rect : box,
     line,
     quads,
+    vertices,
+    measure: isMeasureKind(kind) ? measureOf(dict, line ?? vertices ?? [], viewports) : null,
     color: rgbOf(dict.lookupMaybe(name("C"), PDFArray)) ?? [0, 0, 0],
     fill: rgbOf(dict.lookupMaybe(name("IC"), PDFArray)),
     fillAlpha: dict.lookupMaybe(FILL_ALPHA_KEY, PDFNumber)?.asNumber() ?? 1,
@@ -311,7 +341,7 @@ export function markupFromDict(dict: PDFDict, id: string, pageIndex: number, { a
     endings: isLineKind(kind) ? (dict.lookupMaybe(name("LE"), PDFArray)?.asArray() ?? []).map((ending) => (ending instanceof PDFName ? ending.decodeText() : "None")) : null,
     stamp: stampName,
     stampDate: textOf(dict.get(DATE_KEY)),
-    rotation: dict.lookupMaybe(name("Rotate"), PDFNumber)?.asNumber() ?? 0,
+    rotation: isMeasureKind(kind) ? pageRotation : (dict.lookupMaybe(name("Rotate"), PDFNumber)?.asNumber() ?? 0),
     date: textOf(dict.get(name("M"))),
     fresh: false,
     deleted: false,
@@ -337,9 +367,11 @@ export function readMarkup(doc: PDFDocument): Markup[] {
     const page = context.lookupMaybe(pageRef, PDFDict);
     const annots = page?.lookupMaybe(name("Annots"), PDFArray);
     const pageRotation = page ? rotationOf(page) : 0;
+    let pageViewports: Viewport[] | null = null;
+    const viewports = () => (pageViewports ??= page ? viewportsOf(page) : []);
     for (const entry of annots?.asArray() ?? []) {
       const dict = entry instanceof PDFRef ? context.lookupMaybe(entry, PDFDict) : undefined;
-      const markup = dict && markupFromDict(dict, idOfRef(entry as PDFRef), pageIndex, { pageRotation });
+      const markup = dict && markupFromDict(dict, idOfRef(entry as PDFRef), pageIndex, { pageRotation, viewports });
       if (markup) {
         found.push(markup);
       }

@@ -192,11 +192,22 @@ describe("captions", () => {
     expect(uprightAngle(0, 180)).toBeCloseTo(Math.PI, 9);
   });
 
-  it("puts a path caption halfway along it", () => {
+  it("puts a path caption at the middle of its longest segment", () => {
     const caption = pathCaption([0, 0, 10, 0, 10, 30]);
     expect(caption.x).toBe(10);
-    expect(caption.y).toBe(10);
+    expect(caption.y).toBe(15);
     expect(caption.angle).toBeCloseTo(Math.PI / 2, 9);
+  });
+
+  it("keeps a symmetric path's caption off its middle vertex", () => {
+    const caption = pathCaption([100, 450, 250, 510, 400, 450]);
+    expect(caption.x).toBe(175);
+    expect(caption.y).toBe(480);
+    expect(caption.angle).toBeCloseTo(Math.atan2(60, 150), 9);
+  });
+
+  it("places a degenerate path's caption at its first point", () => {
+    expect(pathCaption([5, 6, 5, 6])).toEqual({ x: 5, y: 6, angle: 0 });
   });
 
   it("places area labels inside concave shapes", () => {
