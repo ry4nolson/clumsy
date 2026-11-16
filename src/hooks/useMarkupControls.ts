@@ -6,7 +6,7 @@ import { colorFromHex, type MarkupStyle, type ShapeKind } from "../lib/markup";
 import { SET_SCALE_EVENT, type MeasureKind } from "../lib/measure";
 import { MARKUP_PARAMS_KEY, cleanMarkupParams, defaultMarkupParams, paramsOfMarkup, readMarkupParams, rememberStamp, type MarkupParams, type TextMode } from "../lib/markupParams";
 import { usePersistentState } from "../lib/preferences";
-import { useMeasurementExport } from "./useMeasurementExport";
+import { useMarkupExport } from "./useMarkupExport";
 import type { PdfViewerApi } from "./usePdfViewer";
 
 const shapesByCommand = new Map(Object.entries(shapeCommands).map(([shape, id]) => [id, shape as ShapeKind]));
@@ -21,7 +21,7 @@ function styleChange(patch: Partial<MarkupParams>): Partial<MarkupStyle> {
   };
 }
 
-type MarkupHost = { runCommand: (id: CommandId, options?: { pages?: number[] }) => void; showMeasurements: () => void; documentName: () => string };
+type MarkupHost = { runCommand: (id: CommandId, options?: { pages?: number[] }) => void; showMarkups: () => void; documentName: () => string };
 
 export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, snapshot: TabSnapshot | undefined, host: MarkupHost) {
   const [stored, setStored] = usePersistentState<MarkupParams>(MARKUP_PARAMS_KEY, defaultMarkupParams);
@@ -29,7 +29,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
   const params = cleanMarkupParams(stored);
   const selection = snapshot?.markupSelection ?? null;
   const shown = selection ? paramsOfMarkup(params, selection) : params;
-  const { runMeasurementCommand } = useMeasurementExport(activeViewer, host.documentName);
+  const { runExportCommand } = useMarkupExport(activeViewer, host.documentName);
   const latest = useRef({ activeViewer, host });
   latest.current = { activeViewer, host };
 
@@ -65,7 +65,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
 
   const chooseMeasure = (measure: MeasureKind) => {
     remember({ measure });
-    host.showMeasurements();
+    host.showMarkups();
     activeViewer()?.setMarkupTool({ kind: "measure", measure });
   };
 
@@ -92,6 +92,8 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
       chooseShape(shape);
     } else if (measure) {
       chooseMeasure(measure);
+    } else if (id === "showMarkups") {
+      host.showMarkups();
     } else if (id === "toolStamp") {
       setPickerOpen(true);
     } else if (id === "toolHighlight" || id === "toolUnderline" || id === "toolStrikeout") {
@@ -99,7 +101,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
     } else if (id === "underlineSelection" || id === "strikeoutSelection") {
       activeViewer()?.editorUi?.markup?.applyText(id === "underlineSelection" ? "underline" : "strikeout");
     } else {
-      return runMeasurementCommand(id);
+      return runExportCommand(id);
     }
     return true;
   };

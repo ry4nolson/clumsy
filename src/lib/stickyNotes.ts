@@ -65,7 +65,7 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
   let drag: NoteDrag | null = null;
   let dropped = false;
 
-  const changes = () => notesIn(doc?.annotationStorage ?? []);
+  const changes = () => notesIn(doc?.annotationStorage ?? []).filter((note) => !note.reply);
   const pageView = (pageIndex: number) => viewer.getPageView(pageIndex) as unknown as NotePageView | undefined;
   const allNotes = () => visibleNotes([...fileNotes.values()].flat(), changes());
   const findNote = (id: string) => drafts.get(id) ?? allNotes().find((note) => note.id === id) ?? null;
@@ -422,6 +422,21 @@ export function attachStickyNotes(viewer: PDFViewer, eventBus: EventBus, linkSer
     has: (id: string) => !!findNote(id),
     writable,
     addAt,
+    async removal(ids: string[]): Promise<Parameters<NoteHooks["addCommands"]>[0] | null> {
+      await loadAll();
+      const date = pdfDate(new Date());
+      const entries = ids.flatMap((id) => {
+        const note = findNote(id);
+        return note ? [{ id, pageIndex: note.pageIndex, before: (doc?.annotationStorage.getRawValue(NOTE_KEY_PREFIX + id) as StickyNote | undefined) ?? null, after: changedNote(note, null, date) }] : [];
+      });
+      return entries.length
+        ? {
+            cmd: () => entries.forEach(({ id, pageIndex, after }) => put(id, after, pageIndex)),
+            undo: () => entries.forEach(({ id, pageIndex, before }) => put(id, before, pageIndex)),
+            mustExec: true,
+          }
+        : null;
+    },
     async entries(): Promise<CommentEntry[]> {
       await loadAll();
       return allNotes()

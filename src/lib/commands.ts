@@ -92,8 +92,11 @@ export type CommandId =
   | "measureLength"
   | "measurePath"
   | "measureArea"
-  | "copyMeasurements"
-  | "exportMeasurements"
+  | "showMarkups"
+  | "copyMarkups"
+  | "copyMarkupSummary"
+  | "exportMarkups"
+  | "exportMarkupSummary"
   | "toolStamp"
   | "addImage"
   | "sign"
@@ -198,6 +201,7 @@ export const commands: Command[] = [
   { id: "toggleSidebar", label: "Toggle Sidebar", menu: "View", combos: ["mod+b"], needsDocument: true, markdown: true },
   { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["mod+shift+e"], needsDocument: true },
   { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true, markdown: true },
+  { id: "showMarkups", label: "Markups", menu: "View", combos: ["mod+shift+m"], needsDocument: true },
   { id: "toggleMarkdownSource", label: "Markdown Source", menu: "View", combos: ["mod+shift+v"], needsMarkdown: true },
   { id: "toggleDocumentMap", label: "Document Map", menu: "View", combos: ["alt+mod+b"] },
   { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true, markdown: true },
@@ -260,8 +264,10 @@ export const commands: Command[] = [
   { id: "measureLength", label: "Measure Length", menu: "Tools", combos: [], needsDocument: true },
   { id: "measurePath", label: "Measure Path", menu: "Tools", combos: [], needsDocument: true },
   { id: "measureArea", label: "Measure Area", menu: "Tools", combos: [], needsDocument: true },
-  { id: "copyMeasurements", label: "Copy Measurements", menu: "Tools", combos: [], needsDocument: true },
-  { id: "exportMeasurements", label: "Export Measurements…", menu: "Tools", combos: [], needsDocument: true, needsDesktop: true },
+  { id: "copyMarkups", label: "Copy Markups", menu: "Tools", combos: [], needsDocument: true },
+  { id: "copyMarkupSummary", label: "Copy Markup Summary", menu: "Tools", combos: [], needsDocument: true },
+  { id: "exportMarkups", label: "Export Markups…", menu: "Tools", combos: [], needsDocument: true, needsDesktop: true },
+  { id: "exportMarkupSummary", label: "Export Markup Summary…", menu: "Tools", combos: [], needsDocument: true, needsDesktop: true },
   { id: "addImage", label: "Add Image…", menu: "Tools", combos: ["ctrl+mod+i"], needsDocument: true },
   { id: "sign", label: "Sign…", menu: "Tools", combos: ["ctrl+mod+s"], needsDocument: true },
   { id: "newSignature", label: "New Signature…", menu: "Tools", combos: [], needsDocument: true },

@@ -149,7 +149,7 @@ export default function App() {
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
-  const markupControls = useMarkupControls(activeViewer, activeSnapshot, { runCommand: (id, options) => runCommandRef.current(id, options), showMeasurements: () => showSidebar("measurements"), documentName: () => ("name" in activeTab ? activeTab.name : "Document") });
+  const markupControls = useMarkupControls(activeViewer, activeSnapshot, { runCommand: (id, options) => runCommandRef.current(id, options), showMarkups: () => showSidebar("markups"), documentName: () => ("name" in activeTab ? activeTab.name : "Document") });
   const tools = useToolbarTools(activeViewer, activeSnapshot, editorOptions, markupControls, (id) => runCommandRef.current(id));
 
   const toggleFind = () => {

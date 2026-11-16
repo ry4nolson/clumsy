@@ -70,7 +70,10 @@ export async function writeAnnotationsOffThread(bytes: Uint8Array, notes: Sticky
   return result.bytes;
 }
 
-export const readMarkupOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "readMarkup", bytes, password })).markup ?? [];
+export async function readMarkupOffThread(bytes: Uint8Array, password?: string) {
+  const result = await runInWorker(spawn, { op: "readMarkup", bytes, password });
+  return { markup: result.markup ?? [], subjects: result.subjects ?? {} };
+}
 
 export const readScalesOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "readScales", bytes, password })).scales ?? [];
 

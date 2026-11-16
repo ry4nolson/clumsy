@@ -13,6 +13,8 @@ export type StickyNote = {
   date: string | null;
   fresh: boolean;
   deleted: boolean;
+  author?: string | null;
+  reply?: { to: string; state: string } | null;
 };
 
 type AnnotationData = {
@@ -28,6 +30,14 @@ type AnnotationData = {
   inReplyTo?: string | null;
   hidden?: boolean;
 };
+
+type StateValue = string | { name?: string } | null | undefined;
+
+export type AnnotationReplyData = { inReplyTo?: string | null; stateModel?: StateValue; state?: StateValue };
+
+export const stateText = (value: StateValue) => (typeof value === "string" ? value : (value?.name ?? ""));
+
+export const isStateReply = (annotation: AnnotationReplyData) => !!annotation.inReplyTo && stateText(annotation.stateModel) === "Review";
 
 export function isStickyNote(annotation: { annotationType: number; inReplyTo?: unknown }) {
   return annotation.annotationType === TEXT_ANNOTATION && !annotation.inReplyTo;

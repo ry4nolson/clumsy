@@ -5,7 +5,7 @@ import { failureOf, resultBuffers, type PageEditJob, type PageEditResponse, type
 import { PageEditError, reorderedPages, uniqueSorted, type PageEdit } from "./pageEditPlan";
 import { relabelRange } from "./pageLabels";
 import { pageRefsOf, readPageLabels, relabelPages, writePageLabels, type LabelSource } from "./pdfPageLabels";
-import { readMarkup } from "./markupPdf";
+import { readMarkup, readSubjects } from "./markupPdf";
 import { pageScaleOf, setPageScale } from "./measurePdf";
 import { writeAnnotationsReporting } from "./notesPdf";
 import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
@@ -187,8 +187,10 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
       return { bytes: await encryptPdf(job.bytes, job.password) };
     case "annotations":
       return writeAnnotationsReporting(job.bytes, job.notes, job.markup, job.password);
-    case "readMarkup":
-      return { bytes: new Uint8Array(), markup: readMarkup(await load(job.bytes, job.password)) };
+    case "readMarkup": {
+      const doc = await load(job.bytes, job.password);
+      return { bytes: new Uint8Array(), markup: readMarkup(doc), subjects: readSubjects(doc) };
+    }
     case "readScales": {
       const doc = await load(job.bytes, job.password);
       return { bytes: new Uint8Array(), scales: pageLeafRefs(doc).map((ref) => pageScaleOf(doc.context.lookup(ref, PDFDict))) };

@@ -260,3 +260,234 @@
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
+
+.markup-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 0;
+}
+
+.markup-search,
+.markup-filter select,
+.markup-filter input,
+.markup-author input {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.markup-filter-details summary {
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.markup-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.markup-filter,
+.markup-author {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.markup-pages {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 6px;
+}
+
+.markup-pages span {
+  grid-column: 1 / -1;
+}
+
+.markup-pages input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.markup-pages button,
+.markup-selection-actions button {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--hover);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.markup-selection-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.markup-selection,
+.markup-selection-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.markup-selection {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+}
+
+.markup-selection > span {
+  padding: 6px 8px 0;
+  color: var(--text-muted);
+}
+
+.markup-selection-actions .markup-filter {
+  flex: 1;
+}
+
+.markup-row .markup-subject {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markup-type {
+  white-space: nowrap;
+}
+
+.markup-facts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.markup-status {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--hover);
+  font-size: 11px;
+}
+
+.markup-status.accepted,
+.markup-status.completed {
+  color: var(--diff-added);
+}
+
+.markup-status.rejected,
+.markup-status.cancelled {
+  color: var(--diff-removed);
+}
+
+.markup-note {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markup-group button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: var(--hover);
+  color: var(--text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+
+.markup-group-label {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markup-group-label::before {
+  display: inline-block;
+  width: 12px;
+  content: "▾";
+}
+
+.markup-group button[aria-expanded="false"] .markup-group-label::before {
+  content: "▸";
+}
+
+.markup-flash {
+  position: absolute;
+  z-index: 3;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: markup-flash 1.2s ease-out forwards;
+}
+
+@keyframes markup-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.markups-panel {
+  min-width: 0;
+}
+
+.markups-panel .measurement-total strong,
+.markup-group button strong,
+.markups-panel .change-page {
+  flex: none;
+  white-space: nowrap;
+}
+
+.markups-panel .measurement-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.markups-panel .measurement-actions button {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markup-row .markup-subject {
+  flex: 1;
+  min-width: 0;
+}
+
+.markup-type {
+  color: var(--text-muted);
+  font-size: 11px;
+}

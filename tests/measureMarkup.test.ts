@@ -105,7 +105,7 @@ describe("writing measurements", () => {
     const dicts = await pageAnnots(await writeAnnotations(await blank(), [], markup));
     expect(dicts.map((dict) => [nameOf(dict, "Subtype"), nameOf(dict, "IT"), textOf(dict, "Subj")])).toEqual([
       ["Line", "LineDimension", "Length"],
-      ["PolyLine", "PolyLineDimension", "Perimeter"],
+      ["PolyLine", "PolyLineDimension", "Path"],
       ["Polygon", "PolygonDimension", "Area"],
     ]);
     expect(dicts.map((dict) => textOf(dict, "Contents"))).toEqual([`33' 4"`, `66' 8"`, "555.56 sq ft"]);

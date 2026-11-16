@@ -53,11 +53,11 @@ Click a measurement to select it, then:
 
 The reading updates as you go, and every change can be undone.
 
-## The Measurements list
+## Totals and export
 
-Picking a Measure tool opens the Measurements tab in the sidebar. It also appears whenever the document already has measurements, including ones made in other apps. It lists every measurement by page, with the total length and total area at the top. Click one to go to it.
+Picking a Measure tool opens the Markups tab in the sidebar, which lists every measurement with the others. Measurements are grouped by subject with a total for each group, and the top of the tab shows the total length and total area of everything showing. Click one to go to it.
 
-**Copy** puts the list on the clipboard to paste into a spreadsheet. **Export CSV…** saves it as a file. Both include the page, type, reading, a plain number with its unit, the scale, and the color, so you can sort a takeoff by trade.
+**Copy** and **Export CSV…** send the list to a spreadsheet, with the page, type, reading, a plain number with its unit, the scale, and the color. **Copy Summary** gives one row per subject with its total. See [The Markups list](/guides/markups) for filters, counts, and review status.
 
 ## Saving
 

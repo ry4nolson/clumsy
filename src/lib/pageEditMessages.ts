@@ -30,6 +30,7 @@ export type PageEditResult = {
   unchanged?: boolean;
   role?: PasswordRole | null;
   markup?: Markup[];
+  subjects?: Record<string, string>;
   scales?: Array<PageScale | null>;
   scan?: SignatureScan;
   placeholder?: SignaturePlaceholder;

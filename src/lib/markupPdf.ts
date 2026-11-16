@@ -93,7 +93,8 @@ function addMarkup(writer: Writer, pageRef: PDFRef, page: PDFDict, markup: Marku
     F: PRINT,
     M: date,
     CreationDate: date,
-    Subj: PDFHexString.fromText(markup.kind === "stamp" && markup.stamp ? stampLabel(markup.stamp) : kindLabels[markup.kind]),
+    Subj: PDFHexString.fromText(markup.subject?.trim() || (markup.kind === "stamp" && markup.stamp ? stampLabel(markup.stamp) : kindLabels[markup.kind])),
+    ...(markup.author ? { T: PDFHexString.fromText(markup.author) } : {}),
   });
   setGeometry(context, dict, markup, rect);
   setStyle(context, dict, markup);
@@ -345,6 +346,7 @@ export function markupFromDict(dict: PDFDict, id: string, pageIndex: number, { a
     date: textOf(dict.get(name("M"))),
     fresh: false,
     deleted: false,
+    subject: textOf(dict.get(name("Subj"))),
   };
 }
 
@@ -358,6 +360,21 @@ function rotationOf(page: PDFDict) {
     }
   }
   return 0;
+}
+
+export function readSubjects(doc: PDFDocument): Record<string, string> {
+  const { context } = doc;
+  const subjects: Record<string, string> = {};
+  for (const pageRef of pageLeafRefs(doc)) {
+    const annots = context.lookupMaybe(pageRef, PDFDict)?.lookupMaybe(name("Annots"), PDFArray);
+    for (const entry of annots?.asArray() ?? []) {
+      const subject = entry instanceof PDFRef ? textOf(context.lookupMaybe(entry, PDFDict)?.get(name("Subj"))) : null;
+      if (subject) {
+        subjects[idOfRef(entry as PDFRef)] = subject;
+      }
+    }
+  }
+  return subjects;
 }
 
 export function readMarkup(doc: PDFDocument): Markup[] {

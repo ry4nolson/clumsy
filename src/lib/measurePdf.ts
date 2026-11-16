@@ -13,7 +13,7 @@ export const VIEWPORT_NAME = "Clumsy";
 
 export const measureIntents: Record<MeasureKind, { subtype: string; intent: string; subject: string }> = {
   "measure-length": { subtype: "Line", intent: "LineDimension", subject: "Length" },
-  "measure-path": { subtype: "PolyLine", intent: "PolyLineDimension", subject: "Perimeter" },
+  "measure-path": { subtype: "PolyLine", intent: "PolyLineDimension", subject: "Path" },
   "measure-area": { subtype: "Polygon", intent: "PolygonDimension", subject: "Area" },
 };
 
