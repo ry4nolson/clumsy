@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-11-16
+
 ### Changed
 - Toolbar buttons and menus respond faster in long documents. Each click used to restyle every thumbnail and Document Map page.
 - A large Markdown file shows its tab right away with "Rendering…" instead of freezing the window until it's drawn, and its minimap fills in afterwards without blocking.
