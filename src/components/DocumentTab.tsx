@@ -176,7 +176,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const [findSeed, setFindSeed] = useState<string | null>(null);
   const lastQuery = useRef<FindQuery | null>(null);
   const [selection, setSelection] = useState<PageSelection>(emptySelection);
-  const pageSheets = usePageSheets((action) => onPageAction(id, action));
+  const pageSheets = usePageSheets((action) => onPageAction(id, action), viewer.pickLine);
   const lastProtection = useRef<Protection | undefined>(undefined);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;

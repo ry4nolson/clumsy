@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultFormat, formatLength, fullSize, scalePresets, type MeasureFormat } from "../src/lib/measure";
-import { CUSTOM, FULL_SIZE, changesScale, customScale, fittedFormat, precisionOptions, presetKey, scaleForKey, scaleKey, startingScale } from "../src/lib/scaleChoice";
+import { CUSTOM, FULL_SIZE, calibratedScale, changesScale, customScale, fittedFormat, precisionOptions, presetKey, scaleForKey, scaleKey, startingScale } from "../src/lib/scaleChoice";
 
 const quarter = scalePresets.find((scale) => scale.label === `1/4" = 1'-0"`)!;
 const metric: MeasureFormat = { unit: "m", precision: 2 };
@@ -56,5 +56,14 @@ describe("scale choices", () => {
     expect(changesScale([set], [0], { scale: { ...quarter, label: "renamed" }, format: defaultFormat })).toBe(true);
     expect(changesScale([null], [0], null)).toBe(false);
     expect(changesScale([set], [0], null)).toBe(true);
+  });
+
+  it("calibrates from a drawn line and its real length", () => {
+    const scale = calibratedScale(144, "16'", defaultFormat)!;
+    expect(formatLength(72, scale, defaultFormat)).toBe(`8' 0"`);
+    expect(scale.label).toBe(`1" = 8' 0"`);
+    expect(calibratedScale(144, "4.8768 m", metric)!.label).toBe("1:96");
+    expect(calibratedScale(144, "", defaultFormat)).toBeNull();
+    expect(calibratedScale(144, "nonsense", defaultFormat)).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import {
   isFractional,
   parseLength,
   sameScale,
+  scaleFromCalibration,
   scalePresets,
   type LengthUnit,
   type MeasureFormat,
@@ -16,6 +17,10 @@ import type { PageScale } from "./measurePdf";
 
 export const FULL_SIZE = "full";
 export const CUSTOM = "custom";
+export const CALIBRATED = "calibrated";
+
+export type ScaleDraft = { allPages: boolean; unit: LengthUnit; precision: number };
+export type Calibration = ScaleDraft & { points: number };
 
 export const unitNames: Record<LengthUnit, string> = {
   "ft-in": "Feet and inches",
@@ -55,6 +60,8 @@ export function customScale(paper: string, real: string, unit: LengthUnit): Meas
   }
   return { label: `${paper.trim()} = ${real.trim()}`, inchesPerPoint: realInches / (paperInches * POINTS_PER_INCH) };
 }
+
+export const calibratedScale = (points: number, real: string, format: MeasureFormat) => scaleFromCalibration(points, parseLength(real, format.unit) ?? 0, format);
 
 export function precisionOptions(unit: LengthUnit): Array<[number, string]> {
   if (isFractional(unit)) {
