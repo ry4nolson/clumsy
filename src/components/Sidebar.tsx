@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { Info, Layers, Paperclip, Toolbox } from "lucide-react";
+import { GalleryVerticalEnd, Info, Layers, ListTree, Paperclip, Shapes, Toolbox } from "lucide-react";
 import type { PreviewLayers } from "../lib/imageRestore";
 import type { SelectModifiers } from "../lib/pageSelection";
 import { Outline } from "./Outline";
@@ -43,11 +43,11 @@ export function Sidebar(props: SidebarProps) {
   return (
     <SidebarShell>
       <div className="sidebar-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "thumbnails"} onClick={() => onTab("thumbnails")}>
-          Pages
+        <button type="button" role="tab" className="icon-tab" aria-selected={tab === "thumbnails"} title="Pages" aria-label="Pages" onClick={() => onTab("thumbnails")}>
+          <GalleryVerticalEnd size={15} />
         </button>
-        <button type="button" role="tab" aria-selected={tab === "outline"} onClick={() => onTab("outline")}>
-          Outline
+        <button type="button" role="tab" className="icon-tab" aria-selected={tab === "outline"} title="Outline" aria-label="Outline" onClick={() => onTab("outline")}>
+          <ListTree size={15} />
         </button>
         {changes && (
           <button type="button" role="tab" aria-selected={tab === "changes"} onClick={() => onTab("changes")}>
@@ -60,8 +60,8 @@ export function Sidebar(props: SidebarProps) {
           </button>
         )}
         {markups && (
-          <button type="button" role="tab" aria-selected={tab === "markups"} onClick={() => onTab("markups")}>
-            Markups
+          <button type="button" role="tab" className="icon-tab" aria-selected={tab === "markups"} title="Markups" aria-label="Markups" onClick={() => onTab("markups")}>
+            <Shapes size={15} />
           </button>
         )}
         {info && (

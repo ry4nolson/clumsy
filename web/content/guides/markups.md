@@ -2,7 +2,7 @@ Every markup in a document, in one list: shapes, stamps, measurements, highlight
 
 ## Open it
 
-The Markups tab is in the sidebar on every PDF. Open it from the tab, with View > Markups, or with [[⇧⌘M]]. Picking a Measure tool opens it too.
+The Markups tab is in the sidebar on every PDF. Open it from its tab (the shapes icon), with View > Markups, or with [[⇧⌘M]]. Picking a Measure tool opens it too.
 
 Each row shows the markup's subject, its page, and, when it has them, its measurement, review status, author, and comment. Click a row to go to it. Clumsy's own markup is selected, ready to move or restyle; anything else is outlined for a moment so you can spot it.
 
