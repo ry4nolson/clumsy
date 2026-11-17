@@ -15,6 +15,7 @@ export type CommandId =
   | "print"
   | "printSelectedPages"
   | "compressPdf"
+  | "documentProperties"
   | "setPassword"
   | "removePassword"
   | "compareWithFile"
@@ -94,6 +95,8 @@ export type CommandId =
   | "measureArea"
   | "showMarkups"
   | "showToolChest"
+  | "showAttachments"
+  | "showLayers"
   | "saveAsTool"
   | "addToToolChest"
   | "exportToolChest"
@@ -153,6 +156,8 @@ export type Command = {
   needsComparison?: boolean;
   needsForm?: boolean;
   needsProtection?: boolean;
+  needsAttachments?: boolean;
+  needsLayers?: boolean;
   needsPrinting?: boolean;
   needsDigitalSigning?: boolean;
   needsDesktop?: boolean;
@@ -190,6 +195,7 @@ export const commands: Command[] = [
   { id: "saveAs", label: "Save As…", menu: "File", combos: ["mod+shift+s"], needsDocument: true, markdown: true },
   { id: "saveAll", label: "Save All", menu: "File", combos: ["alt+mod+s"] },
   { id: "revealInFinder", label: revealLabel, menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true, needsDesktop: true },
+  { id: "documentProperties", label: "Document Properties", menu: "File", combos: ["mod+d"], needsDocument: true },
   { id: "compressPdf", label: "Compress…", menu: "File", combos: [], needsDocument: true },
   { id: "setPassword", label: "Set Password…", menu: "File", combos: [], needsDocument: true },
   { id: "removePassword", label: "Remove Password", menu: "File", combos: [], needsDocument: true, needsProtection: true },
@@ -208,6 +214,8 @@ export const commands: Command[] = [
   { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true, markdown: true },
   { id: "showMarkups", label: "Markups", menu: "View", combos: ["mod+shift+m"], needsDocument: true },
   { id: "showToolChest", label: "Tool Chest", menu: "View", combos: [], needsDocument: true },
+  { id: "showAttachments", label: "Attachments", menu: "View", combos: [], needsDocument: true, needsAttachments: true },
+  { id: "showLayers", label: "Layers", menu: "View", combos: [], needsDocument: true, needsLayers: true },
   { id: "toggleMarkdownSource", label: "Markdown Source", menu: "View", combos: ["mod+shift+v"], needsMarkdown: true },
   { id: "toggleDocumentMap", label: "Document Map", menu: "View", combos: ["alt+mod+b"] },
   { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true, markdown: true },
@@ -326,6 +334,8 @@ export type CommandContext = {
   hasMarkdown?: boolean;
   hasForm?: boolean;
   isProtected?: boolean;
+  hasAttachments?: boolean;
+  hasLayers?: boolean;
   split: boolean;
   comparing: boolean;
   canPrint?: boolean;
@@ -347,13 +357,19 @@ export function documentAvailable(command: Command, { hasDocument, hasMarkdown =
   return !command.needsDocument || hasDocument || (hasMarkdown && !!command.markdown);
 }
 
+export type ContentContext = Pick<CommandContext, "hasForm" | "isProtected" | "hasAttachments" | "hasLayers">;
+
+export const needsContent = (command: Command) => !!(command.needsForm || command.needsProtection || command.needsAttachments || command.needsLayers);
+
+export const contentAvailable = (command: Command, { hasForm, isProtected, hasAttachments, hasLayers }: ContentContext) =>
+  (!command.needsForm || !!hasForm) && (!command.needsProtection || !!isProtected) && (!command.needsAttachments || !!hasAttachments) && (!command.needsLayers || !!hasLayers);
+
 export function commandAvailable(command: Command, context: CommandContext) {
   return (
     documentAvailable(command, context) &&
     (context.split || !command.needsSplit) &&
     (context.comparing || !command.needsComparison) &&
-    (!!context.hasForm || !command.needsForm) &&
-    (!!context.isProtected || !command.needsProtection) &&
+    contentAvailable(command, context) &&
     platformSupports(command, context)
   );
 }

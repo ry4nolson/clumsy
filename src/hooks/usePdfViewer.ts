@@ -26,6 +26,9 @@ import { defaultViewModes, type ScrollModeName, type SpreadModeName, type ViewMo
 import { useViewerControls } from "./useViewerControls";
 import { useViewerFind } from "./useViewerFind";
 import { useViewerForm } from "./useViewerForm";
+import { useViewerLayers } from "./useViewerLayers";
+import { refitOnResize } from "../lib/fitOnResize";
+import { parseSavedLayers } from "../lib/layers";
 import { useViewerScroll, type DiffState } from "./useViewerScroll";
 import { finishDrawing, useViewerTools } from "./useViewerTools";
 
@@ -61,7 +64,7 @@ export type ViewStart = { view?: ViewState; modes?: Partial<ViewModes>; destinat
 
 let warnedAboutEditorHost = false;
 
-const presetScales = new Set(["page-width", "page-fit", "auto"]);
+export type AttachmentOpener = (data: Uint8Array, filename: string) => void;
 
 type ViewerParts = {
   eventBus: EventBus;
@@ -77,6 +80,7 @@ export function usePdfViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const partsRef = useRef<ViewerParts | null>(null);
   const paintDiffRef = useRef(() => {});
+  const attachmentRef = useRef<AttachmentOpener | null>(null);
   const startRef = useRef<ViewStart | null>(null);
   const locationRef = useRef<ViewLocation | null>(null);
   const modifiedRef = useRef(false);
@@ -146,6 +150,7 @@ export function usePdfViewer() {
       imagesRightClickMinSize: 0,
       enableDetailCanvas: false,
       imageResourcesPath: `${assetsUrl}images/`,
+      downloadManager: { openOrDownloadData: (data: Uint8Array, filename: string) => attachmentRef.current?.(data, filename) } as unknown as PDFViewer["downloadManager"],
       ...editorUi.viewerOptions,
     } as ConstructorParameters<typeof PDFViewer>[0]);
     linkService.setViewer(viewer);
@@ -250,33 +255,14 @@ export function usePdfViewer() {
     container.addEventListener("input", onFormInput, true);
     container.addEventListener("change", onFormInput, true);
 
-    let lastSize = "";
-    const resizeObserver = new ResizeObserver(([entry]) => {
-      const box = entry.borderBoxSize?.[0];
-      const width = Math.round(box?.inlineSize ?? container.offsetWidth);
-      const height = Math.round(box?.blockSize ?? container.offsetHeight);
-      const size = `${width}x${height}`;
-      if (!width || !height || size === lastSize) {
-        return;
-      }
-      const keyboardOnly = isTouchDevice && lastSize.startsWith(`${width}x`);
-      lastSize = size;
-      if (keyboardOnly) {
-        return;
-      }
-      const preset = viewer.currentScaleValue;
-      if (viewer.pdfDocument && presetScales.has(preset)) {
-        viewer.currentScaleValue = preset;
-      }
-    });
-    resizeObserver.observe(container, { box: "border-box" });
+    const stopRefit = refitOnResize(container, viewer, isTouchDevice);
 
     return () => {
       finishDrawing(viewer);
       viewer.setDocument(null!);
       linkService.setDocument(null, null);
       teardown.abort();
-      resizeObserver.disconnect();
+      stopRefit();
       stopZoomGestures();
       container.removeEventListener("input", onFormInput, true);
       container.removeEventListener("change", onFormInput, true);
@@ -293,6 +279,8 @@ export function usePdfViewer() {
   const scroll = useViewerScroll(partsRef, containerRef, diffRef, paintDiffRef);
   const controls = useViewerControls(partsRef, restoreRef);
   const { hasForm, loadFields, stepField, resetForm } = useViewerForm(partsRef);
+  const { loadLayers, savedLayers, ...layers } = useViewerLayers(partsRef);
+  const setAttachmentOpener = useCallback((opener: AttachmentOpener | null) => void (attachmentRef.current = opener), []);
 
   const setModified = useCallback((value: boolean) => {
     modifiedRef.current = value;
@@ -339,12 +327,13 @@ export function usePdfViewer() {
           })
           .catch(() => undefined);
       }
+      loadLayers(doc, parseSavedLayers(start?.view?.layers));
       parts.viewer.setDocument(doc!);
       parts.linkService.setDocument(doc, null);
       parts.findController.setDocument(doc!);
       setPdfDocument(doc);
     },
-    [setModified, stops, resetFind, resetTools, applyLabels, loadFields],
+    [setModified, stops, resetFind, resetTools, applyLabels, loadFields, loadLayers],
   );
 
   const recordStop = useCallback(() => {
@@ -438,8 +427,9 @@ export function usePdfViewer() {
       scrollMode: nameOf(scrollModeValues, viewer.scrollMode),
       spreadMode: nameOf(spreadModeValues, viewer.spreadMode),
       history: stops.get(),
+      layers: savedLayers(),
     };
-  }, [stops]);
+  }, [stops, savedLayers]);
 
   const save = useMemo(() => oneAtATime(async () => {
     const doc = partsRef.current?.viewer.pdfDocument;
@@ -472,6 +462,8 @@ export function usePdfViewer() {
     pageLabels,
     caretBrowsing,
     hasForm,
+    ...layers,
+    setAttachmentOpener,
     findMatches,
     setDocument,
     goToPage,

@@ -1,17 +1,19 @@
 import type { ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { Toolbox } from "lucide-react";
+import { Info, Layers, Paperclip, Toolbox } from "lucide-react";
+import type { PreviewLayers } from "../lib/imageRestore";
 import type { SelectModifiers } from "../lib/pageSelection";
 import { Outline } from "./Outline";
 import { SidebarShell } from "./SidebarShell";
 import { Thumbnails } from "./Thumbnails";
 
-export type SidebarTab = "thumbnails" | "outline" | "changes" | "comments" | "markups" | "toolChest" | "signatures";
+export type SidebarTab = "thumbnails" | "outline" | "changes" | "comments" | "markups" | "toolChest" | "signatures" | "attachments" | "layers" | "info";
 
 type SidebarProps = {
   tab: SidebarTab;
   onTab: (tab: SidebarTab) => void;
   pdfDocument: PDFDocumentProxy;
+  previewLayers: PreviewLayers;
   paused: boolean;
   restoreImages: boolean;
   currentPage: number;
@@ -28,11 +30,14 @@ type SidebarProps = {
   markups?: ReactNode;
   toolChest?: ReactNode;
   signatures?: ReactNode;
+  info?: ReactNode;
+  attachments?: ReactNode;
+  layers?: ReactNode;
 };
 
 export function Sidebar(props: SidebarProps) {
-  const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes, comments, markups, toolChest, signatures } = props;
-  const panels: Partial<Record<SidebarTab, ReactNode>> = { changes, comments, markups, toolChest, signatures };
+  const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes, comments, markups, toolChest, signatures, info, attachments, layers } = props;
+  const panels: Partial<Record<SidebarTab, ReactNode>> = { changes, comments, markups, toolChest, signatures, info, attachments, layers };
   const missing = props.tab in panels && !panels[props.tab];
   const tab = missing ? "thumbnails" : props.tab;
   return (
@@ -59,9 +64,24 @@ export function Sidebar(props: SidebarProps) {
             Markups
           </button>
         )}
+        {info && (
+          <button type="button" role="tab" className="icon-tab" aria-selected={tab === "info"} title="Info" aria-label="Info" onClick={() => onTab("info")}>
+            <Info size={15} />
+          </button>
+        )}
         {toolChest && (
           <button type="button" role="tab" className="icon-tab" aria-selected={tab === "toolChest"} title="Tool Chest" aria-label="Tool Chest" onClick={() => onTab("toolChest")}>
             <Toolbox size={15} />
+          </button>
+        )}
+        {attachments && (
+          <button type="button" role="tab" className="icon-tab" aria-selected={tab === "attachments"} title="Attachments" aria-label="Attachments" onClick={() => onTab("attachments")}>
+            <Paperclip size={15} />
+          </button>
+        )}
+        {layers && (
+          <button type="button" role="tab" className="icon-tab" aria-selected={tab === "layers"} title="Layers" aria-label="Layers" onClick={() => onTab("layers")}>
+            <Layers size={15} />
           </button>
         )}
         {signatures && (
@@ -76,6 +96,7 @@ export function Sidebar(props: SidebarProps) {
         ) : tab === "thumbnails" ? (
           <Thumbnails
             pdfDocument={pdfDocument}
+            layers={props.previewLayers}
             paused={props.paused}
             restoreImages={props.restoreImages}
             currentPage={currentPage}

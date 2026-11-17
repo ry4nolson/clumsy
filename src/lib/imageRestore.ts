@@ -64,11 +64,14 @@ export function restorePreviewImages(overlay: HTMLCanvasElement, shown: ShownPre
   drawImages(shown.canvas, overlay, imageRects(images.coords, shown.rotation - images.rotation));
 }
 
-export function previewRender(page: PDFPageProxy, canvas: HTMLCanvasElement, viewport: PageViewport) {
+export type PreviewLayers = { hash: string; config: Promise<unknown> } | null;
+
+export function previewRender(page: PDFPageProxy, canvas: HTMLCanvasElement, viewport: PageViewport, layers: PreviewLayers = null) {
   canvas.width = Math.floor(viewport.width);
   canvas.height = Math.floor(viewport.height);
   const recording = !page.imageCoordinates;
-  const task = page.render({ canvas, viewport, transform: fillTransform(canvas, viewport), recordImages: recording });
+  const optionalContentConfigPromise = (layers?.config ?? undefined) as Parameters<PDFPageProxy["render"]>[0]["optionalContentConfigPromise"];
+  const task = page.render({ canvas, viewport, transform: fillTransform(canvas, viewport), recordImages: recording, optionalContentConfigPromise });
   task.promise.then(
     () => recording && recordImageCoordinates(page, page.imageCoordinates, viewport.rotation),
     () => {},

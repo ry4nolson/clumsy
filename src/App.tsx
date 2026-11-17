@@ -143,6 +143,7 @@ export default function App() {
   const hasDocument = !!activeSnapshot?.loaded;
   const hasForm = hasDocument && !!activeSnapshot?.hasForm;
   const isProtected = hasDocument && activeTab.kind === "document" && !!activeTab.protection;
+  const contents = { hasAttachments: hasDocument && !!activeSnapshot?.hasAttachments, hasLayers: hasDocument && !!activeSnapshot?.hasLayers };
   const markdownSnapshot = activeTab.kind === "markdown" ? markdownSnapshots[activeTab.id] : undefined;
   const hasMarkdown = !!markdownSnapshot;
   const allSnapshots = { ...snapshots, ...markdownSnapshots };
@@ -214,6 +215,7 @@ export default function App() {
     hasMarkdown,
     hasForm,
     isProtected,
+    ...contents,
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
     canPrint,
@@ -310,6 +312,9 @@ export default function App() {
       toggleSidebar: () => setSidebarOpen((open) => !open),
       showPages: () => showSidebar("thumbnails"),
       showOutline: () => showSidebar("outline"),
+      showAttachments: () => showSidebar("attachments"),
+      showLayers: () => showSidebar("layers"),
+      documentProperties: () => showSidebar("info"),
       toggleDocumentMap: () => viewMenuState.documentMapAvailable && setDocumentMap((shown) => !shown),
       actualSize: () => viewer?.setZoom(1),
       zoomIn: () => viewer?.zoom(1),
@@ -379,6 +384,7 @@ export default function App() {
       invertImages: darkPagesImages === "invert",
       hasForm,
       isProtected,
+      ...contents,
       fieldHighlights: forms.fieldHighlights, formScripts: forms.formScripts,
       ...viewMenuState,
     },

@@ -4,6 +4,7 @@ import { emitTo } from "@tauri-apps/api/event";
 import { WebviewWindow, getAllWebviewWindows, getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import { hasAppMenu, isDesktop, isMac, markdownSource, readDocumentFromPath, type DocumentSource } from "./platform";
+import type { SavedLayer } from "./layers";
 import type { NavHistory } from "./navHistory";
 import { parseProtection, serializeProtection, type Protection } from "./protection";
 import type { AnyViewState } from "./tabs";
@@ -18,6 +19,7 @@ export type ViewState = {
   scrollMode?: ScrollModeName;
   spreadMode?: SpreadModeName;
   history?: NavHistory;
+  layers?: SavedLayer[];
 };
 
 export type TabTransfer =

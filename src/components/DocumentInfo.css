@@ -1,0 +1,189 @@
+.document-properties {
+  padding: 10px 12px 16px;
+  font-size: 12px;
+  user-select: text;
+}
+
+.document-properties section + section {
+  margin-top: 14px;
+}
+
+.document-properties h3 {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.property-rows {
+  margin: 0;
+}
+
+.property-rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.property-rows div:last-child {
+  border-bottom: none;
+}
+
+.property-rows dt {
+  flex: none;
+  max-width: 48%;
+  color: var(--text-muted);
+}
+
+.property-rows dd {
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.attachment-item {
+  position: relative;
+}
+
+.attachment-row {
+  padding-right: 76px;
+}
+
+.attachment-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.attachment-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-name svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.attachment-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-actions {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+}
+
+.attachment-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 7px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.attachment-action.icon {
+  width: 24px;
+  padding: 0;
+}
+
+.attachment-action:hover {
+  background: var(--active);
+  color: var(--text);
+}
+
+.layers {
+  display: flex;
+  flex-direction: column;
+}
+
+.layers-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.layers-button {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: none;
+  border-radius: 6px;
+  background: var(--hover);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.layers-button:hover {
+  background: var(--active);
+}
+
+.layer-items {
+  margin: 0;
+  padding: 4px 6px;
+  list-style: none;
+}
+
+.layer-items .layer-items {
+  padding: 0 0 0 14px;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.layer-row:hover {
+  background: var(--hover);
+}
+
+.layer-row span {
+  overflow-wrap: anywhere;
+}
+
+.layer-label {
+  display: block;
+  padding: 6px 6px 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.layers-note {
+  margin: 4px 0 0;
+  padding: 8px 12px 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+}

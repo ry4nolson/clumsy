@@ -3,6 +3,7 @@ mod default_app;
 mod documents;
 mod files;
 mod form_question;
+mod attachments;
 mod images;
 #[cfg(target_os = "ios")]
 mod launch_urls;
@@ -437,6 +438,7 @@ pub fn run() {
             images::write_image,
             images::confirm_replace,
             images::write_text_export,
+            attachments::save_attachment,
             tool_chest::pick_tool_chest_save_path,
             tool_chest::write_tool_chest,
             tool_chest::pick_tool_chest,

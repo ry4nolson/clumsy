@@ -68,3 +68,7 @@ function renderedCanvas(document: object, index: number, rotation: number, width
   }
   return best;
 }
+
+export function forgetPageCanvases(document: object) {
+  registries.get(document)?.canvases.clear();
+}

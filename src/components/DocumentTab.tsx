@@ -1,10 +1,9 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { CompareView } from "../hooks/useComparison";
 import { useDocumentMenu } from "../hooks/useDocumentMenu";
 import { useEditorUi } from "../hooks/useEditorUi";
 import { useMapMarks } from "../hooks/useMapMarks";
-import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi, type ViewStart } from "../hooks/usePdfViewer";
+import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi } from "../hooks/usePdfViewer";
 import { useScrolling } from "../hooks/useScrolling";
 import { useTabSignatures } from "../hooks/useTabSignatures";
 import type { CommandId } from "../lib/commands";
@@ -17,13 +16,15 @@ import { passwordAnswers } from "../lib/passwordAnswers";
 import { passwordRoleOffThread, readScalesOffThread } from "../lib/pageEditWorker";
 import { emptySelection, followCurrentPage, selectPage, targetPages, type PageSelection } from "../lib/pageSelection";
 import { isExternalUrl } from "../lib/markdownLinks";
-import { getRecentFiles, readPdfFromPath, type PdfSource } from "../lib/platform";
+import { readPdfFromPath, type DocumentSource, type PdfSource } from "../lib/platform";
 import type { Protection } from "../lib/protection";
 import { pageLabelOf, runEnd, type LabelNumbering } from "../lib/pageLabels";
-import { documentView, scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
+import { scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/viewModes";
+import { viewStart } from "../lib/viewStart";
 import { ChangesList } from "./ChangesList";
 import { CommentsList } from "./CommentsList";
 import { CompareBar } from "./CompareBar";
+import { useDocumentInfo } from "./DocumentInfo";
 import { DocumentMap } from "./DocumentMap";
 import { EditorSheets, EditorUndoBar } from "./EditorSheets";
 import { FindBar } from "./FindBar";
@@ -56,6 +57,8 @@ export type TabSnapshot = {
   signatures: SignaturePreview[];
   sheetOpen: boolean;
   hasForm: boolean;
+  hasAttachments: boolean;
+  hasLayers: boolean;
   mark: PdfViewerApi["mark"];
   markupTool: PdfViewerApi["markupTool"];
   markupSelection: Markup | null;
@@ -108,31 +111,10 @@ export type DocumentTabProps = {
   onPageAction: (id: string, action: PageAction) => void;
   onMenuCommand: (id: CommandId, pages: number[]) => void;
   onUndoRemoval: (id: string) => void;
-  onOpenSource: (source: PdfSource) => void;
+  onOpenSource: (source: DocumentSource) => void;
   compare: CompareView | null;
   toolChest?: (viewer: PdfViewerApi) => ReactNode;
 };
-
-type StartWithSidebar = ViewStart & { sidebar?: DocumentSidebar };
-
-async function viewStart(doc: PDFDocumentProxy, path: string | null, view: ViewState | undefined, modes: ViewModes): Promise<StartWithSidebar> {
-  if (view) {
-    return { view, modes };
-  }
-  const recent = path ? await getRecentFiles().catch(() => null) : null;
-  if (recent?.some((entry) => entry.path === path)) {
-    return { modes };
-  }
-  const [pageMode, pageLayout, openAction] = await Promise.all([
-    doc.getPageMode().catch(() => null),
-    doc.getPageLayout().catch(() => null),
-    doc.getOpenAction().catch(() => null),
-  ]);
-  const { sidebar, ...documentModes } = documentView(pageMode, pageLayout);
-  const dest: unknown = openAction?.get("dest");
-  const destination = Array.isArray(dest) ? dest : null;
-  return { modes: { ...modes, ...documentModes }, destination, sidebar };
-}
 
 export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function DocumentTab(
   {
@@ -180,6 +162,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const lastQuery = useRef<FindQuery | null>(null);
   const [selection, setSelection] = useState<PageSelection>(emptySelection);
   const pageSheets = usePageSheets((action) => onPageAction(id, action), viewer);
+  const info = useDocumentInfo(viewer, source, protection, onOpenSource);
   const lastProtection = useRef<Protection | undefined>(undefined);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -262,6 +245,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       signatures: editorState.signatures,
       sheetOpen,
       hasForm: viewer.hasForm,
+      hasAttachments: info.hasAttachments,
+      hasLayers: info.hasLayers,
       mark: viewer.mark,
       markupTool: viewer.markupTool,
       markupSelection: editorState.markupSelection,
@@ -285,6 +270,8 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
     editorState.signatures,
     sheetOpen,
     viewer.hasForm,
+    info.hasAttachments,
+    info.hasLayers,
     viewer.mark,
     viewer.markupTool,
     editorState.markupSelection,
@@ -423,6 +410,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           tab={sidebarTab}
           onTab={onSidebarTab}
           pdfDocument={viewer.pdfDocument}
+          previewLayers={info.previewLayers}
           paused={!active || scrolling}
           restoreImages={darkPages && keepImages}
           currentPage={viewer.pageNumber}
@@ -455,6 +443,9 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           }
           toolChest={toolChest?.(viewer)}
           signatures={signatures.hasPanel && <SignaturesList signatures={signatures} pageLabels={viewer.pageLabels} />}
+          info={info.infoPanel}
+          attachments={info.attachmentsPanel}
+          layers={info.layersPanel}
         />
       )}
       <main className={`viewer-area${compare ? " comparing" : signatures.bar ? " signed" : ""}`}>
@@ -481,6 +472,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
       {loaded && mapShown && viewer.pdfDocument && (
         <DocumentMap
           pdfDocument={viewer.pdfDocument}
+          layers={info.previewLayers}
           containerRef={viewer.containerRef}
           paused={!active || scrolling}
           restoreImages={darkPages && keepImages}

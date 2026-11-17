@@ -138,7 +138,7 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
 1. **Tool chest.** Plan in `docs/tool-chest-plan.md`. Saved tools: a tool, its style, and a name ("Drywall" is a blue Area, "Duplex outlet" an electrical stamp), armed from a sidebar tab, the palette, or the right-click row, without touching your everyday style. The name is written as `/Subj`, so it becomes a Markups tab subject with its own count. Export and import as a `.clumsytools` file so a team shares one set.
 2. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for.
 3. **Measurement, the rest of what FSG asked for:** Angle (three clicks) and Volume (Area with a depth, in cu ft or cu yd), then Dynamic Fill (click inside a room, flood-fill the rendered page, trace the boundary to an Area) and snapping to drawing geometry, both from the plan's phase 2. Counts already work through subjects in the Markups tab.
-4. **Document info batch:** Document Properties, Attachments tab, Layers tab, XFA (`enableXfa` is still false). Each is small, so ship them together. Overlay builds a first Layers toggle.
+4. **Document info batch** (`document-info` branch, plan in `docs/document-info-plan.md`): the Info tab (Document Properties), the Attachments tab, and the Layers tab are built. XFA turned out not to be small (pdf.js lays dynamic forms out as HTML pages with no editors, a different page count, and blank canvases, so tools, page edits, thumbnails, and printing all need XFA paths) and is phase 2 of that plan, waiting on test files. Overlay can reuse the Layers tab for its two sides.
 5. **OCR.** Local and free. Apple's Vision framework would be Mac-only, and Clumsy now ships on Windows, Linux, Android, and iOS too, so look for a cross-platform engine before building it.
 6. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
 
@@ -165,7 +165,7 @@ Goal: every feature pdf.js 6.4.299 offers is reachable in Clumsy.
 Done: everything from the old "viewer flags and wiring" list (0.4.1), comments, signatures (moved onto pdf.js's `SignatureEditor`), alt text, and the undo bar (0.9.0), and print (0.11.0, through PDFKit rather than pdf.js's print service). `enableDetailCanvas` stays off on purpose; AGENTS.md explains the image-restore conflict.
 
 Left:
-- **Document Properties, Attachments, Layers, XFA.** Next item 4. Overlay builds a first Layers toggle.
+- **Document Properties, Attachments, Layers:** built on the `document-info` branch (next item 4). **XFA** is phase 2 of `docs/document-info-plan.md`.
 - **Presentation mode.** Full screen, one page at a time, arrow keys and click to advance.
 - **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
