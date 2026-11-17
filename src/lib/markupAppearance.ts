@@ -7,6 +7,7 @@ import {
   StandardFonts,
   beginText,
   concatTransformationMatrix,
+  drawObject,
   drawSvgPath,
   endText,
   moveText,
@@ -26,8 +27,10 @@ import { isMeasureKind, isTextKind, type Markup } from "./markup";
 import { lineEndings, outlinePath, segmentsPath, stampMatrix, textMarkupSegments } from "./markupShapes";
 import { CAPTION_SIZE, captionBaseline, captionPlacement, captionText, vertexPath } from "./measureMarkup";
 import { CAP_HEIGHT, stampDesign, type StampDesign } from "./stampSymbols";
+import { winAnsiSafe } from "./winAnsi";
 
 const FONT = "HeBo";
+const IMAGE = "Im0";
 const CAPTION_FONT = "Helv";
 const FLIP = [1, 0, 0, -1, 0, 0] as [number, number, number, number, number, number];
 
@@ -37,7 +40,7 @@ const embedder = (font: StandardFonts) => embedders.get(font) ?? embedders.set(f
 const bold = () => embedder(StandardFonts.HelveticaBold);
 const regular = () => embedder(StandardFonts.Helvetica);
 
-export const winAnsiSafe = (text: string) => text.replace(/[^\x20-\x7e\xa0-\xff]/g, "?");
+export { winAnsiSafe };
 
 const colorOf = (values: number[]) => rgb(values[0] ?? 0, values[1] ?? 0, values[2] ?? 0);
 
@@ -82,6 +85,16 @@ function labelOperators(design: StampDesign, color: number[]) {
 function stampOperators(markup: Markup, design: StampDesign) {
   const matrix = stampMatrix(markup.box, markup.rotation, design.width, design.height);
   const [a, b, c, d, e, f] = matrix;
+  if (design.image) {
+    return [
+      pushGraphicsState(),
+      setGraphicsState("GS"),
+      concatTransformationMatrix(a, b, c, d, e, f),
+      concatTransformationMatrix(design.width, 0, 0, -design.height, 0, design.height),
+      drawObject(IMAGE),
+      popGraphicsState(),
+    ];
+  }
   const flipped = [a, b, -c, -d, e, f];
   const shapes = design.shapes.flatMap((shape) =>
     shape.fill ? filled(shape.d, markup.color, "GS", flipped) : stroked(shape.d, markup, { width: shape.strokeWidth ?? design.strokeWidth, matrix: flipped, cap: true }),
@@ -152,7 +165,7 @@ export function needsFont(markup: Markup) {
 
 export type AppearanceFonts = { bold: () => PDFRef; regular: () => PDFRef };
 
-export function addAppearance(context: PDFContext, markup: Markup, bbox: number[], fonts: AppearanceFonts): PDFRef {
+export function addAppearance(context: PDFContext, markup: Markup, bbox: number[], fonts: AppearanceFonts, image?: PDFRef): PDFRef {
   const opacity = Math.min(1, Math.max(0, markup.opacity));
   const resources = context.obj({
     ExtGState: {
@@ -165,7 +178,11 @@ export function addAppearance(context: PDFContext, markup: Markup, bbox: number[
   } else if (isMeasureKind(markup.kind)) {
     resources.set(PDFName.of("Font"), context.obj({ [CAPTION_FONT]: fonts.regular() }));
   }
-  const operators = isTextKind(markup.kind) && !markup.quads?.length ? [] : appearanceOperators(markup);
+  const imageDesign = markup.kind === "stamp" && !!markup.stamp && !!stampDesign(markup.stamp)?.image;
+  if (imageDesign && image) {
+    resources.set(PDFName.of("XObject"), context.obj({ [IMAGE]: image }));
+  }
+  const operators = (isTextKind(markup.kind) && !markup.quads?.length) || (imageDesign && !image) ? [] : appearanceOperators(markup);
   return context.register(context.formXObject(operators, { BBox: bbox, Resources: resources }));
 }
 

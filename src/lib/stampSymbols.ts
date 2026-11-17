@@ -1,3 +1,4 @@
+import { customStamp, inLibrary, isCustomId, libraryStamps, type ImageStamp } from "./customStamps";
 import { lucideStampPaths } from "./stampIcons";
 
 export const ELECTRICAL_PREFIX = "elec:";
@@ -17,7 +18,7 @@ export type StampCategory = (typeof ELECTRICAL_CATEGORIES)[number];
 
 export type StampShape = { d: string; fill?: boolean; strokeWidth?: number };
 export type StampLabel = { text: string; x: number; y: number; size: number };
-export type StampDesign = { width: number; height: number; strokeWidth: number; shapes: StampShape[]; labels: StampLabel[] };
+export type StampDesign = { width: number; height: number; strokeWidth: number; shapes: StampShape[]; labels: StampLabel[]; image?: ImageStamp };
 export type StampSymbol = { id: string; label: string; category: StampCategory; keywords: string[]; shapes: StampShape[]; labels?: StampLabel[] };
 export type ReviewStamp = { id: string; label: string; word: string; color: number[] };
 
@@ -218,7 +219,19 @@ const reviewById = new Map(reviewStamps.map((entry) => [entry.id, entry]));
 
 export const electricalStamp = (id: string) => electricalById.get(id);
 export const reviewStamp = (id: string) => reviewById.get(id);
-export const isKnownStamp = (id: string) => electricalById.has(id) || reviewById.has(id) || Object.hasOwn(lucideStampPaths, id);
+export const isKnownStamp = (id: string) => electricalById.has(id) || reviewById.has(id) || Object.hasOwn(lucideStampPaths, id) || inLibrary(id);
+
+export const stampColor = (id: string) => {
+  const custom = customStamp(id);
+  return reviewStamp(id)?.color ?? (custom?.kind === "text" ? custom.color : null);
+};
+
+export const isDatedStamp = (id: string) => {
+  const custom = customStamp(id);
+  return !!reviewStamp(id) || (custom?.kind === "text" && custom.date);
+};
+
+export const isWordStamp = (id: string) => !!reviewStamp(id) || customStamp(id)?.kind === "text";
 
 const titleCase = (value: string) =>
   value
@@ -226,7 +239,8 @@ const titleCase = (value: string) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
-export const stampLabel = (id: string) => electricalStamp(id)?.label ?? reviewStamp(id)?.label ?? titleCase(id);
+export const stampLabel = (id: string) =>
+  electricalStamp(id)?.label ?? reviewStamp(id)?.label ?? customStamp(id)?.name ?? (isCustomId(id) ? "Custom Stamp" : titleCase(id));
 
 export const electricalByCategory = () =>
   ELECTRICAL_CATEGORIES.map((category) => ({ category, symbols: electricalStamps.filter((entry) => entry.category === category) }));
@@ -235,20 +249,52 @@ export function searchStamps(query: string) {
   const needle = query.trim().toLowerCase();
   const matches = (...values: string[]) => !needle || values.some((value) => value.toLowerCase().includes(needle));
   return {
+    custom: libraryStamps().filter((entry) => matches(entry.name, entry.kind === "text" ? entry.text : "")),
     review: reviewStamps.filter((entry) => matches(entry.label)),
     icons: iconStamps.filter((id) => matches(id.replace(/-/g, " "), id)),
     electrical: electricalStamps.filter((entry) => matches(entry.label, entry.id.slice(ELECTRICAL_PREFIX.length).replace(/-/g, " "), ...entry.keywords)),
   };
 }
 
-const BOLD_WIDTHS: Record<string, number> = { I: 0.278, J: 0.556, L: 0.611, M: 0.833, W: 0.944, " ": 0.278, "/": 0.278, "-": 0.333 };
-const wordWidth = (text: string, size: number) => [...text].reduce((sum, char) => sum + (BOLD_WIDTHS[char] ?? (/[0-9]/.test(char) ? 0.556 : 0.722)), 0) * size;
+const BOLD_WIDTHS: Record<string, number> = {
+  I: 0.278,
+  J: 0.556,
+  L: 0.611,
+  M: 0.833,
+  W: 0.944,
+  " ": 0.278,
+  "/": 0.278,
+  "-": 0.333,
+  ".": 0.278,
+  ",": 0.278,
+  ":": 0.333,
+  "'": 0.238,
+  i: 0.278,
+  j: 0.278,
+  l: 0.278,
+  f: 0.333,
+  t: 0.333,
+  r: 0.389,
+  c: 0.556,
+  s: 0.556,
+  m: 0.889,
+  w: 0.778,
+  "‘": 0.278,
+  "’": 0.278,
+  "“": 0.5,
+  "”": 0.5,
+  "–": 0.556,
+  "—": 1,
+  "…": 1,
+};
+const charWidth = (char: string) => BOLD_WIDTHS[char] ?? (/[0-9]/.test(char) ? 0.556 : /[a-z]/.test(char) ? 0.611 : 0.722);
+const wordWidth = (text: string, size: number) => [...text].reduce((sum, char) => sum + charWidth(char), 0) * size;
 
 export function reviewWidth(word: string) {
   return Math.ceil(Math.max(wordWidth(word, WORD_SIZE), 90) + 24);
 }
 
-function reviewDesign(word: string, date: string | null): StampDesign {
+export function wordDesign(word: string, date: string | null): StampDesign {
   const width = reviewWidth(word);
   const inset = REVIEW_STROKE / 2 + 1;
   const radius = 6;
@@ -263,10 +309,24 @@ function reviewDesign(word: string, date: string | null): StampDesign {
   return { width, height: REVIEW_HEIGHT, strokeWidth: REVIEW_STROKE, shapes: [{ d: box }], labels };
 }
 
+function customDesign(id: string, date: string | null): StampDesign | null {
+  const custom = customStamp(id);
+  if (!custom) {
+    return null;
+  }
+  if (custom.kind === "text") {
+    return wordDesign(custom.text, date);
+  }
+  return { width: custom.width, height: custom.height, strokeWidth: 0, shapes: [], labels: [], image: custom };
+}
+
 export function stampDesign(id: string, date: string | null = null): StampDesign | null {
   const review = reviewStamp(id);
   if (review) {
-    return reviewDesign(review.word, date);
+    return wordDesign(review.word, date);
+  }
+  if (isCustomId(id)) {
+    return customDesign(id, date);
   }
   const electrical = electricalStamp(id);
   if (electrical) {

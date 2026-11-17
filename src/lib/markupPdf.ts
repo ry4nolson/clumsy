@@ -1,5 +1,6 @@
 import { PDFArray, PDFBool, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext, type PDFDocument, type PDFObject } from "@cantoo/pdf-lib";
 import { STAMP_NAME_PREFIX, isLineKind, isMeasureKind, isTextKind, isVertexKind, kindLabels, pointsBox, quadsBox, type Markup, type MarkupKind, type MeasureSettings } from "./markup";
+import { STAMP_IMAGE_KEY, setStampKeys } from "./customStampPdf";
 import { addAppearance, fontDict, winAnsiSafe, type AppearanceFonts } from "./markupAppearance";
 import { defaultFormat } from "./measure";
 import { captionText, measurePoints, settingsOf } from "./measureMarkup";
@@ -75,10 +76,20 @@ function setStyle(context: PDFContext, dict: PDFDict, markup: Markup) {
   }
 }
 
-type Writer = { context: PDFContext; fonts: AppearanceFonts };
+type Writer = { context: PDFContext; fonts: AppearanceFonts; images: Map<string, PDFRef> };
 
-function setAppearance({ context, fonts }: Writer, dict: PDFDict, markup: Markup, rect: number[]) {
-  dict.set(name("AP"), context.obj({ N: addAppearance(context, markup, rect, fonts) }));
+function imageFor({ images }: Writer, markup: Markup, dict: PDFDict) {
+  const own = dict.get(STAMP_IMAGE_KEY);
+  return own instanceof PDFRef ? own : markup.stamp ? images.get(markup.stamp) : undefined;
+}
+
+function setAppearance(writer: Writer, dict: PDFDict, markup: Markup, rect: number[]) {
+  const { context, fonts } = writer;
+  const image = markup.kind === "stamp" ? imageFor(writer, markup, dict) : undefined;
+  if (markup.kind === "stamp") {
+    setStampKeys(dict, markup, image);
+  }
+  dict.set(name("AP"), context.obj({ N: addAppearance(context, markup, rect, fonts, image) }));
 }
 
 function addMarkup(writer: Writer, pageRef: PDFRef, page: PDFDict, markup: Markup) {
@@ -157,7 +168,8 @@ function updateMarkup(writer: Writer, dict: PDFDict, markup: Markup) {
   const { context } = writer;
   const original = markupFromDict(dict, markup.id, markup.pageIndex, { anyFlags: true });
   const before = original ? shapeRect(original) : rectOf(dict);
-  const keepsAppearance = markup.kind === "stamp" && !(markup.stamp && stampDesign(markup.stamp));
+  const design = markup.kind === "stamp" && markup.stamp ? stampDesign(markup.stamp) : null;
+  const keepsAppearance = markup.kind === "stamp" && (!design || (!!design.image && !imageFor(writer, markup, dict)));
   const rect = keepsAppearance ? markup.box : outerRect(markup);
   setGeometry(context, dict, markup, rect);
   setStyle(context, dict, markup);
@@ -200,12 +212,12 @@ export function removeAnnotation(context: PDFContext, page: PDFDict, ref: PDFRef
   gone.forEach((doomed) => context.delete(doomed));
 }
 
-export function applyMarkup(doc: PDFDocument, markup: Markup[], pages = pageLeafRefs(doc)) {
+export function applyMarkup(doc: PDFDocument, markup: Markup[], pages = pageLeafRefs(doc), images = new Map<string, PDFRef>()) {
   const { context } = doc;
   let boldRef: PDFRef | null = null;
   let regularRef: PDFRef | null = null;
   const fonts = { bold: () => (boldRef ??= fontDict(context, "Helvetica-Bold")), regular: () => (regularRef ??= fontDict(context, "Helvetica")) };
-  const writer: Writer = { context, fonts };
+  const writer: Writer = { context, fonts, images };
   for (const change of markup) {
     const pageRef = pages[change.pageIndex];
     const page = pageRef && context.lookupMaybe(pageRef, PDFDict);

@@ -42,6 +42,25 @@ export function png(width: number, height: number) {
   return new Uint8Array(parts.flatMap((part) => [...part]));
 }
 
+export function rgbaPng(width: number, height: number, rgba: number[]) {
+  const header = new Uint8Array(13);
+  const view = new DataView(header.buffer);
+  view.setUint32(0, width);
+  view.setUint32(4, height);
+  header.set([8, 6, 0, 0, 0], 8);
+  const rows = new Uint8Array((width * 4 + 1) * height);
+  for (let row = 0; row < height; row += 1) {
+    rows.set(rgba.slice(row * width * 4, (row + 1) * width * 4), row * (width * 4 + 1) + 1);
+  }
+  const parts = [
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", new Uint8Array(deflateSync(rows))),
+    chunk("IEND", new Uint8Array()),
+  ];
+  return new Uint8Array(parts.flatMap((part) => [...part]));
+}
+
 function exifSegment(orientation: number, littleEndian: boolean) {
   const tiff = new Uint8Array(26);
   const view = new DataView(tiff.buffer);

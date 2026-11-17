@@ -1,4 +1,6 @@
 import { EncryptedPDFError, PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, type PDFContext } from "@cantoo/pdf-lib";
+import { registerStamps, type CustomStamp } from "./customStamps";
+import { embedStampImages } from "./customStampPdf";
 import type { Markup } from "./markup";
 import { applyMarkup, refFromId, removeAnnotation } from "./markupPdf";
 import type { StickyNote } from "./notes";
@@ -159,10 +161,11 @@ export function hasXrefAt(bytes: Uint8Array, offset: number) {
   return offset > 0 && offset < bytes.length && /^\s*(xref|\d+\s+\d+\s+obj\b)/.test(latin1.decode(bytes.subarray(offset, offset + 40)));
 }
 
-export async function writeAnnotationsReporting(bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password = "") {
+export async function writeAnnotationsReporting(bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password = "", stamps: CustomStamp[] = []) {
   if (!notes.length && !markup.length) {
     return { bytes, removedSignatures: 0 };
   }
+  registerStamps(stamps);
   const loaded = await loadForNotes(bytes, password);
   const { incremental, decrypted } = loaded;
   const doc = incremental || decrypted ? loaded.doc : await loadForUpdate(bytes, false);
@@ -192,7 +195,7 @@ export async function writeAnnotationsReporting(bytes: Uint8Array, notes: Sticky
       updateNote(context, existing, note);
     }
   }
-  applyMarkup(doc, markup, pages);
+  applyMarkup(doc, markup, pages, await embedStampImages(doc, markup));
   for (const note of notes) {
     const pageRef = note.fresh && !note.deleted && note.reply ? pages[note.pageIndex] : undefined;
     const page = pageRef && context.lookupMaybe(pageRef, PDFDict);
@@ -209,7 +212,7 @@ export async function writeAnnotationsReporting(bytes: Uint8Array, notes: Sticky
   return { bytes: await doc.save({ addDefaultPage: false, updateFieldAppearances: false }), removedSignatures };
 }
 
-export const writeAnnotations = async (bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password = "") =>
-  (await writeAnnotationsReporting(bytes, notes, markup, password)).bytes;
+export const writeAnnotations = async (bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password = "", stamps: CustomStamp[] = []) =>
+  (await writeAnnotationsReporting(bytes, notes, markup, password, stamps)).bytes;
 
 export const writeStickyNotes = (bytes: Uint8Array, notes: StickyNote[], password = "") => writeAnnotations(bytes, notes, [], password);
