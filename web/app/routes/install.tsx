@@ -1,20 +1,43 @@
 import { useEffect, useRef } from "react";
 
 import type { Route } from "./+types/install";
-import { DOWNLOAD, DOWNLOAD_WINDOWS, INSTALL, INSTALL_WINDOWS, RELEASES } from "~/lib/links";
+import {
+  DOWNLOAD,
+  DOWNLOAD_LINUX,
+  DOWNLOAD_LINUX_DEB,
+  DOWNLOAD_LINUX_RPM,
+  DOWNLOAD_WINDOWS,
+  INSTALL,
+  INSTALL_LINUX,
+  INSTALL_WINDOWS,
+  RELEASES,
+} from "~/lib/links";
 import { pageMeta } from "~/lib/meta";
 import { useVersion } from "~/lib/useVersion";
 
-type Platform = "mac" | "windows";
+type Platform = "mac" | "windows" | "linux";
 
 type Step = { title: string; body: string };
 
-const GUIDES: Record<Platform, { name: string; file: string; download: string; other: { label: string; href: string }; steps: Step[] }> = {
+type Download = { file: string; href: string };
+
+type Guide = { name: string; downloads: Download[]; starts: boolean; others: Array<{ label: string; href: string }>; steps: Step[] };
+
+const VERSIONS: Record<Platform, { label: string; href: string }> = {
+  mac: { label: "Mac version", href: INSTALL },
+  windows: { label: "Windows version", href: INSTALL_WINDOWS },
+  linux: { label: "Linux version", href: INSTALL_LINUX },
+};
+
+const othersFor = (platform: Platform) =>
+  (Object.keys(VERSIONS) as Platform[]).filter((other) => other !== platform).map((other) => VERSIONS[other]);
+
+const GUIDES: Record<Platform, Guide> = {
   mac: {
     name: "Mac",
-    file: "Clumsy-MacOS-Universal.dmg",
-    download: DOWNLOAD,
-    other: { label: "Need the Windows version?", href: INSTALL_WINDOWS },
+    downloads: [{ file: "Clumsy-MacOS-Universal.dmg", href: DOWNLOAD }],
+    starts: true,
+    others: othersFor("mac"),
     steps: [
       {
         title: "If Chrome asks, click Keep",
@@ -32,9 +55,9 @@ const GUIDES: Record<Platform, { name: string; file: string; download: string; o
   },
   windows: {
     name: "Windows",
-    file: "Clumsy-Windows-Installer.exe",
-    download: DOWNLOAD_WINDOWS,
-    other: { label: "Need the Mac version?", href: INSTALL },
+    downloads: [{ file: "Clumsy-Windows-Installer.exe", href: DOWNLOAD_WINDOWS }],
+    starts: true,
+    others: othersFor("windows"),
     steps: [
       {
         title: "If your browser asks, keep the file",
@@ -50,10 +73,34 @@ const GUIDES: Record<Platform, { name: string; file: string; download: string; o
       },
     ],
   },
+  linux: {
+    name: "Linux",
+    downloads: [
+      { file: "Clumsy-Linux-x64.deb", href: DOWNLOAD_LINUX_DEB },
+      { file: "Clumsy-Linux-x64.rpm", href: DOWNLOAD_LINUX_RPM },
+      { file: "Clumsy-Linux-x64.AppImage", href: DOWNLOAD_LINUX },
+    ],
+    starts: false,
+    others: othersFor("linux"),
+    steps: [
+      {
+        title: "Pick the package for your system",
+        body: "The .deb is for Debian, Ubuntu 22.04 or later, and their relatives. The .rpm is for Fedora and openSUSE. The AppImage runs on most other x64 systems without installing anything.",
+      },
+      {
+        title: "Install it",
+        body: "Open the .deb or .rpm with your software installer, or run sudo apt install ./Clumsy-Linux-x64.deb or sudo dnf install ./Clumsy-Linux-x64.rpm in the folder you saved it to. For the AppImage, allow it to run as a program in the file's properties (or chmod +x), then open it.",
+      },
+      {
+        title: "Open Clumsy from your apps",
+        body: "The .deb and .rpm add Clumsy to your app list and let you make it your default PDF app. It doesn't update itself on Linux yet, so check back here for new versions. Printing and digital signatures aren't there yet either.",
+      },
+    ],
+  },
 };
 
 function platformOf(param: string | undefined): Platform {
-  return param === "windows" ? "windows" : "mac";
+  return param === "windows" || param === "linux" ? param : "mac";
 }
 
 export function meta({ params }: Route.MetaArgs) {
@@ -71,10 +118,10 @@ export default function Install({ params }: Route.ComponentProps) {
   const started = useRef<Platform | null>(null);
 
   useEffect(() => {
-    if (started.current === platform) return;
+    if (!guide.starts || started.current === platform) return;
     started.current = platform;
-    window.location.assign(guide.download);
-  }, [platform, guide.download]);
+    window.location.assign(guide.downloads[0].href);
+  }, [platform, guide]);
 
   return (
     <main className="section install">
@@ -82,11 +129,22 @@ export default function Install({ params }: Route.ComponentProps) {
         <img className="install__icon" src="/icon.png" alt="" width={80} height={80} />
         <p className="section__label">Download</p>
         <h1 className="section__title">
-          Clumsy{version ? ` ${version}` : ""} for {guide.name} is downloading.
+          Clumsy{version ? ` ${version}` : ""} for {guide.name}
+          {guide.starts ? " is downloading." : ""}
         </h1>
-        <p className="section__body">
-          Didn&apos;t start? <a href={guide.download}>Download {guide.file}</a>.
-        </p>
+        {guide.starts ? (
+          <p className="section__body">
+            Didn&apos;t start? <a href={guide.downloads[0].href}>Download {guide.downloads[0].file}</a>.
+          </p>
+        ) : (
+          <div className="install__downloads">
+            {guide.downloads.map((download) => (
+              <a key={download.file} className="btn btn--secondary" href={download.href}>
+                {download.file}
+              </a>
+            ))}
+          </div>
+        )}
 
         <ol className="install__steps">
           {guide.steps.map((step) => (
@@ -98,8 +156,12 @@ export default function Install({ params }: Route.ComponentProps) {
         </ol>
 
         <p className="install__more">
-          <a href={guide.other.href}>{guide.other.label}</a>
-          <span aria-hidden="true"> · </span>
+          {guide.others.map((other) => (
+            <span key={other.href}>
+              <a href={other.href}>{other.label}</a>
+              <span aria-hidden="true"> · </span>
+            </span>
+          ))}
           <a href={RELEASES}>All releases on GitHub</a>
         </p>
       </div>

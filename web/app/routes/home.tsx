@@ -6,7 +6,7 @@ import { SignatureSpotlight } from "~/components/SignatureSpotlight";
 import { ThemeSlider } from "~/components/ThemeSlider";
 import { SCREENS, type ScreenId } from "~/lib/content";
 import { loadFeatures } from "~/lib/features.server";
-import { CHECKOUT, GITHUB, INSTALL, INSTALL_WINDOWS, SUPPORT_PRICE } from "~/lib/links";
+import { CHECKOUT, GITHUB, INSTALL, INSTALL_LINUX, INSTALL_WINDOWS, SUPPORT_PRICE } from "~/lib/links";
 import { CACHE_HEADERS } from "~/lib/remote.server";
 import { useVersion } from "~/lib/useVersion";
 import { pageMeta } from "~/lib/meta";
@@ -18,7 +18,7 @@ export function loader() {
 export const headers: Route.HeadersFunction = () => CACHE_HEADERS;
 
 export function meta(_args: Route.MetaArgs) {
-  return pageMeta("Clumsy · A small, fast PDF (and Markdown) viewer for Mac and Windows");
+  return pageMeta("Clumsy · A small, fast PDF (and Markdown) viewer for Mac, Windows, and Linux");
 }
 
 function Showcase() {
@@ -118,9 +118,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <a className="btn btn--secondary" href={INSTALL_WINDOWS}>
               Download for Windows
             </a>
+            <a className="btn btn--secondary" href={INSTALL_LINUX}>
+              Download for Linux
+            </a>
           </div>
           <p className="hero__note">
-            Free and open source · v{version} · macOS and Windows
+            Free and open source · v{version} · macOS, Windows, and Linux
           </p>
           <p className="hero__note hero__note--tight">
             The {SUPPORT_PRICE} is optional. Same app either way.
@@ -244,7 +247,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 and not code-signed yet, so Windows warns before running it:
                 choose More info, then Run anyway. It doesn&apos;t update itself
                 yet, and printing and digital signatures are Mac-only for now.
-                Linux is planned.
+              </p>
+              <p className="section__body">
+                On Linux, a .deb (Debian, Ubuntu 22.04 or later), an .rpm
+                (Fedora, openSUSE), and an AppImage, all for x64. It
+                doesn&apos;t update itself yet, and printing and digital
+                signatures aren&apos;t there yet either.
               </p>
               <p className="section__body">
                 Clumsy is free and always will be, and the source is on GitHub.
@@ -265,6 +273,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </a>
               <a className="btn btn--secondary" href={INSTALL_WINDOWS}>
                 Download for Windows
+              </a>
+              <a className="btn btn--secondary" href={INSTALL_LINUX}>
+                Download for Linux
               </a>
               <a className="btn btn--ghost" href={`${GITHUB}/releases/latest`}>
                 All release files

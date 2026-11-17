@@ -1,5 +1,5 @@
 import type { Route } from "./+types/thanks";
-import { GITHUB, INSTALL, INSTALL_WINDOWS } from "~/lib/links";
+import { GITHUB, INSTALL, INSTALL_LINUX, INSTALL_WINDOWS } from "~/lib/links";
 import { pageMeta } from "~/lib/meta";
 
 export function meta(_args: Route.MetaArgs) {
@@ -22,6 +22,9 @@ export default function Thanks() {
           </a>
           <a className="btn btn--primary" href={INSTALL_WINDOWS}>
             Download for Windows
+          </a>
+          <a className="btn btn--primary" href={INSTALL_LINUX}>
+            Download for Linux
           </a>
           <a className="btn btn--secondary" href={GITHUB}>
             View on GitHub

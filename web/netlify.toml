@@ -15,6 +15,21 @@ to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy-Window
 status = 302
 
 [[redirects]]
+from = "/download/linux/deb"
+to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy-Linux-x64.deb"
+status = 302
+
+[[redirects]]
+from = "/download/linux/rpm"
+to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy-Linux-x64.rpm"
+status = 302
+
+[[redirects]]
+from = "/download/linux"
+to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy-Linux-x64.AppImage"
+status = 302
+
+[[redirects]]
 from = "/download"
 to = "https://github.com/ry4nolson/clumsy/releases/latest/download/Clumsy-MacOS-Universal.dmg"
 status = 302
