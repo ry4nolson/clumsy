@@ -272,7 +272,15 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     if (source && !rightId) {
       showError(`“${source.name}” is open in another window. Move its tab into this window to compare it.`);
     }
-    if (!rightId || !workspaceRef.current.tabs[left.id]) {
+    if (rightId) {
+      compareTabs(left.id, rightId);
+    }
+  };
+
+  const compareTabs = (leftId: string, rightId: string) => {
+    const { tabs } = workspaceRef.current;
+    const left = tabs[leftId];
+    if (left?.kind !== "document" || tabs[rightId]?.kind !== "document" || leftId === rightId) {
       return;
     }
     update((latest) => {
@@ -358,5 +366,5 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     return { ...rest, comparison, inView: inView[side], side, otherName: other?.name ?? "", linkable, onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onExport: exportReport, onEnd: end };
   };
 
-  return { comparing: !!state, runCompareCommand, viewFor };
+  return { comparing: !!state, runCompareCommand, compareTabs, viewFor };
 }

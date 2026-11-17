@@ -14,7 +14,7 @@ fn is_csv(path: &Path) -> bool {
     has_extension(path, &CSV_EXTENSIONS)
 }
 
-fn save_dialog(app: &AppHandle, window: &Window, label: &str, extensions: &[&str], suggested_name: String) -> Option<String> {
+pub(crate) fn save_dialog(app: &AppHandle, window: &Window, label: &str, extensions: &[&str], suggested_name: String) -> Option<String> {
     let picked = file_dialog(window).add_filter(label, extensions).set_file_name(suggested_name).blocking_save_file();
     let path = files::with_extension_from(picked?.into_path().ok()?, extensions);
     app.state::<AllowedPaths>().allow(&path);

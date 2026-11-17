@@ -7,7 +7,8 @@ import { SET_SCALE_EVENT, type MeasureKind } from "../lib/measure";
 import { MARKUP_PARAMS_KEY, cleanMarkupParams, defaultMarkupParams, paramsOfMarkup, readMarkupParams, rememberStamp, type MarkupParams, type TextMode } from "../lib/markupParams";
 import { usePersistentState } from "../lib/preferences";
 import { useMarkupExport } from "./useMarkupExport";
-import type { PdfViewerApi } from "./usePdfViewer";
+import type { EditorParams, PdfViewerApi } from "./usePdfViewer";
+import { useToolChest } from "./useToolChest";
 
 const shapesByCommand = new Map(Object.entries(shapeCommands).map(([shape, id]) => [id, shape as ShapeKind]));
 const measuresByCommand = new Map(Object.entries(measureCommands).map(([measure, id]) => [id, measure as MeasureKind]));
@@ -21,7 +22,13 @@ function styleChange(patch: Partial<MarkupParams>): Partial<MarkupStyle> {
   };
 }
 
-type MarkupHost = { runCommand: (id: CommandId, options?: { pages?: number[] }) => void; showMarkups: () => void; documentName: () => string };
+type MarkupHost = {
+  runCommand: (id: CommandId, options?: { pages?: number[] }) => void;
+  showMarkups: () => void;
+  showToolChest: () => void;
+  editorParams: () => EditorParams;
+  documentName: () => string;
+};
 
 export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, snapshot: TabSnapshot | undefined, host: MarkupHost) {
   const [stored, setStored] = usePersistentState<MarkupParams>(MARKUP_PARAMS_KEY, defaultMarkupParams);
@@ -30,6 +37,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
   const selection = snapshot?.markupSelection ?? null;
   const shown = selection ? paramsOfMarkup(params, selection) : params;
   const { runExportCommand } = useMarkupExport(activeViewer, host.documentName);
+  const chest = useToolChest({ activeViewer, snapshot, params, editorParams: host.editorParams, showToolChest: host.showToolChest });
   const latest = useRef({ activeViewer, host });
   latest.current = { activeViewer, host };
 
@@ -88,6 +96,9 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
   const runMarkupCommand = (id: CommandId) => {
     const shape = shapesByCommand.get(id);
     const measure = measuresByCommand.get(id);
+    if (chest.runChestCommand(id)) {
+      return true;
+    }
     if (shape) {
       chooseShape(shape);
     } else if (measure) {
@@ -113,6 +124,7 @@ export function useMarkupControls(activeViewer: () => PdfViewerApi | undefined, 
     chooseMeasure,
     chooseTextMode,
     runMarkupCommand,
+    chest,
     picker: { open: pickerOpen, color: params.color, onPick: pickStamp, onClose: () => setPickerOpen(false) },
   };
 }

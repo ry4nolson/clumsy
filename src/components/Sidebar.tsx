@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { Toolbox } from "lucide-react";
 import type { SelectModifiers } from "../lib/pageSelection";
 import { Outline } from "./Outline";
 import { SidebarShell } from "./SidebarShell";
 import { Thumbnails } from "./Thumbnails";
 
-export type SidebarTab = "thumbnails" | "outline" | "changes" | "comments" | "markups" | "signatures";
+export type SidebarTab = "thumbnails" | "outline" | "changes" | "comments" | "markups" | "toolChest" | "signatures";
 
 type SidebarProps = {
   tab: SidebarTab;
@@ -25,12 +26,14 @@ type SidebarProps = {
   changes?: ReactNode;
   comments?: ReactNode;
   markups?: ReactNode;
+  toolChest?: ReactNode;
   signatures?: ReactNode;
 };
 
 export function Sidebar(props: SidebarProps) {
-  const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes, comments, markups, signatures } = props;
-  const missing = (props.tab === "changes" && !changes) || (props.tab === "comments" && !comments) || (props.tab === "markups" && !markups) || (props.tab === "signatures" && !signatures);
+  const { onTab, pdfDocument, currentPage, onNavigate, onOpenUrl, changes, comments, markups, toolChest, signatures } = props;
+  const panels: Partial<Record<SidebarTab, ReactNode>> = { changes, comments, markups, toolChest, signatures };
+  const missing = props.tab in panels && !panels[props.tab];
   const tab = missing ? "thumbnails" : props.tab;
   return (
     <SidebarShell>
@@ -56,6 +59,11 @@ export function Sidebar(props: SidebarProps) {
             Markups
           </button>
         )}
+        {toolChest && (
+          <button type="button" role="tab" className="icon-tab" aria-selected={tab === "toolChest"} title="Tool Chest" aria-label="Tool Chest" onClick={() => onTab("toolChest")}>
+            <Toolbox size={15} />
+          </button>
+        )}
         {signatures && (
           <button type="button" role="tab" aria-selected={tab === "signatures"} onClick={() => onTab("signatures")}>
             Signatures
@@ -63,14 +71,8 @@ export function Sidebar(props: SidebarProps) {
         )}
       </div>
       <div className="sidebar-content">
-        {tab === "changes" ? (
-          changes
-        ) : tab === "comments" ? (
-          comments
-        ) : tab === "markups" ? (
-          markups
-        ) : tab === "signatures" ? (
-          signatures
+        {tab in panels ? (
+          panels[tab]
         ) : tab === "thumbnails" ? (
           <Thumbnails
             pdfDocument={pdfDocument}

@@ -94,22 +94,24 @@ export function useWorkspace() {
     [update],
   );
 
-  const closeTab = useCallback(
-    async (id: string) => {
-      const tab = workspaceRef.current.tabs[id];
-      if (!tab) {
+  const closeTabs = useCallback(
+    async (ids: string[]) => {
+      const open = () => ids.flatMap((id) => workspaceRef.current.tabs[id] ?? []);
+      const unsaved = open().flatMap((tab) => (isFileTab(tab) && hasUnsavedChanges(tab) ? [tab.name] : []));
+      if (unsaved.length && !(await confirmDiscard(unsaved))) {
         return;
       }
-      if (isFileTab(tab) && hasUnsavedChanges(tab) && !(await confirmDiscard([tab.name]))) {
-        return;
+      for (const tab of open()) {
+        if (isFileTab(tab) && tab.path) {
+          closedTabs.current = rememberClosed(closedTabs.current, { path: tab.path, view: viewStateOf(tab) ?? undefined });
+        }
+        dropTab(tab.id);
       }
-      if (isFileTab(tab) && tab.path) {
-        closedTabs.current = rememberClosed(closedTabs.current, { path: tab.path, view: viewStateOf(tab) ?? undefined });
-      }
-      dropTab(id);
     },
     [dropTab, hasUnsavedChanges, viewStateOf],
   );
+
+  const closeTab = useCallback((id: string) => closeTabs([id]), [closeTabs]);
 
   const openSource = useCallback(
     async (source: DocumentSource | Promise<DocumentSource | null>, options: OpenOptions = {}): Promise<string | null> => {
@@ -229,6 +231,7 @@ export function useWorkspace() {
     newTab,
     dropTab,
     closeTab,
+    closeTabs,
     openSource,
     takeClosedTab,
     showPath,

@@ -64,6 +64,16 @@ function lastTrailer(bytes: Uint8Array) {
   return null;
 }
 
+export type XrefSection = "table" | "stream";
+
+export function sectionAt(bytes: Uint8Array, offset: number): XrefSection | null {
+  if (!(offset > 0 && offset < bytes.length)) {
+    return null;
+  }
+  const head = latin1.decode(bytes.subarray(offset, offset + 64));
+  return /^\s*xref\b/.test(head) ? "table" : /^\s*\d+\s+\d+\s+obj\b/.test(head) ? "stream" : null;
+}
+
 export function hasEncryptEntry(bytes: Uint8Array): boolean | null {
   const trailer = lastTrailer(bytes);
   return trailer === null ? null : /\/Encrypt\b/.test(trailer);

@@ -2,15 +2,17 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { UndoableCommand } from "./commentManager";
 import { hideAnnotations } from "./hiddenAnnotations";
+import { forgetImageCoordinates } from "./imageRegions";
 import { MARKUP_KEY_PREFIX, editedFileIds, markupIn, visibleMarkup, type Markup } from "./markup";
 import { undoBursts } from "./markupDraft";
+import { isImageStamp } from "./markupSvg";
 import type { PageScale } from "./measurePdf";
 import { claimStamps } from "./pdfjs";
 
 
 const KEEP_LAYERS = { keepAnnotationLayer: true, keepAnnotationEditorLayer: true, keepXfaLayer: true, keepTextLayer: true, keepCanvasWrapper: true };
 
-type StorePageView = { reset(options: Record<string, boolean>): void };
+type StorePageView = { reset(options: Record<string, boolean>): void; imageCoordinates: unknown; pdfPage?: { imageCoordinates: unknown } | null };
 
 export type FileMarkup = { markup: Markup[]; subjects: Record<string, string> };
 
@@ -57,6 +59,7 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
           for (const markup of list) {
             fileByPage.set(markup.pageIndex, [...(fileByPage.get(markup.pageIndex) ?? []), markup]);
           }
+          syncHidden();
           hooks.loaded();
         }
         return list;
@@ -96,20 +99,42 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     }
   };
 
+  const ownsImages = () => {
+    const classes = (viewer.container as HTMLElement).closest(".app")?.classList;
+    return !!classes?.contains("dark-pages") && classes.contains("keep-images");
+  };
+
+  const drawn = () => {
+    const ids = editedFileIds(changes());
+    if (ownsImages()) {
+      [...fileByPage.values()].flat().forEach((markup) => isImageStamp(markup) && ids.add(markup.id));
+    }
+    return ids;
+  };
+
   const syncHidden = () => {
     if (!doc) {
-      return;
+      return false;
     }
-    const ids = editedFileIds(changes());
+    const ids = drawn();
     if (!hideAnnotations(doc, ids)) {
-      return;
+      return false;
     }
     const pages = new Set([...ids, ...hiddenIds].filter((id) => ids.has(id) !== hiddenIds.has(id)).map(pageOf));
     hiddenIds = ids;
     for (const pageIndex of pages) {
-      (pageIndex === undefined ? null : (viewer.getPageView(pageIndex) as unknown as StorePageView | undefined))?.reset(KEEP_LAYERS);
+      const view = pageIndex === undefined ? null : (viewer.getPageView(pageIndex) as unknown as StorePageView | undefined);
+      if (view) {
+        view.imageCoordinates = null;
+        if (view.pdfPage) {
+          view.pdfPage.imageCoordinates = null;
+          forgetImageCoordinates(view.pdfPage);
+        }
+        view.reset(KEEP_LAYERS);
+      }
     }
     viewer.update();
+    return true;
   };
 
   const put = (id: string, value: Markup | null, pageIndex: number) => {
@@ -162,6 +187,8 @@ export function createMarkupStore(viewer: PDFViewer, hooks: StoreHooks) {
     scaleOf: (pageIndex: number) => scaleList[pageIndex] ?? null,
     hasFileMarkup: (pageIndex: number) => fileByPage.has(pageIndex),
     edited: () => editedFileIds(changes()),
+    drawn,
+    syncHidden,
     find,
     onPage,
     writable,

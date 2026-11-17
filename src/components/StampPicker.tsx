@@ -1,42 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { hexColor } from "../lib/markup";
+import { useCustomStamps } from "../hooks/useCustomStamps";
 import { readRecentStamps } from "../lib/markupParams";
-import { LABEL_FONT } from "../lib/markupSvg";
-import { dateLabel } from "../lib/marks";
-import { CAP_HEIGHT, ELECTRICAL_CATEGORIES, reviewStamp, searchStamps, stampDesign, stampLabel } from "../lib/stampSymbols";
+import { ELECTRICAL_CATEGORIES, isKnownStamp, searchStamps } from "../lib/stampSymbols";
+import { CustomStampForm } from "./CustomStampForm";
+import { CustomStampSection } from "./CustomStampSection";
+import { StampButton } from "./StampButton";
 import "./Markup.css";
 
 export type StampPickerProps = { open: boolean; color: string; onPick: (id: string) => void; onClose: () => void };
-
-export function StampPreview({ id, color }: { id: string; color: string }) {
-  const review = reviewStamp(id);
-  const design = stampDesign(id, review ? dateLabel(new Date()) : null);
-  if (!design) {
-    return null;
-  }
-  const stroke = review ? hexColor(review.color) : color;
-  return (
-    <svg viewBox={`0 0 ${design.width} ${design.height}`} aria-hidden="true" strokeLinecap="round" strokeLinejoin="round">
-      {design.shapes.map((shape, index) => (
-        <path key={index} d={shape.d} fill={shape.fill ? stroke : "none"} stroke={shape.fill ? "none" : stroke} strokeWidth={shape.fill ? undefined : (shape.strokeWidth ?? design.strokeWidth)} />
-      ))}
-      {design.labels.map((label, index) => (
-        <text key={index} x={label.x} y={label.y + (label.size * CAP_HEIGHT) / 2} fontSize={label.size} fontFamily={LABEL_FONT} fontWeight={700} textAnchor="middle" fill={stroke}>
-          {label.text}
-        </text>
-      ))}
-    </svg>
-  );
-}
-
-function StampButton({ id, color, onPick }: { id: string; color: string; onPick: (id: string) => void }) {
-  const label = stampLabel(id);
-  return (
-    <button type="button" className={`stamp-choice${reviewStamp(id) ? " review" : ""}`} title={label} aria-label={label} onClick={() => onPick(id)}>
-      <StampPreview id={id} color={color} />
-    </button>
-  );
-}
 
 function Section({ title, ids, color, onPick }: { title: string; ids: string[]; color: string; onPick: (id: string) => void }) {
   if (!ids.length) {
@@ -54,15 +25,20 @@ function Section({ title, ids, color, onPick }: { title: string; ids: string[]; 
   );
 }
 
+const nothingFound = { custom: [], review: [], icons: [], electrical: [] };
+
 export function StampPicker({ open, color, onPick, onClose }: StampPickerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
+  const [composing, setComposing] = useState(false);
+  const custom = useCustomStamps();
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (open && dialog && !dialog.open) {
       setQuery("");
+      setComposing(false);
       setRecent(readRecentStamps());
       dialog.showModal();
     } else if (!open && dialog?.open) {
@@ -73,9 +49,9 @@ export function StampPicker({ open, color, onPick, onClose }: StampPickerProps) 
     }
   }, [open]);
 
-  const found = open ? searchStamps(query) : { review: [], icons: [], electrical: [] };
+  const found = open ? searchStamps(query) : nothingFound;
   const searching = query.trim() !== "";
-  const nothing = !found.review.length && !found.icons.length && !found.electrical.length;
+  const nothing = !found.custom.length && !found.review.length && !found.icons.length && !found.electrical.length;
 
   return (
     <dialog
@@ -84,7 +60,11 @@ export function StampPicker({ open, color, onPick, onClose }: StampPickerProps) 
       aria-label="Stamps"
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        if (composing) {
+          setComposing(false);
+        } else {
+          onClose();
+        }
       }}
     >
       <div className="info-sheet-header">
@@ -97,6 +77,7 @@ export function StampPicker({ open, color, onPick, onClose }: StampPickerProps) 
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
+          disabled={composing}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -105,19 +86,33 @@ export function StampPicker({ open, color, onPick, onClose }: StampPickerProps) 
         </button>
       </div>
       <div className="stamp-body">
-        {open && !searching && <Section title="Recently Used" ids={recent} color={color} onPick={onPick} />}
-        <Section title="Review" ids={found.review.map((entry) => entry.id)} color={color} onPick={onPick} />
-        <Section title="Icons" ids={found.icons} color={color} onPick={onPick} />
-        {ELECTRICAL_CATEGORIES.map((category) => (
-          <Section
-            key={category}
-            title={`Electrical: ${category}`}
-            ids={found.electrical.filter((entry) => entry.category === category).map((entry) => entry.id)}
-            color={color}
-            onPick={onPick}
+        {composing ? (
+          <CustomStampForm
+            onAdd={(stamp) => {
+              if (custom.add(stamp)) {
+                onPick(stamp.id);
+              }
+            }}
+            onCancel={() => setComposing(false)}
           />
-        ))}
-        {open && nothing && <p className="stamp-empty">No stamps match “{query.trim()}”.</p>}
+        ) : (
+          <>
+            {open && !searching && <Section title="Recently Used" ids={recent.filter(isKnownStamp)} color={color} onPick={onPick} />}
+            {open && <CustomStampSection found={found.custom} searching={searching} color={color} api={custom} onPick={onPick} onNewText={() => setComposing(true)} />}
+            <Section title="Review" ids={found.review.map((entry) => entry.id)} color={color} onPick={onPick} />
+            <Section title="Icons" ids={found.icons} color={color} onPick={onPick} />
+            {ELECTRICAL_CATEGORIES.map((category) => (
+              <Section
+                key={category}
+                title={`Electrical: ${category}`}
+                ids={found.electrical.filter((entry) => entry.category === category).map((entry) => entry.id)}
+                color={color}
+                onPick={onPick}
+              />
+            ))}
+            {open && searching && nothing && <p className="stamp-empty">No stamps match “{query.trim()}”.</p>}
+          </>
+        )}
       </div>
       <p className="stamp-hint">Click the page to place a stamp, or drag to size it.</p>
     </dialog>

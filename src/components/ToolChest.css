@@ -1,0 +1,265 @@
+.sidebar-tabs button.icon-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+}
+
+.tool-chest {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.tool-chest-bar {
+  display: flex;
+  gap: 6px;
+}
+
+.tool-chest-new,
+.tool-chest-more,
+.tool-chest-row-menu,
+.tool-chest-undo button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tool-chest-new {
+  flex: 1;
+  height: 28px;
+  padding: 0 8px;
+}
+
+.tool-chest-more {
+  width: 28px;
+  height: 28px;
+}
+
+.tool-chest-new:hover,
+.tool-chest-more:hover,
+.tool-chest-undo button:hover {
+  background: var(--hover);
+}
+
+.tool-chest-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--hover);
+}
+
+.tool-chest-undo button {
+  height: 24px;
+  padding: 0 10px;
+}
+
+.tool-chest-empty {
+  margin: 8px 4px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.tool-chest-section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tool-chest-group {
+  display: flex;
+  justify-content: space-between;
+  margin: 8px 4px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.tool-chest-count {
+  font-weight: 500;
+}
+
+.tool-chest-section li {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tool-chest-item {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  min-width: 0;
+  padding: 4px 30px 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.tool-chest-item:hover {
+  background: var(--hover);
+}
+
+.tool-chest-item[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.tool-chest-item[aria-pressed="true"] .tool-chest-kind {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.tool-chest-item .tool-swatch-host {
+  grid-row: span 2;
+  align-self: center;
+}
+
+.tool-chest-name,
+.tool-chest-kind {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-chest-kind {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tool-chest-row-menu {
+  position: absolute;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  opacity: 0;
+}
+
+.tool-chest-section li:hover .tool-chest-row-menu,
+.tool-chest-row-menu:focus-visible {
+  opacity: 1;
+}
+
+.touch .tool-chest-row-menu {
+  opacity: 0.7;
+}
+
+.tool-chest-section li.drop-before::before,
+.tool-chest-section.drop-end ul::after {
+  display: block;
+  height: 2px;
+  margin: 0 4px;
+  border-radius: 1px;
+  background: var(--accent);
+  content: "";
+}
+
+.tool-chest-section li.drop-before::before {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+}
+
+.tool-swatch-host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 24px;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+}
+
+.tool-swatch-host.large {
+  width: 72px;
+  height: 48px;
+}
+
+.tool-swatch-host svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tool-sheet .label-form {
+  min-width: 340px;
+}
+
+.tool-sheet .tool-option {
+  margin: 0;
+  font-size: 12px;
+}
+
+.tool-sheet .tool-option input {
+  flex: 1;
+  max-width: 220px;
+}
+
+.tool-sheet .tool-option-label:empty {
+  display: none;
+}
+
+.tool-sheet .tool-option-value {
+  order: 2;
+  min-width: 44px;
+  text-align: right;
+}
+
+.tool-sheet-checks {
+  display: flex;
+  gap: 16px;
+}
+
+.tool-menu .save-tool {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding-top: 4px;
+  height: 32px;
+}
+
+.tool-menu-separator {
+  margin: 4px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.tool-chest .tool-menu-item:disabled,
+.tool-menu .tool-menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tool-chest-group {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tool-sheet .scale-lengths .text-input {
+  width: auto;
+  min-width: 120px;
+}

@@ -1,5 +1,6 @@
 import type { CompressProgress, CompressSettings } from "./compressPlan";
 import { errorFrom, jobBuffers, type PageEditJob, type PageEditResponse, type PageEditResult } from "./pageEditMessages";
+import { stampsFor } from "./customStamps";
 import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
 import type { PageEdit } from "./pageEditPlan";
@@ -63,16 +64,16 @@ const removedBy = new WeakMap<Uint8Array, number>();
 export const signaturesRemovedBy = (bytes: Uint8Array) => removedBy.get(bytes) ?? 0;
 
 export async function writeAnnotationsOffThread(bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password?: string) {
-  const result = await runInWorker(spawn, { op: "annotations", bytes, notes, markup, password });
+  const result = await runInWorker(spawn, { op: "annotations", bytes, notes, markup, password, stamps: stampsFor(markup) });
   if (result.removedSignatures) {
     removedBy.set(result.bytes, result.removedSignatures);
   }
   return result.bytes;
 }
 
-export async function readMarkupOffThread(bytes: Uint8Array, password?: string) {
-  const result = await runInWorker(spawn, { op: "readMarkup", bytes, password });
-  return { markup: result.markup ?? [], subjects: result.subjects ?? {} };
+export async function readMarkupOffThread(bytes: Uint8Array, password?: string, known: string[] = []) {
+  const result = await runInWorker(spawn, { op: "readMarkup", bytes, password, known });
+  return { markup: result.markup ?? [], subjects: result.subjects ?? {}, stamps: result.stamps ?? [] };
 }
 
 export const readScalesOffThread = async (bytes: Uint8Array, password?: string) => (await runInWorker(spawn, { op: "readScales", bytes, password })).scales ?? [];

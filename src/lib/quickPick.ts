@@ -1,6 +1,8 @@
 import { commandAvailable, commands, displayCombo, type CommandContext, type CommandId } from "./commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "./pageLabels";
 import type { RecentEntry } from "./recent";
+import { savedEntry, savedIdOf } from "./contextTools";
+import type { SavedTool } from "./toolChest";
 
 export type QuickPickItem = { id: string; label: string; detail?: string; hint?: string | null };
 
@@ -25,6 +27,11 @@ export function paletteItems({ isMac, documentMapAvailable = true, ...context }:
       hint: command.combos[0] ? displayCombo(command.combos[0], isMac) : null,
     }));
 }
+
+export const savedToolItems = (tools: SavedTool[]): QuickPickItem[] =>
+  tools.map((tool) => ({ id: savedEntry(tool.id), label: `Tool: ${tool.name}`, detail: tool.group ?? undefined }));
+
+export const savedToolTarget = (id: string) => savedIdOf(id);
 
 export const RECENT_COMMAND_LIMIT = 5;
 

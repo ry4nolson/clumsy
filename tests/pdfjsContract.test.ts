@@ -261,6 +261,11 @@ describe("dark pages", () => {
   it("has the viewer record images whenever imagesRightClickMinSize isn't -1", () => {
     expectIn(viewer, "const recordImages = this.imagesRightClickMinSize !== -1 && !this.imageCoordinates;");
   });
+
+  it("records images again once the page view and page proxy forget them", () => {
+    expectIn(display, "const shouldRecordImages = !!canvas && !this.imageCoordinates && recordImages;");
+    expectIn(viewer, "this.imageCoordinates ??= this.pdfPage.imageCoordinates;");
+  });
 });
 
 describe("worker", () => {

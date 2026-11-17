@@ -10,7 +10,7 @@ function copySelection(text: string) {
   }
 }
 
-export function blockWebviewMenu(offerCopy: (copy: () => void) => void) {
+export function blockWebviewMenu(offerCopy: (copy: () => void, point: { x: number; y: number }) => void) {
   window.addEventListener("contextmenu", (event) => {
     if (event.defaultPrevented) {
       return;
@@ -22,7 +22,7 @@ export function blockWebviewMenu(offerCopy: (copy: () => void) => void) {
       event.preventDefault();
     }
     if (choice === "copy") {
-      offerCopy(() => copySelection(text));
+      offerCopy(() => copySelection(text), { x: event.clientX, y: event.clientY });
     }
   });
 }

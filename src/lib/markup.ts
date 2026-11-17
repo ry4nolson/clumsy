@@ -13,6 +13,11 @@ export const shapeKinds: ShapeKind[] = ["rectangle", "ellipse", "cloud", "line",
 
 export type MarkupStyle = { color: number[]; fill: boolean; width: number; opacity: number };
 
+export type MarkupPreset = { id: string; name: string; style: MarkupStyle; dash: number[] | null; format: MeasureFormat | null };
+
+export const withPreset = (markup: Markup, preset: MarkupPreset | undefined): Markup =>
+  preset ? { ...markup, subject: preset.name, dash: markup.kind === "stamp" || isTextKind(markup.kind) ? markup.dash : preset.dash } : markup;
+
 export type Markup = {
   id: string;
   pageIndex: number;

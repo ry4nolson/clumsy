@@ -9,6 +9,9 @@ import { QuickPick } from "./components/QuickPick";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import { SignDigitallyDialog } from "./components/SignDigitallyDialog";
 import { StampPicker } from "./components/StampPicker";
+import { ToolChestList } from "./components/ToolChestList";
+import { ToolSheet } from "./components/ToolSheet";
+import { withoutToolChests } from "./lib/toolChestStore";
 import type { SidebarTab } from "./components/Sidebar";
 import { TabContents } from "./components/TabContents";
 import { UpdateDialog } from "./components/UpdateDialog";
@@ -33,6 +36,7 @@ import { useUpdatePrompt } from "./hooks/useUpdatePrompt";
 import { useQuickPick } from "./hooks/useQuickPick";
 import { useRecentFiles } from "./hooks/useRecentFiles";
 import { useRestartSession } from "./hooks/useRestartSession";
+import { useTabMenu } from "./hooks/useTabMenu";
 import { useTabTransfer } from "./hooks/useTabTransfer";
 import { useMarkupControls } from "./hooks/useMarkupControls";
 import { useToolbarTools } from "./hooks/useToolbarTools";
@@ -149,7 +153,7 @@ export default function App() {
   const openSourceRef = useRef(openSource);
   openSourceRef.current = openSource;
 
-  const markupControls = useMarkupControls(activeViewer, activeSnapshot, { runCommand: (id, options) => runCommandRef.current(id, options), showMarkups: () => showSidebar("markups"), documentName: () => ("name" in activeTab ? activeTab.name : "Document") });
+  const markupControls = useMarkupControls(activeViewer, activeSnapshot, { runCommand: (id, options) => runCommandRef.current(id, options), showMarkups: () => showSidebar("markups"), showToolChest: () => showSidebar("toolChest"), editorParams: () => editorOptions.remembered, documentName: () => ("name" in activeTab ? activeTab.name : "Document") });
   const tools = useToolbarTools(activeViewer, activeSnapshot, editorOptions, markupControls, (id) => runCommandRef.current(id));
 
   const toggleFind = () => {
@@ -187,7 +191,7 @@ export default function App() {
         }
       }),
       onFileDrop(
-        (files, point) => pageEditsRef.current.dropFiles(files, point),
+        (files, point) => pageEditsRef.current.dropFiles(withoutToolChests(files), point),
         (point) => {
           const target = point && dropTargetAt(point);
           showDropTarget(target);
@@ -225,6 +229,7 @@ export default function App() {
     onGoToPage: (page) => activeViewer()?.goToPage(page, true),
     onShowTab: selectTab,
     onOpenRecent: openRecent,
+    onArmTool: (id) => markupControls.chest.armById(id),
   });
 
   const editingCommand = (name: "undo" | "redo") => {
@@ -390,6 +395,7 @@ export default function App() {
     }
   });
 
+  const openTabMenu = useTabMenu(workspaceApi, { onCommand: (id) => runCommandRef.current(id), onCompare: comparison.compareTabs });
   const tabItems = Object.fromEntries(Object.values(workspace.tabs).map((tab) => [tab.id, tabItemFor(tab, allSnapshots)]));
 
   const viewer = activeHandle()?.viewer;
@@ -434,6 +440,7 @@ export default function App() {
         overlay={dropHover === "open" && <div className="drop-overlay">Drop to open</div>}
         onSelectTab={selectTab}
         onCloseTab={closeTab}
+        onTabMenu={openTabMenu}
         onNewTab={(paneId) => newTab(paneId)}
         onFocusPane={(paneId) => update((current) => ws.focusPane(current, paneId))}
         onMoveTab={moveTab}
@@ -474,6 +481,7 @@ export default function App() {
             onMenuCommand: (id, pages) => runCommandRef.current(id, { pages }),
             onUndoRemoval: pageEdits.undoIn,
             onOpenSource: (source) => openSource(source),
+            toolChest: (viewer) => <ToolChestList chest={markupControls.chest.panel} viewer={viewer} />,
           }}
           markdownProps={{ sidebarOpen, documentMap, onSnapshot: handleMarkdownSnapshot, onLoaded: handleLoaded, onOpenUrl: openExternal, onOpenFile: markdown.openLinked }}
           caretBrowsing={viewControls.caretBrowsing}
@@ -503,6 +511,7 @@ export default function App() {
       />
       <ShortcutsDialog open={infoSheet?.kind === "shortcuts"} isMac={usesMacKeys} onClose={() => setInfoSheet(null)} />
       <StampPicker {...markupControls.picker} />
+      <ToolSheet {...markupControls.chest.sheet} />
       <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
     </div>
   );

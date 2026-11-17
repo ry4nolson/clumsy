@@ -8,9 +8,10 @@ import type { ShapeKind } from "../lib/markup";
 import type { MarkupParams, TextMode } from "../lib/markupParams";
 import type { MarkKind } from "../lib/marks";
 import type { MeasureKind } from "../lib/measure";
+import type { ToolTarget } from "../lib/toolChest";
 import { showContextMenu } from "../lib/platform";
 import { IconButton } from "./IconButton";
-import { MeasureTool, ShapesTool, StampTool, TextMarkupSettings, TextModeChoice } from "./MarkupTools";
+import { MeasureTool, SaveToolItem, ShapesTool, StampTool, TextMarkupSettings, TextModeChoice } from "./MarkupTools";
 import { SignaturePath } from "./SignatureDialog";
 import { closeToolMenu, ToolMenu } from "./ToolMenu";
 
@@ -41,6 +42,7 @@ export type ToolsProps = {
   onStamps: () => void;
   onMeasure: (kind: MeasureKind) => void;
   onSetScale: () => void;
+  onSaveTool: (target: ToolTarget) => void;
 };
 
 export type ContextMenuFor = (tool: EditorTool) => (event: MouseEvent<HTMLButtonElement>) => void;
@@ -140,6 +142,7 @@ function StyledToolButton({ props, tool, title, label, icon }: { props: ToolsPro
       onOpen={() => !active && props.onTool(tool)}
     >
       <ToolSettings props={props} tool={tool} />
+      <SaveToolItem onSave={() => props.onSaveTool({ kind: "editor", editor: tool })} />
     </ToolMenu>
   );
 }
@@ -161,6 +164,7 @@ function HighlightTool({ props }: { props: ToolsProps }) {
     >
       <TextModeChoice props={props} />
       {mode === "highlight" ? <ToolSettings props={props} tool="highlight" /> : <TextMarkupSettings props={props} />}
+      <SaveToolItem onSave={() => props.onSaveTool(mode === "underline" || mode === "strikeout" ? { kind: "text", text: mode } : { kind: "editor", editor: "highlight" })} />
     </ToolMenu>
   );
 }

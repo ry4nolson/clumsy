@@ -53,6 +53,8 @@ Those page commands act on the page you right-clicked, even if it isn't the one 
 
 Right-click any tool in the toolbar and pick **Add to Context Menu** or **Remove from Context Menu**. **Reset Context Menu Tools** puts the defaults back. They always follow the toolbar's order.
 
+Saved tools from the [tool chest](/guides/tool-chest) can go there too: right-click one in the Tool Chest tab and pick **Add to Context Menu**. They come after the toolbar's tools.
+
 ## When the toolbar runs out of room
 
 Make the window narrow and the toolbar moves tools into the **More** menu at its right edge, starting from the right, rather than wrapping onto a second row. Nothing is gone. Widen the window and they come back.

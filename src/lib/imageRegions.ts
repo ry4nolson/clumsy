@@ -10,6 +10,10 @@ export function recordImageCoordinates(page: object, coords: ArrayLike<number> |
   }
 }
 
+export function forgetImageCoordinates(page: object) {
+  recorded.delete(page);
+}
+
 export function recordedImages(page: object) {
   return recorded.get(page) ?? null;
 }
