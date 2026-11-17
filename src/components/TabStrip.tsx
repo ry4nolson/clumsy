@@ -20,6 +20,7 @@ type TabStripProps = {
   onClose: (id: string) => void;
   onNewTab: () => void;
   onTabPointerDown: (id: string, event: ReactPointerEvent) => void;
+  onTabMenu: (id: string, point: { x: number; y: number }) => void;
 };
 
 export function TabStrip({
@@ -38,6 +39,7 @@ export function TabStrip({
   onClose,
   onNewTab,
   onTabPointerDown,
+  onTabMenu,
 }: TabStripProps) {
   const compact = useCompactLayout();
   return (
@@ -69,6 +71,10 @@ export function TabStrip({
                   if (event.pointerType !== "touch" && !(event.target as HTMLElement).closest(".tab-close")) {
                     onTabPointerDown(tab.id, event);
                   }
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  onTabMenu(tab.id, { x: event.clientX, y: event.clientY });
                 }}
                 onMouseDown={(event) => {
                   if (event.button === 1) {

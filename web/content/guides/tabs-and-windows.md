@@ -13,6 +13,23 @@ Every document gets its own tab. Tabs live in panes, panes live in windows, and 
 
 Reopen Closed Tab remembers the last 20 tabs you closed in a window, and it brings each one back on the page and zoom you left it at.
 
+## The tab menu
+
+Right-click a tab for the things you do to a whole file. Right-clicking also switches to that tab.
+
+| Item | What it does |
+| --- | --- |
+| Close Tab, Close Other Tabs, Close Tabs to the Right | Close this tab, every other tab in its pane, or the ones after it. Clumsy asks once if any of them have unsaved changes. |
+| Save, Save As… | Save the file in this tab. |
+| Copy Path | Put the file's full path on the clipboard. |
+| {{mac: Show in Finder}} | Open the file's folder with the file selected. |
+| {{win: Show in Folder}} | Open the file's folder with the file selected. |
+| Compare With | Compare this PDF with another PDF that's open in this window, or pick a file. |
+| Split Right, Move Tab to New Window | Put the tab in a pane or a window of its own. |
+| {{mac: Print…, }}Export Pages as Images…, Compress…, Set Password… | The same commands as in the File menu, for this tab. |
+
+Copy Path and {{mac: Show in Finder}}{{win: Show in Folder}} only appear for a file that's been saved. Markdown and Start tabs get a shorter menu.
+
 ## Split panes
 
 [[⌘\]] splits the window and opens a second copy of the current document on the right. That's the quick way to read page 12 while looking at the appendix on page 80.

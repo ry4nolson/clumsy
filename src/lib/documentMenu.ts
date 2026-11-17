@@ -8,7 +8,7 @@ import type { MarkKind } from "./marks";
 import { pageLabelOf } from "./pageLabels";
 import { parseToolRef, toolSymbol, type SavedTool } from "./toolChest";
 
-export type LocalMenuAction = "openLink" | "followLink" | "addCommentHere";
+export type LocalMenuAction = "openLink" | "followLink" | "addCommentHere" | "closeOtherTabs" | "closeTabsToRight" | `compareWithTab:${string}`;
 export type DocumentMenuId = CommandId | LocalMenuAction | SavedToolEntry;
 
 export type MenuEntry =
