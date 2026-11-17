@@ -1,14 +1,15 @@
 import type { EditorTool } from "../hooks/useViewerTools";
 import type { CommandId } from "./commands";
-import { cleanContextTools, toolbarTools, toolCommand } from "./contextTools";
+import { cleanContextTools, savedEntry, savedIdOf, toolbarTools, toolCommand, type SavedToolEntry } from "./contextTools";
 import type { ShapeKind } from "./markup";
 import type { MeasureKind } from "./measure";
 import type { TextMode } from "./markupParams";
 import type { MarkKind } from "./marks";
 import { pageLabelOf } from "./pageLabels";
+import { parseToolRef, toolSymbol, type SavedTool } from "./toolChest";
 
 export type LocalMenuAction = "openLink" | "followLink" | "addCommentHere";
-export type DocumentMenuId = CommandId | LocalMenuAction;
+export type DocumentMenuId = CommandId | LocalMenuAction | SavedToolEntry;
 
 export type MenuEntry =
   | { kind: "item"; id: DocumentMenuId; label: string; enabled?: boolean; checked?: boolean }
@@ -19,7 +20,7 @@ export type MenuEntry =
 
 export type MenuSection = { header?: string; items: MenuEntry[] };
 
-export type PaletteItem = { id: CommandId; label: string; symbol: string; checked: boolean };
+export type PaletteItem = { id: CommandId | SavedToolEntry; label: string; symbol: string; checked: boolean };
 
 export type DocumentMenuSpec = { palette: { label: string; items: PaletteItem[] } | null; sections: MenuSection[] };
 
@@ -34,6 +35,9 @@ export type MenuContext = {
   mark: MarkKind | null;
   markupChoice?: MarkupChoice;
   contextTools: unknown;
+  savedTools?: SavedTool[];
+  armedTool?: string | null;
+  markupSelected?: boolean;
   canGoBack: boolean;
   canGoForward: boolean;
   canAddComment: boolean;
@@ -74,16 +78,34 @@ export type MarkupChoice = { shape: ShapeKind; textMode: TextMode; measure?: Mea
 const textModeCommands: Record<TextMode, CommandId> = { highlight: "toolHighlight", underline: "toolUnderline", strikeout: "toolStrikeout" };
 const isTextTool = (tool: EditorTool) => tool === "highlight" || tool === "underline" || tool === "strikeout";
 
-export function toolPalette(activeTool: EditorTool, mark: MarkKind | null, contextTools: unknown, markup: MarkupChoice = { shape: "rectangle", textMode: "highlight" }): DocumentMenuSpec["palette"] {
-  const chosen = new Set(cleanContextTools(contextTools));
-  const items = toolbarTools
+type SavedChoice = { tools: SavedTool[]; armed: string | null };
+
+function savedItems(chosen: string[], { tools, armed }: SavedChoice): PaletteItem[] {
+  return chosen.flatMap((entry) => {
+    const tool = tools.find((candidate) => candidate.id === savedIdOf(entry));
+    const target = tool && parseToolRef(tool.tool);
+    return tool && target ? [{ id: savedEntry(tool.id), label: tool.name, symbol: toolSymbol(target), checked: armed === tool.id }] : [];
+  });
+}
+
+export function toolPalette(
+  activeTool: EditorTool,
+  mark: MarkKind | null,
+  contextTools: unknown,
+  markup: MarkupChoice = { shape: "rectangle", textMode: "highlight" },
+  saved: SavedChoice = { tools: [], armed: null },
+): DocumentMenuSpec["palette"] {
+  const cleaned = cleanContextTools(contextTools);
+  const chosen = new Set<string>(cleaned);
+  const builtIn = toolbarTools
     .filter((info) => chosen.has(info.tool))
     .map((info) => ({
       id: info.tool === "highlight" ? textModeCommands[markup.textMode] : toolCommand(info.tool, mark, markup.shape, markup.measure),
       label: info.label,
       symbol: info.symbol,
-      checked: info.tool === "highlight" ? isTextTool(activeTool) : info.tool === activeTool,
+      checked: !saved.armed && (info.tool === "highlight" ? isTextTool(activeTool) : info.tool === activeTool),
     }));
+  const items = [...builtIn, ...savedItems(cleaned.filter((entry) => savedIdOf(entry)), saved)];
   return items.length ? { label: "Tools", items } : null;
 }
 
@@ -108,6 +130,9 @@ export function documentMenu(context: MenuContext): { spec: DocumentMenuSpec; pa
   } else if (context.link?.kind === "internal") {
     sections.push({ items: [item("followLink", "Go to Destination")] });
   }
+  if (onPage && context.markupSelected) {
+    sections.push({ items: [item("addToToolChest", "Add to Tool Chest…")] });
+  }
   if (onPage && context.canAddComment) {
     sections.push({ items: [item("addCommentHere", "Add Comment Here")] });
   }
@@ -131,7 +156,8 @@ export function documentMenu(context: MenuContext): { spec: DocumentMenuSpec; pa
   if (onPage) {
     sections.push(pageSection(pages, context.pagesCount, context.pageLabels, context.canPrint));
   }
-  return { spec: { palette: toolPalette(context.activeTool, context.mark, context.contextTools, context.markupChoice), sections }, pages };
+  const saved = { tools: context.savedTools ?? [], armed: context.armedTool ?? null };
+  return { spec: { palette: toolPalette(context.activeTool, context.mark, context.contextTools, context.markupChoice, saved), sections }, pages };
 }
 
 export type FlatEntry = Exclude<MenuEntry, { kind: "submenu" }> | { kind: "header"; label: string } | { kind: "submenu"; label: string; items: FlatEntry[] };

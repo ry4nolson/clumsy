@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RECENT_COMMAND_LIMIT, pageJumpItem, pageJumpTarget, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand } from "../src/lib/quickPick";
+import { RECENT_COMMAND_LIMIT, pageJumpItem, pageJumpTarget, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand, savedToolItems, savedToolTarget } from "../src/lib/quickPick";
 import type { RecentEntry } from "../src/lib/recent";
 
 const recent = (path: string, exists = true): RecentEntry => ({
@@ -138,5 +138,20 @@ describe("pageJumpItem", () => {
     expect(pageJumpTarget("page:7")).toBe(7);
     expect(pageJumpTarget("page:")).toBeNull();
     expect(pageJumpTarget("tab:page:7")).toBeNull();
+  });
+});
+
+describe("saved tools in the palette", () => {
+  it("lists each saved tool as Tool: name with its group", () => {
+    const items = savedToolItems([
+      { id: "a", name: "Drywall", group: "Walls", tool: "measure:area", style: { color: "#1565c0", fill: true, width: 2, opacity: 1, dash: null } },
+      { id: "b", name: "Rev cloud", group: null, tool: "shape:cloud", style: { color: "#e5484d", fill: false, width: 2, opacity: 1, dash: null } },
+    ]);
+    expect(items).toEqual([
+      { id: "saved:a", label: "Tool: Drywall", detail: "Walls" },
+      { id: "saved:b", label: "Tool: Rev cloud", detail: undefined },
+    ]);
+    expect(savedToolTarget("saved:a")).toBe("a");
+    expect(savedToolTarget("toolSelect")).toBeNull();
   });
 });

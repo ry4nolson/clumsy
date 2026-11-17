@@ -44,14 +44,23 @@ export function toolCommand(tool: EditorTool, mark: MarkKind | null = null, shap
   return textToolCommands[tool] ?? toolbarTools.find((info) => info.tool === tool)?.command ?? "toolSelect";
 }
 
-export const defaultContextTools: EditorTool[] = ["select", "highlight", "text", "draw", "comment", "signature"];
+export const SAVED_PREFIX = "saved:";
 
-export function cleanContextTools(value: unknown): EditorTool[] {
+export type SavedToolEntry = `saved:${string}`;
+export type ContextTool = EditorTool | SavedToolEntry;
+
+export const savedEntry = (id: string): SavedToolEntry => `${SAVED_PREFIX}${id}`;
+export const savedIdOf = (entry: string) => (entry.startsWith(SAVED_PREFIX) ? entry.slice(SAVED_PREFIX.length) : null);
+
+export const defaultContextTools: ContextTool[] = ["select", "highlight", "text", "draw", "comment", "signature"];
+
+export function cleanContextTools(value: unknown): ContextTool[] {
   if (!Array.isArray(value)) {
     return defaultContextTools;
   }
   const chosen = new Set(value);
-  return toolbarTools.filter((info) => chosen.has(info.tool)).map((info) => info.tool);
+  const saved = value.filter((entry): entry is SavedToolEntry => typeof entry === "string" && entry.length > SAVED_PREFIX.length && entry.length <= 120 && entry.startsWith(SAVED_PREFIX));
+  return [...toolbarTools.filter((info) => chosen.has(info.tool)).map((info) => info.tool), ...new Set(saved)];
 }
 
 export function parseContextTools(stored: string | null) {
@@ -65,7 +74,7 @@ export function parseContextTools(stored: string | null) {
   }
 }
 
-export const withContextTool = (tools: EditorTool[], tool: EditorTool, included: boolean) =>
+export const withContextTool = (tools: ContextTool[], tool: ContextTool, included: boolean) =>
   cleanContextTools(included ? [...tools, tool] : tools.filter((candidate) => candidate !== tool));
 
 type ToolStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -78,7 +87,7 @@ export function readContextTools(storage?: ToolStorage) {
   }
 }
 
-export function writeContextTools(tools: EditorTool[] | null, storage?: ToolStorage) {
+export function writeContextTools(tools: ContextTool[] | null, storage?: ToolStorage) {
   try {
     if (tools) {
       (storage ?? localStorage).setItem(CONTEXT_TOOLS_KEY, JSON.stringify(tools));
@@ -87,5 +96,13 @@ export function writeContextTools(tools: EditorTool[] | null, storage?: ToolStor
     }
   } catch {
     return;
+  }
+}
+
+export function forgetSavedContextTools(ids: string[], storage?: ToolStorage) {
+  const tools = readContextTools(storage);
+  const kept = tools.filter((tool) => !ids.includes(savedIdOf(tool) ?? ""));
+  if (kept.length !== tools.length) {
+    writeContextTools(kept, storage);
   }
 }

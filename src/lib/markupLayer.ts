@@ -1,7 +1,7 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { EventBus, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { UndoableCommand } from "./commentManager";
-import { mayBeMarkup, movedMarkup, removedMarkup, restyledMarkup, sameStyle, type Markup, type MarkupStyle, type ShapeKind, type TextMarkupKind } from "./markup";
+import { mayBeMarkup, movedMarkup, removedMarkup, restyledMarkup, sameStyle, withPreset, type Markup, type MarkupPreset, type MarkupStyle, type ShapeKind, type TextMarkupKind } from "./markup";
 import { defaultFormat, fullSize, type MeasureKind } from "./measure";
 import type { PageScale } from "./measurePdf";
 import { createMeasureTool } from "./measureTool";
@@ -31,10 +31,10 @@ type MarkupPageView = {
 };
 
 export type MarkupTool =
-  | { kind: "shape"; shape: ShapeKind }
-  | { kind: "stamp"; stamp: string }
-  | { kind: "text"; text: TextMarkupKind }
-  | { kind: "measure"; measure: MeasureKind }
+  | { kind: "shape"; shape: ShapeKind; preset?: MarkupPreset }
+  | { kind: "stamp"; stamp: string; preset?: MarkupPreset }
+  | { kind: "text"; text: TextMarkupKind; preset?: MarkupPreset }
+  | { kind: "measure"; measure: MeasureKind; preset?: MarkupPreset }
   | null;
 
 export type MarkupHooks = {
@@ -95,6 +95,8 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
 
   const publishList = () => hooks.listed();
 
+  const style = () => tool?.preset?.style ?? hooks.style();
+  const named = (markup: Markup) => withPreset(markup, tool?.preset);
 
   const select = (id: string | null) => {
     if (selectedId === id) {
@@ -119,12 +121,17 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
       return view?.div ? localPoint(view, clientX, clientY) : null;
     },
     repaint: (pageIndex) => paint(pageIndex),
-    finish: (created) => {
+    finish: (built) => {
+      const created = named(built);
       change(created, created);
       select(created.id);
     },
-    style: () => hooks.style(),
-    settings: (pageIndex) => store.scaleOf(pageIndex) ?? { scale: fullSize, format: defaultFormat },
+    style,
+    settings: (pageIndex) => {
+      const settings = store.scaleOf(pageIndex) ?? { scale: fullSize, format: defaultFormat };
+      const format = tool?.preset?.format;
+      return format ? { ...settings, format } : settings;
+    },
   });
 
   const scaleQuestion = createScaleQuestion({
@@ -163,13 +170,14 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
 
   const draftMarkup = (current: Extract<Drag, { mode: "draw" }>): Markup | null => {
     const view = pageView(current.pageIndex);
-    return view?.pdfPage ? draftFor(tool, { ...current, rotation: view.pdfPage.rotate }, hooks.style(), hooks.stampDate) : null;
+    const draft = view?.pdfPage ? draftFor(tool, { ...current, rotation: view.pdfPage.rotate }, style(), hooks.stampDate) : null;
+    return draft && named(draft);
   };
 
   const previewOf = (pageIndex: number): Markup | null => {
     const building = measure.preview(pageIndex);
     if (building) {
-      return building;
+      return named(building);
     }
     if (!drag || drag.pageIndex !== pageIndex) {
       return null;
@@ -361,7 +369,8 @@ export function attachMarkup(viewer: PDFViewer, eventBus: EventBus, hooks: Marku
     if (!writable()) {
       return false;
     }
-    const created = textMarkupFromSelection(container, (pageIndex) => pageView(pageIndex)?.viewport ?? null, kind, hooks.style(), now());
+    const preset = tool?.kind === "text" && tool.text === kind ? tool.preset : undefined;
+    const created = textMarkupFromSelection(container, (pageIndex) => pageView(pageIndex)?.viewport ?? null, kind, preset?.style ?? hooks.style(), now()).map((markup) => withPreset(markup, preset));
     store.commit(created.map((markup) => ({ id: markup.id, pageIndex: markup.pageIndex, after: markup })));
     if (created.length) {
       document.getSelection()?.removeAllRanges();

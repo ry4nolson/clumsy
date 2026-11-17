@@ -38,6 +38,14 @@ type ToolParts = { eventBus: EventBus; viewer: PDFViewer; hand: HandTool; editor
 
 const sessionParams = new Set<number>([AnnotationEditorParamsType.CREATE, AnnotationEditorParamsType.HIGHLIGHT_SHOW_ALL]);
 
+const pushParams = (eventBus: EventBus, params: EditorParams) => {
+  for (const [type, value] of Object.entries(params)) {
+    eventBus.dispatch("switchannotationeditorparams", { source: null, type: Number(type), value });
+  }
+};
+
+const unselectEditors = (viewer: PDFViewer) => (viewer as unknown as DrawingHost)._layerProperties?.annotationEditorUIManager?.unselectAll?.();
+
 export function finishDrawing(viewer: PDFViewer) {
   let finished = false;
   for (let index = 0; index < viewer.pagesCount; index++) {
@@ -45,9 +53,20 @@ export function finishDrawing(viewer: PDFViewer) {
     finished = !!layer?.commitOrRemove?.() || finished;
   }
   if (finished) {
-    (viewer as unknown as DrawingHost)._layerProperties?.annotationEditorUIManager?.unselectAll?.();
+    unselectEditors(viewer);
   }
 }
+
+type PresetHolder = { drop: () => void; release: () => void };
+
+let presetHolder: PresetHolder | null = null;
+
+const takeDefaults = (holder: PresetHolder) => {
+  if (presetHolder && presetHolder !== holder) {
+    presetHolder.drop();
+  }
+  presetHolder = null;
+};
 
 export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   const editorDefaultsRef = useRef<EditorParams>({});
@@ -56,6 +75,31 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   const layersRef = useRef({ ready: false, waiting: [] as Array<() => void> });
   const markRef = useRef<{ kind: MarkKind | null; placement: MarkPlacement | null }>({ kind: null, placement: null });
   const markupToolRef = useRef<MarkupTool>(null);
+  const presetRef = useRef<{ id: string; mode: number } | null>(null);
+  const [editorPreset, setEditorPreset] = useState<string | null>(null);
+  const holderRef = useRef<PresetHolder>({
+    drop: () => {
+      presetRef.current = null;
+      setEditorPreset(null);
+    },
+    release: () => undefined,
+  });
+
+  const releasePreset = useCallback((parts: ToolParts | null) => {
+    if (!presetRef.current) {
+      return;
+    }
+    holderRef.current.drop();
+    if (presetHolder === holderRef.current) {
+      presetHolder = null;
+    }
+    if (parts) {
+      finishDrawing(parts.viewer);
+      unselectEditors(parts.viewer);
+      pushParams(parts.eventBus, editorDefaultsRef.current);
+    }
+  }, []);
+  holderRef.current.release = () => releasePreset(partsRef.current);
   const [markupTool, setMarkupToolState] = useState<MarkupTool>(null);
   const [editorTool, setEditorTool] = useState<EditorTool>("select");
   const [mark, setMarkState] = useState<MarkKind | null>(null);
@@ -73,6 +117,9 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     const placement = attachMarkPlacement(viewer.container, viewer);
     markRef.current.placement = placement;
     const onPointerDown = ({ target, isPrimary, button }: PointerEvent) => {
+      if (presetHolder && presetHolder !== holderRef.current) {
+        presetHolder.release();
+      }
       const ink = (viewer.annotationEditorMode as unknown as number) === AnnotationEditorType.INK;
       if (ink && isPrimary && button === 0 && target instanceof HTMLElement && target.classList.contains("annotationEditorLayer")) {
         target.dispatchEvent(new PointerEvent("pointerup", { button: 0 }));
@@ -90,6 +137,15 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     };
     const onMode = ({ mode }: { mode: number }) => {
       const match = (Object.keys(toolModes) as Array<keyof typeof toolModes>).find((key) => toolModes[key] === mode);
+      if (presetRef.current && presetRef.current.mode !== mode) {
+        holderRef.current.drop();
+        if (presetHolder === holderRef.current) {
+          presetHolder = null;
+        }
+        if (mode === AnnotationEditorType.NONE && !selectedRef.current) {
+          pushParams(eventBus, editorDefaultsRef.current);
+        }
+      }
       setEditorTool(match ?? "select");
       if (mode !== AnnotationEditorType.NONE && markupToolRef.current) {
         markupToolRef.current = null;
@@ -109,11 +165,9 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       handRef.current.tool = false;
       setHandTool(false);
       hand.setActive(handRef.current.held);
-      if (selectedRef.current) {
-        return;
-      }
-      for (const [type, value] of Object.entries(editorDefaultsRef.current)) {
-        eventBus.dispatch("switchannotationeditorparams", { source: null, type: Number(type), value });
+      if (!selectedRef.current) {
+        takeDefaults(holderRef.current);
+        pushParams(eventBus, editorDefaultsRef.current);
       }
     };
     const onShowEditorUi = ({ mode }: { mode: number }) => {
@@ -132,6 +186,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     eventBus.on("showannotationeditorui", onShowEditorUi);
     eventBus.on("annotationeditorlayerrendered", onEditorLayer);
     return () => {
+      releasePreset(parts);
       eventBus.off("editingstateschanged", onStates);
       eventBus.off("annotationeditorparamschanged", onParams);
       eventBus.off("annotationeditormodechanged", onMode);
@@ -142,7 +197,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       viewer.container.removeEventListener("pointerdown", onPointerDown, true);
       finishDrawing(viewer);
     };
-  }, [partsRef]);
+  }, [partsRef, releasePreset]);
 
   const showMark = useCallback((kind: MarkKind | null) => {
     markRef.current.kind = kind;
@@ -160,6 +215,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
   );
 
   const resetTools = useCallback(() => {
+    releasePreset(partsRef.current);
     handRef.current.tool = false;
     showMarkupTool(null);
     selectedRef.current = false;
@@ -170,7 +226,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     setHandTool(false);
     setSelectedEditor(false);
     setEditorParams({});
-  }, [partsRef, showMark, showMarkupTool]);
+  }, [partsRef, showMark, showMarkupTool, releasePreset]);
 
   const editorLayerReady = useCallback(() => {
     const layers = layersRef.current;
@@ -214,15 +270,36 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       if (!parts?.viewer.pdfDocument || !(next === "hand" || next in toolModes)) {
         return;
       }
+      releasePreset(parts);
       showMark(null);
       showMarkupTool(null);
-      await setEditorMode(next === "hand" ? AnnotationEditorType.NONE : toolModes[next as PdfTool]);
+      const mode = next === "hand" ? AnnotationEditorType.NONE : toolModes[next as PdfTool];
+      await setEditorMode(mode);
       handRef.current.tool = next === "hand";
       setHandTool(next === "hand");
       parts.hand.setActive(handRef.current.tool || handRef.current.held);
       parts.editorUi.markup?.setInteractive(next === "select");
     },
-    [partsRef, setEditorMode, showMark, showMarkupTool],
+    [partsRef, setEditorMode, showMark, showMarkupTool, releasePreset],
+  );
+
+  const armEditorPreset = useCallback(
+    async (next: "highlight" | "draw" | "text", params: EditorParams, id: string) => {
+      await setTool(next);
+      const parts = partsRef.current;
+      const mode = toolModes[next];
+      if (!parts || (parts.viewer.annotationEditorMode as unknown as number) !== mode) {
+        return;
+      }
+      finishDrawing(parts.viewer);
+      unselectEditors(parts.viewer);
+      takeDefaults(holderRef.current);
+      pushParams(parts.eventBus, params);
+      presetRef.current = { id, mode };
+      presetHolder = holderRef.current;
+      setEditorPreset(id);
+    },
+    [partsRef, setTool],
   );
 
   const setMarkupTool = useCallback(
@@ -231,6 +308,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       if (!parts?.viewer.pdfDocument) {
         return;
       }
+      releasePreset(parts);
       showMark(null);
       await setEditorMode(AnnotationEditorType.NONE);
       handRef.current.tool = false;
@@ -238,7 +316,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       parts.hand.setActive(handRef.current.held);
       showMarkupTool(tool);
     },
-    [partsRef, setEditorMode, showMark, showMarkupTool],
+    [partsRef, setEditorMode, showMark, showMarkupTool, releasePreset],
   );
 
   const setMark = useCallback(
@@ -247,6 +325,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       if (!parts?.viewer.pdfDocument) {
         return;
       }
+      releasePreset(parts);
       showMark(kind);
       showMarkupTool(null);
       markRef.current.placement?.setMark(null);
@@ -259,7 +338,7 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
       setHandTool(false);
       parts.hand.setActive(handRef.current.held);
     },
-    [partsRef, setEditorMode, showMark, showMarkupTool],
+    [partsRef, setEditorMode, showMark, showMarkupTool, releasePreset],
   );
 
   const holdHand = useCallback(
@@ -340,7 +419,9 @@ export function useViewerTools(partsRef: RefObject<ToolParts | null>) {
     tool: handTool ? ("hand" as const) : mark ? ("mark" as const) : markupTool ? markupToolName(markupTool) : editorTool,
     mark,
     markupTool,
+    armedTool: markupTool?.preset?.id ?? editorPreset,
     setMarkupTool,
+    armEditorPreset,
     editorParams,
     selectedEditor,
     resetTools,

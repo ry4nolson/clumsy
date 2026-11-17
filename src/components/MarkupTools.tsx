@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Circle, Cloud, MoveUpRight, Pentagon, Ruler, Slash, Spline, Square, Stamp } from "lucide-react";
+import { BookmarkPlus, Circle, Cloud, MoveUpRight, Pentagon, Ruler, Slash, Spline, Square, Stamp } from "lucide-react";
 import type { ShapeKind } from "../lib/markup";
 import type { MeasureKind } from "../lib/measure";
 import { markupColors, type MarkupParams, type TextMode } from "../lib/markupParams";
@@ -42,13 +42,29 @@ export function MarkupColors({ params, onChange }: { params: MarkupParams; onCha
   );
 }
 
-function Slider({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (value: number) => string; onChange: (value: number) => void }) {
+export function Slider({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (value: number) => string; onChange: (value: number) => void }) {
   return (
     <label className="tool-option">
       <span className="tool-option-label">{label}</span>
       <span className="tool-option-value">{format(value)}</span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
+  );
+}
+
+export function SaveToolItem({ onSave }: { onSave: () => void }) {
+  return (
+    <button
+      type="button"
+      className="tool-menu-item save-tool"
+      onClick={(event) => {
+        closeToolMenu(event.currentTarget);
+        onSave();
+      }}
+    >
+      <BookmarkPlus size={16} />
+      Save as Tool…
+    </button>
   );
 }
 
@@ -111,6 +127,7 @@ export function ShapesTool({ props, onContextMenu }: { props: ToolsProps; onCont
       )}
       <Slider label="Thickness" value={markup.width} min={0.5} max={12} step={0.5} format={(value) => `${value} pt`} onChange={(width) => props.onMarkupParams({ width })} />
       <Slider label="Opacity" value={markup.opacity} min={0.1} max={1} step={0.05} format={(value) => `${Math.round(value * 100)}%`} onChange={(opacity) => props.onMarkupParams({ opacity })} />
+      <SaveToolItem onSave={() => props.onSaveTool({ kind: "shape", shape: markup.shape })} />
     </ToolMenu>
   );
 }
@@ -174,6 +191,7 @@ export function MeasureTool({ props, onContextMenu }: { props: ToolsProps; onCon
       )}
       <Slider label="Thickness" value={markup.width} min={0.5} max={12} step={0.5} format={(value) => `${value} pt`} onChange={(width) => props.onMarkupParams({ width })} />
       <Slider label="Opacity" value={markup.opacity} min={0.1} max={1} step={0.05} format={(value) => `${Math.round(value * 100)}%`} onChange={(opacity) => props.onMarkupParams({ opacity })} />
+      <SaveToolItem onSave={() => props.onSaveTool({ kind: "measure", measure: markup.measure })} />
     </ToolMenu>
   );
 }

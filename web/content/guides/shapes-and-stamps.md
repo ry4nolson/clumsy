@@ -12,6 +12,8 @@ Drag on the page to draw. The options menu has:
 
 Clouds are the revision clouds you see on construction drawings: a bumpy outline around the area that changed.
 
+Use the same shape and color over and over? **Save as Tool…** at the bottom of the menu keeps it in the [tool chest](/guides/tool-chest) with a name, one click away.
+
 ## Moving and resizing
 
 Switch to the Select tool ([[V]]) and click a shape.

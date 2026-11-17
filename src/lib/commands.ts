@@ -93,6 +93,11 @@ export type CommandId =
   | "measurePath"
   | "measureArea"
   | "showMarkups"
+  | "showToolChest"
+  | "saveAsTool"
+  | "addToToolChest"
+  | "exportToolChest"
+  | "importToolChest"
   | "copyMarkups"
   | "copyMarkupSummary"
   | "exportMarkups"
@@ -202,6 +207,7 @@ export const commands: Command[] = [
   { id: "showPages", label: "Page Thumbnails", menu: "View", combos: ["mod+shift+e"], needsDocument: true },
   { id: "showOutline", label: "Outline", menu: "View", combos: ["mod+shift+o"], needsDocument: true, markdown: true },
   { id: "showMarkups", label: "Markups", menu: "View", combos: ["mod+shift+m"], needsDocument: true },
+  { id: "showToolChest", label: "Tool Chest", menu: "View", combos: [], needsDocument: true },
   { id: "toggleMarkdownSource", label: "Markdown Source", menu: "View", combos: ["mod+shift+v"], needsMarkdown: true },
   { id: "toggleDocumentMap", label: "Document Map", menu: "View", combos: ["alt+mod+b"] },
   { id: "actualSize", label: "Actual Size", menu: "View", combos: ["mod+0"], needsDocument: true, markdown: true },
@@ -264,6 +270,10 @@ export const commands: Command[] = [
   { id: "measureLength", label: "Measure Length", menu: "Tools", combos: [], needsDocument: true },
   { id: "measurePath", label: "Measure Path", menu: "Tools", combos: [], needsDocument: true },
   { id: "measureArea", label: "Measure Area", menu: "Tools", combos: [], needsDocument: true },
+  { id: "saveAsTool", label: "Save as Tool…", menu: "Tools", combos: [], needsDocument: true },
+  { id: "addToToolChest", label: "Add Markup to Tool Chest…", menu: "Tools", combos: [], needsDocument: true },
+  { id: "exportToolChest", label: "Export Tool Chest…", menu: "Tools", combos: [], needsDesktop: true },
+  { id: "importToolChest", label: "Import Tool Chest…", menu: "Tools", combos: [], needsDesktop: true },
   { id: "copyMarkups", label: "Copy Markups", menu: "Tools", combos: [], needsDocument: true },
   { id: "copyMarkupSummary", label: "Copy Markup Summary", menu: "Tools", combos: [], needsDocument: true },
   { id: "exportMarkups", label: "Export Markups…", menu: "Tools", combos: [], needsDocument: true, needsDesktop: true },

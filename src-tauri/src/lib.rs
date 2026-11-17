@@ -12,6 +12,7 @@ mod print;
 mod print_layout;
 mod recent;
 mod session;
+mod tool_chest;
 mod signatures;
 mod updates;
 mod uploads;
@@ -62,7 +63,7 @@ fn allow_recent(app: &AppHandle, paths: &[PathBuf]) {
 fn allow_dropped(app: &AppHandle, paths: &[PathBuf]) {
     allow_paths(app, paths);
     let read_only = app.state::<ReadOnlyPaths>();
-    for path in paths.iter().filter(|path| is_image(path) && path.is_file()) {
+    for path in paths.iter().filter(|path| (is_image(path) || tool_chest::is_tool_chest(path)) && path.is_file()) {
         read_only.0.allow(path);
     }
 }
@@ -109,7 +110,7 @@ pub(crate) fn allowed_path(app: &AppHandle, path: &str, kind: fn(&std::path::Pat
     }
 }
 
-fn readable_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool) -> Result<PathBuf, String> {
+pub(crate) fn readable_path(app: &AppHandle, path: &str, kind: fn(&std::path::Path) -> bool) -> Result<PathBuf, String> {
     allowed_path(app, path, kind).or_else(|err| {
         let path = PathBuf::from(path);
         (kind(&path) && app.state::<ReadOnlyPaths>().0.is_allowed(&path)).then_some(path).ok_or(err)
@@ -129,7 +130,7 @@ fn chosen(app: &AppHandle, picked: Option<tauri_plugin_dialog::FilePath>, finish
     Some(path.to_string_lossy().into_owned())
 }
 
-fn chosen_to_read(app: &AppHandle, picked: tauri_plugin_dialog::FilePath) -> Option<String> {
+pub(crate) fn chosen_to_read(app: &AppHandle, picked: tauri_plugin_dialog::FilePath) -> Option<String> {
     let path = picked.into_path().ok()?;
     app.state::<ReadOnlyPaths>().0.allow(&path);
     Some(path.to_string_lossy().into_owned())
@@ -436,6 +437,10 @@ pub fn run() {
             images::write_image,
             images::confirm_replace,
             images::write_text_export,
+            tool_chest::pick_tool_chest_save_path,
+            tool_chest::write_tool_chest,
+            tool_chest::pick_tool_chest,
+            tool_chest::read_tool_chest,
             context_menu::show_document_menu,
             print::print_pdf,
             print::print_webview,

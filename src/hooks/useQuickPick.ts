@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 import type { QuickPickMode } from "../components/QuickPick";
 import type { CommandId } from "../lib/commands";
-import { pageJumpItem, pageJumpTarget, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand, type OpenTab, type PageTargets, type PaletteContext } from "../lib/quickPick";
+import { pageJumpItem, pageJumpTarget, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand, savedToolItems, savedToolTarget, type OpenTab, type PageTargets, type PaletteContext } from "../lib/quickPick";
+import { readToolChest } from "../lib/toolChest";
 import type { RecentEntry } from "../lib/recent";
 
 type QuickPickSources = PaletteContext & {
@@ -12,6 +13,7 @@ type QuickPickSources = PaletteContext & {
   onGoToPage: (page: number) => void;
   onShowTab: (tabId: string) => void;
   onOpenRecent: (entry: RecentEntry) => void;
+  onArmTool?: (id: string) => void;
 };
 
 type Kind = "palette" | "quickOpen";
@@ -35,7 +37,7 @@ export function useQuickPick(sources: QuickPickSources) {
       const key = `${kind}-${++opened.current}`;
       const jump = (query: string) => (sourcesRef.current.pages ? pageJumpItem(query, sourcesRef.current.pages) : null);
       return kind === "palette"
-        ? { kind, key, jump, placeholder: "Type a command, or : and a page", empty: "No matching commands", items: paletteItems(latest, recentCommands.current) }
+        ? { kind, key, jump, placeholder: "Type a command, or : and a page", empty: "No matching commands", items: [...paletteItems(latest, recentCommands.current), ...(latest.hasDocument && latest.onArmTool ? savedToolItems(readToolChest().tools) : [])] }
         : { kind, key, jump, placeholder: "Search open and recent files", empty: "No matching files", items: quickOpenItems(latest.tabs, latest.recent) };
     });
   }, []);
@@ -52,6 +54,11 @@ export function useQuickPick(sources: QuickPickSources) {
         if (page) {
           latest.onGoToPage(page);
         }
+        return;
+      }
+      const saved = savedToolTarget(id);
+      if (kind === "palette" && saved) {
+        latest.onArmTool?.(saved);
         return;
       }
       if (kind === "palette") {
