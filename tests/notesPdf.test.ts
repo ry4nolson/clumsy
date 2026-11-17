@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString } from "@cantoo/pdf-lib";
 import type { StickyNote } from "../src/lib/notes";
-import { writeStickyNotes } from "../src/lib/notesPdf";
+import { newMarkup } from "../src/lib/markup";
+import { writeAnnotations, writeStickyNotes } from "../src/lib/notesPdf";
+import { sectionAt } from "../src/lib/protection";
 
-async function makePdf(pageCount = 2) {
+async function makePdf(pageCount = 2, useObjectStreams = false) {
   const doc = await PDFDocument.create();
   for (let index = 0; index < pageCount; index++) {
     doc.addPage([612, 792]);
@@ -16,7 +18,7 @@ async function makePdf(pageCount = 2) {
   );
   popup.set(PDFName.of("Parent"), noteRef);
   doc.getPage(0).node.set(PDFName.of("Annots"), context.obj([noteRef, popupRef]));
-  return { bytes: await doc.save({ useObjectStreams: false }), noteId: `${noteRef.objectNumber}R`, popupRef };
+  return { bytes: await doc.save({ useObjectStreams }), noteId: `${noteRef.objectNumber}R`, popupRef };
 }
 
 async function annotations(bytes: Uint8Array, pageIndex = 0) {
@@ -26,6 +28,8 @@ async function annotations(bytes: Uint8Array, pageIndex = 0) {
 }
 
 const text = (dict: PDFDict, key: string) => dict.lookupMaybe(PDFName.of(key), PDFString, PDFHexString)?.decodeText();
+
+const lastStartxref = (bytes: Uint8Array) => Number(/startxref\s+(\d+)\s+%%EOF\s*$/.exec(Buffer.from(bytes).toString("latin1"))?.[1]);
 
 const note = (patch: Partial<StickyNote>): StickyNote => ({
   id: "note-1",
@@ -110,5 +114,23 @@ describe("writeStickyNotes", () => {
     doc.encrypt({ ownerPassword: "owner", permissions: { printing: false } });
     const [added] = await annotations(await writeStickyNotes(await doc.save(), [note({})]));
     expect(text(added.dict, "Contents")).toBe("New note ✓");
+  });
+
+  it.each([
+    ["table", false],
+    ["stream", true],
+  ] as const)("keeps a cross-reference %s when appending to one", async (kind, useObjectStreams) => {
+    const { bytes } = await makePdf(2, useObjectStreams);
+    const start = lastStartxref(bytes);
+    expect(sectionAt(bytes, start)).toBe(kind);
+    const rectangle = newMarkup({ id: "markup-rect", pageIndex: 0, kind: "rectangle", box: [100, 500, 220, 580] }, { color: [1, 0, 0], fill: false, width: 2, opacity: 1 }, "D:20261116120000Z");
+    const once = await writeAnnotations(bytes, [note({ pageIndex: 1 })], [rectangle]);
+    expect(Buffer.from(once.subarray(0, bytes.length)).equals(Buffer.from(bytes))).toBe(true);
+    expect(sectionAt(once, lastStartxref(once))).toBe(kind);
+    expect(Buffer.from(once.subarray(bytes.length)).toString("latin1")).toMatch(new RegExp(`/Prev ${start}\\b`));
+    const twice = await writeAnnotations(once, [note({ id: "note-2" })], []);
+    expect(sectionAt(twice, lastStartxref(twice))).toBe(kind);
+    expect((await annotations(twice, 0)).map(({ dict }) => dict.lookup(PDFName.of("Subtype"), PDFName).decodeText())).toEqual(["Text", "Popup", "Square", "Text", "Popup"]);
+    expect(await annotations(twice, 1)).toHaveLength(2);
   });
 });

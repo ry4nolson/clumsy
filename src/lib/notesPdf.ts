@@ -7,7 +7,7 @@ import type { StickyNote } from "./notes";
 import { installDecryptedStrings, loadDecrypting } from "./pdfDecrypt";
 import { scanDocument } from "./pdfSignatures";
 import { collectGarbage, pageLeafRefs } from "./pdfStructure";
-import { hasEncryptEntry } from "./protection";
+import { hasEncryptEntry, sectionAt } from "./protection";
 import { intactSignatures, mayHaveSignatures } from "./signatureBytes";
 
 installDecryptedStrings();
@@ -140,13 +140,13 @@ async function loadForUpdate(bytes: Uint8Array, forIncrementalUpdate: boolean, p
 }
 
 async function loadForNotes(bytes: Uint8Array, password: string) {
-  const decrypting = async () => ({ doc: await loadForUpdate(bytes, false, password), incremental: false, decrypted: true });
+  const decrypting = async () => ({ doc: await loadForUpdate(bytes, false, password), section: null, decrypted: true });
   if (hasEncryptEntry(bytes) === true) {
     return decrypting();
   }
   try {
     const appendable = await loadForUpdate(bytes, true);
-    return { doc: appendable, incremental: hasXrefAt(bytes, appendable.context.pdfFileDetails.prevStartXRef), decrypted: false };
+    return { doc: appendable, section: sectionAt(bytes, appendable.context.pdfFileDetails.prevStartXRef), decrypted: false };
   } catch (error) {
     if (!(error instanceof NoteSaveError)) {
       throw error;
@@ -155,19 +155,14 @@ async function loadForNotes(bytes: Uint8Array, password: string) {
   }
 }
 
-const latin1 = new TextDecoder("latin1");
-
-export function hasXrefAt(bytes: Uint8Array, offset: number) {
-  return offset > 0 && offset < bytes.length && /^\s*(xref|\d+\s+\d+\s+obj\b)/.test(latin1.decode(bytes.subarray(offset, offset + 40)));
-}
-
 export async function writeAnnotationsReporting(bytes: Uint8Array, notes: StickyNote[], markup: Markup[], password = "", stamps: CustomStamp[] = []) {
   if (!notes.length && !markup.length) {
     return { bytes, removedSignatures: 0 };
   }
   registerStamps(stamps);
   const loaded = await loadForNotes(bytes, password);
-  const { incremental, decrypted } = loaded;
+  const { section, decrypted } = loaded;
+  const incremental = section !== null;
   const doc = incremental || decrypted ? loaded.doc : await loadForUpdate(bytes, false);
   const removedSignatures = !incremental && mayHaveSignatures(bytes) ? intactSignatures(scanDocument(doc, bytes, decrypted)) : 0;
   const { context } = doc;
@@ -204,7 +199,7 @@ export async function writeAnnotationsReporting(bytes: Uint8Array, notes: Sticky
     }
   }
   if (incremental) {
-    return { bytes: await doc.commit(), removedSignatures };
+    return { bytes: await doc.commit({ useObjectStreams: section === "stream" }), removedSignatures };
   }
   if (decrypted) {
     collectGarbage(doc);

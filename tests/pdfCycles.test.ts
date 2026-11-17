@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRef, PDFString } from "@cantoo/pdf-lib";
 import { applyPageEdit, extractPages, pageCount } from "../src/lib/pageEdits";
-import { hasXrefAt, writeStickyNotes } from "../src/lib/notesPdf";
+import { writeStickyNotes } from "../src/lib/notesPdf";
+import { sectionAt } from "../src/lib/protection";
 import { pageLeafRefs } from "../src/lib/pdfStructure";
 import type { StickyNote } from "../src/lib/notes";
 
@@ -98,17 +99,17 @@ describe("sticky notes in files without a usable xref", () => {
 
   it("finds an xref only where one starts", async () => {
     const bytes = await makePdf([100], () => {});
-    expect(hasXrefAt(bytes, lastStartxref(bytes))).toBe(true);
-    expect(hasXrefAt(bytes, 0)).toBe(false);
-    expect(hasXrefAt(bytes, bytes.length + 10)).toBe(false);
-    expect(hasXrefAt(bytes, lastStartxref(bytes) + 3)).toBe(false);
+    expect(sectionAt(bytes, lastStartxref(bytes))).toBe("table");
+    expect(sectionAt(bytes, 0)).toBeNull();
+    expect(sectionAt(bytes, bytes.length + 10)).toBeNull();
+    expect(sectionAt(bytes, lastStartxref(bytes) + 3)).toBeNull();
   });
 
   it("rewrites the whole file instead of appending an update nothing can find", async () => {
     const broken = withoutStartxref(await makePdf([100, 200], () => {}));
     const saved = await writeStickyNotes(broken, [note]);
     expect(Buffer.from(saved.subarray(0, broken.length)).equals(Buffer.from(broken))).toBe(false);
-    expect(hasXrefAt(saved, lastStartxref(saved))).toBe(true);
+    expect(sectionAt(saved, lastStartxref(saved))).not.toBeNull();
     expect(await annotationCount(saved)).toBe(2);
   });
 });
