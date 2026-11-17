@@ -908,6 +908,13 @@ pre {
   margin-bottom: 1.5rem;
 }
 
+.install__downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
 .install__steps {
   display: grid;
   gap: 1rem;
