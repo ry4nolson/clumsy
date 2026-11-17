@@ -53,9 +53,12 @@ Unsaved image stamps are drawn by the markup layer in run order with other marku
 - `stampSymbols.ts`, `markupAppearance.ts`, `markupPdf.ts`, `markupSvg.ts`, `markupDraft.ts`: the image design and the registry lookups.
 - `StampPicker.tsx` with `CustomStampForm.tsx` and `useCustomStamps.ts`.
 
+## Tool chest
+
+A saved tool can be a custom stamp (`stamp:custom:<uuid>`). The tool chest loads the library into the registry before it reads the chest and again when another window changes the library (`watchChest`), and `parseToolRef` keeps any well-formed custom id (`isCustomStampId`) even when the library doesn't have it, so load order or a deleted stamp never prunes the chest. Arming a tool whose stamp isn't known says so instead of placing an empty stamp. A text stamp keeps its own color, like a review stamp (`fixedColor`).
+
 ## Follow-ups
 
-- A saved tool in the Tool chest (#38) can reference a custom stamp by its id once both land; nothing here depends on it.
 - Add a document's custom stamp to your library.
 - Import and export the library as a file, for sharing a company's stamps.
 - Vector SVG stamps (paths only), if raster logos turn out not to be enough.

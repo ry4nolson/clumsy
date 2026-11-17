@@ -6,6 +6,7 @@ import {
   armSpec,
   cleanTool,
   cleanToolChest,
+  fixedColor,
   newTool,
   parseToolChest,
   parseToolRef,
@@ -19,6 +20,7 @@ import {
 import { addedTool, chestFileText, duplicatedTool, groupOnly, importClashes, mergedChest, movedTool, removedTool, restoredTool, toolGroups, toolSections, withMissing } from "../src/lib/toolChestEdit";
 import { spotAtGroup, spotNear } from "../src/lib/toolChestDrag";
 import { swatchMarkup } from "../src/lib/toolSwatch";
+import { registerStamps } from "../src/lib/customStamps";
 
 const style = { color: "#1565c0", fill: false, width: 2, opacity: 1, dash: null };
 const tool = (id: string, name: string, group: string | null, ref = "shape:rectangle"): SavedTool => ({ id, name, group, tool: ref, style: { ...style } });
@@ -37,6 +39,21 @@ describe("tool refs", () => {
     for (const ref of ["shape:hexagon", "stamp:made-up", "text:bold", "measure:volume", "lasso", "", 4, null]) {
       expect(parseToolRef(ref)).toBeNull();
     }
+  });
+
+  it("keeps custom stamp tools before the library loads and refuses unsafe ids", () => {
+    const ref = "stamp:custom:4b2c3f1e-0000-4000-8000-000000000001";
+    expect(toolRef(parseToolRef(ref)!)).toBe(ref);
+    expect(cleanToolChest(chestOf(tool("a", "Logo", null, ref))).tools).toHaveLength(1);
+    for (const bad of ["stamp:custom:a b", "stamp:custom:x/y", "stamp:custom:(z)"]) {
+      expect(parseToolRef(bad)).toBeNull();
+    }
+  });
+
+  it("uses a text stamp's own color", () => {
+    registerStamps([{ id: "custom:fixed-color", name: "Paid", kind: "text", text: "PAID", color: [0, 0.5, 0], date: false }]);
+    expect(fixedColor({ kind: "stamp", stamp: "custom:fixed-color" })).toEqual([0, 0.5, 0]);
+    expect(fixedColor({ kind: "stamp", stamp: "elec:receptacle-duplex" })).toBeNull();
   });
 });
 

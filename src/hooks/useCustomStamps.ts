@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { imageStampFrom } from "../lib/customStampImage";
-import { CUSTOM_STAMPS_KEY, readLibrary, refusalMessage, renamedStamp, setLibrary, withoutStamp, writeLibrary, type CustomStamp } from "../lib/customStamps";
+import { CUSTOM_STAMPS_KEY, loadLibrary, readLibrary, refusalMessage, renamedStamp, setLibrary, withoutStamp, writeLibrary, type CustomStamp } from "../lib/customStamps";
 import { confirmDeleteStamp, pickImage } from "../lib/imageFiles";
 import { showError } from "../lib/platform";
-
-function loadLibrary() {
-  const list = readLibrary();
-  setLibrary(list);
-  return list;
-}
 
 export function useCustomStamps() {
   const [stamps, setStamps] = useState(loadLibrary);

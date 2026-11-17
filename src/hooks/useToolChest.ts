@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { AnnotationEditorParamsType } from "pdfjs-dist";
 import type { TabSnapshot } from "../components/DocumentTab";
 import type { CommandId } from "../lib/commands";
+import { loadLibrary } from "../lib/customStamps";
 import { readContextTools, savedEntry, withContextTool, writeContextTools } from "../lib/contextTools";
 import type { MarkupParams } from "../lib/markupParams";
 import { showMessage } from "../lib/platform";
+import { stampDesign } from "../lib/stampSymbols";
 import { armSpec, newTool, readToolChest, starterChest, toolLabel, toolOfMarkup, type SavedTool, type ToolStyle, type ToolTarget } from "../lib/toolChest";
 import { addedTool, chestFileText, duplicatedTool, groupOnly, movedTool, removedTool, restoredTool, updatedTool, withMissing, type Removal } from "../lib/toolChestEdit";
 import { confirmClearChest, pickToolChestFile, saveToolChestFile, toolChestFileName } from "../lib/toolChestFiles";
@@ -29,6 +31,10 @@ export function armSavedTool(viewer: PdfViewerApi | undefined, tool: SavedTool) 
     return;
   }
   const { target, preset } = spec;
+  if (target.kind === "stamp" && !stampDesign(target.stamp)) {
+    void showMessage(`“${tool.name}” uses a custom stamp that isn't in your Stamps picker anymore.`, "Tool Chest");
+    return;
+  }
   void viewer.setMarkupTool(
     target.kind === "shape"
       ? { kind: "shape", shape: target.shape, preset }
@@ -85,7 +91,10 @@ type ChestHost = {
 const freshId = () => crypto.randomUUID();
 
 export function useToolChest(host: ChestHost) {
-  const [chest, setChest] = useState(readToolChest);
+  const [chest, setChest] = useState(() => {
+    loadLibrary();
+    return readToolChest();
+  });
   const [sheet, setSheet] = useState<ToolSheetRequest | null>(null);
   const [removal, setRemoval] = useState<(Removal & { inContext: boolean }) | null>(null);
 

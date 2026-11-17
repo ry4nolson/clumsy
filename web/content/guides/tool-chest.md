@@ -26,7 +26,7 @@ Each way opens the same sheet: a name, an optional group, and the style.
 | **Color**, **Fill**, **Dashed**, **Thickness**, **Opacity** | The style, the same choices as the toolbar's menus |
 | **Units** | Measurements only: the units and precision to show, or the page's own |
 
-Review stamps keep their own color.
+Review stamps and your own text stamps keep their own color. If you delete a custom stamp, tools made from it stay in the chest, and picking one tells you the stamp is gone.
 
 ## Use one
 

@@ -1,4 +1,5 @@
 import { forgetSavedContextTools } from "./contextTools";
+import { CUSTOM_STAMPS_KEY, loadLibrary } from "./customStamps";
 import { showError, type DroppedFile } from "./platform";
 import { TOOL_CHEST_KEY, cleanToolChest, readToolChest, writeToolChest, type ToolChest } from "./toolChest";
 import { askClashChoice, isToolChestFile, readToolChestFile } from "./toolChestFiles";
@@ -18,7 +19,14 @@ export function saveChest(chest: ToolChest) {
 }
 
 export function watchChest(onChange: () => void) {
-  const onStorage = (event: StorageEvent) => (event.key === TOOL_CHEST_KEY || event.key === null) && onChange();
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === CUSTOM_STAMPS_KEY || event.key === null) {
+      loadLibrary();
+    }
+    if (event.key === TOOL_CHEST_KEY || event.key === CUSTOM_STAMPS_KEY || event.key === null) {
+      onChange();
+    }
+  };
   window.addEventListener("storage", onStorage);
   window.addEventListener(TOOL_CHEST_EVENT, onChange);
   return () => {

@@ -1,6 +1,7 @@
 import { colorFromHex, hexColor, isMeasureKind, isTextKind, kindLabels, shapeKinds, type Markup, type MarkupPreset, type ShapeKind, type TextMarkupKind } from "./markup";
 import { decimalPrecisions, fractionPrecisions, isFractional, lengthUnits, type LengthUnit, type MeasureFormat, type MeasureKind } from "./measure";
-import { reviewStamp, isKnownStamp, stampLabel } from "./stampSymbols";
+import { isCustomStampId } from "./customStamps";
+import { isKnownStamp, stampColor, stampLabel } from "./stampSymbols";
 
 export const TOOL_CHEST_KEY = "clumsy.toolChest";
 export const TOOL_CHEST_EXTENSION = "clumsytools";
@@ -52,7 +53,7 @@ export function parseToolRef(ref: unknown): ToolTarget | null {
   if (kind === "shape" && shapeKinds.includes(value as ShapeKind)) {
     return { kind, shape: value as ShapeKind };
   }
-  if (kind === "stamp" && isKnownStamp(value)) {
+  if (kind === "stamp" && (isKnownStamp(value) || isCustomStampId(value))) {
     return { kind, stamp: value };
   }
   if (kind === "text" && (value === "underline" || value === "strikeout")) {
@@ -81,7 +82,7 @@ export const hasOpacity = (target: ToolTarget) => target.kind !== "editor" || ta
 
 export const canDash = (target: ToolTarget) => target.kind === "shape" || target.kind === "measure";
 
-export const fixedColor = (target: ToolTarget) => (target.kind === "stamp" ? reviewStamp(target.stamp)?.color ?? null : null);
+export const fixedColor = (target: ToolTarget) => (target.kind === "stamp" ? stampColor(target.stamp) : null);
 
 export const DASH: number[] = [4, 3];
 

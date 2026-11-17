@@ -16,6 +16,8 @@ type Store = Pick<Storage, "getItem" | "setItem">;
 
 export const isCustomId = (id: string) => id.startsWith(CUSTOM_PREFIX);
 
+export const isCustomStampId = (id: string) => isCustomId(id) && /^[\w:-]+$/.test(id);
+
 export const newCustomId = () => `${CUSTOM_PREFIX}${crypto.randomUUID()}`;
 
 const isColor = (value: unknown): value is number[] =>
@@ -32,7 +34,7 @@ export function parseCustomStamp(value: unknown): CustomStamp | null {
     return null;
   }
   const raw = value as Record<string, unknown>;
-  if (typeof raw.id !== "string" || !isCustomId(raw.id) || !/^[\w:-]+$/.test(raw.id) || typeof raw.name !== "string") {
+  if (typeof raw.id !== "string" || !isCustomStampId(raw.id) || typeof raw.name !== "string") {
     return null;
   }
   const name = cleanName(raw.name);
@@ -123,6 +125,12 @@ export function registerStamps(stamps: Iterable<CustomStamp>, replace = false) {
 export function setLibrary(stamps: CustomStamp[]) {
   registerStamps(stamps, true);
   library = new Set(stamps.map((stamp) => stamp.id));
+}
+
+export function loadLibrary() {
+  const list = readLibrary();
+  setLibrary(list);
+  return list;
 }
 
 export const customStamp = (id: string) => registry.get(id) ?? null;
