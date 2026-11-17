@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent,
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { usePreviewImages } from "../hooks/usePreviewImages";
 import { slotAt } from "../lib/dropTarget";
-import { previewRender } from "../lib/imageRestore";
+import { previewRender, type PreviewLayers } from "../lib/imageRestore";
 import { copyRenderedPage, publishPageCanvas, trackPageRender } from "../lib/pageCanvases";
 import type { SelectModifiers } from "../lib/pageSelection";
 
@@ -12,6 +12,7 @@ const AUTOSCROLL_EDGE = 40;
 
 type ThumbnailProps = {
   pdfDocument: PDFDocumentProxy;
+  layers: PreviewLayers;
   paused: boolean;
   restoreImages: boolean;
   scrollRoot: HTMLElement | null;
@@ -29,6 +30,7 @@ type ThumbnailProps = {
 
 const Thumbnail = memo(function Thumbnail({
   pdfDocument,
+  layers,
   paused,
   restoreImages,
   scrollRoot,
@@ -59,9 +61,10 @@ const Thumbnail = memo(function Thumbnail({
     return () => observer.disconnect();
   }, [scrollRoot]);
 
+  const layersHash = layers?.hash;
   useEffect(() => {
     drawn.current = false;
-  }, [pdfDocument, pageNumber]);
+  }, [pdfDocument, pageNumber, layersHash]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -82,7 +85,7 @@ const Thumbnail = memo(function Thumbnail({
         if (cancelled) {
           return;
         }
-        renderTask = previewRender(page, canvas, page.getViewport({ scale: width / base.width }));
+        renderTask = previewRender(page, canvas, page.getViewport({ scale: width / base.width }), layers);
         trackPageRender(pdfDocument, pageNumber - 1, renderTask.promise);
         try {
           await renderTask.promise;
@@ -102,7 +105,7 @@ const Thumbnail = memo(function Thumbnail({
       cancelled = true;
       renderTask?.cancel();
     };
-  }, [visible, paused, pdfDocument, pageNumber, show]);
+  }, [visible, paused, pdfDocument, pageNumber, show, layers]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -148,6 +151,7 @@ type Drag = { page: number; startY: number; active: boolean; slot: number | null
 
 type ThumbnailsProps = {
   pdfDocument: PDFDocumentProxy;
+  layers: PreviewLayers;
   paused: boolean;
   restoreImages: boolean;
   currentPage: number;
@@ -159,7 +163,7 @@ type ThumbnailsProps = {
   onDelete: () => void;
 };
 
-export function Thumbnails({ pdfDocument, paused, restoreImages, currentPage, pageLabels, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
+export function Thumbnails({ pdfDocument, layers, paused, restoreImages, currentPage, pageLabels, selection, onSelect, onMove, onContextMenu, onDelete }: ThumbnailsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState(0.77);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -270,6 +274,7 @@ export function Thumbnails({ pdfDocument, paused, restoreImages, currentPage, pa
         <Thumbnail
           key={index}
           pdfDocument={pdfDocument}
+          layers={layers}
           paused={paused}
           restoreImages={restoreImages}
           scrollRoot={scrollRoot}

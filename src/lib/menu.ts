@@ -1,6 +1,6 @@
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
-import { acceleratorFor, commandById, documentAvailable, platformSupports, type Command, type CommandId, type MenuName, type PlatformAbilities } from "./commands";
+import { acceleratorFor, commandById, contentAvailable, documentAvailable, needsContent, platformSupports, type Command, type CommandId, type MenuName, type PlatformAbilities } from "./commands";
 import type { RecentEntry } from "./recent";
 import type { ScrollModeName, SpreadModeName, ViewModes } from "./viewModes";
 
@@ -50,6 +50,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "saveAll",
       "-",
       "revealInFinder",
+      "documentProperties",
       "-",
       "compressPdf",
       "setPassword",
@@ -85,6 +86,8 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "showOutline",
       "showMarkups",
       "showToolChest",
+      "showAttachments",
+      "showLayers",
       "toggleDocumentMap",
       "toggleMarkdownSource",
       "-",
@@ -256,6 +259,8 @@ export type MenuState = {
   caretBrowsing: boolean;
   hasForm: boolean;
   isProtected: boolean;
+  hasAttachments: boolean;
+  hasLayers: boolean;
   fieldHighlights: boolean;
   formScripts: boolean;
 } & ViewModes;
@@ -296,8 +301,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const checkItems = new Map<CommandId, CheckMenuItem>();
   const splitItems: MenuItem[] = [];
   const comparisonItems: MenuItem[] = [];
-  const formItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
-  const protectionItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
+  const contentItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
   const recentMenu = await Submenu.new({ text: "Open Recent", items: [] });
 
   const commandItem = async (id: CommandId) => {
@@ -317,10 +321,8 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     if (item instanceof CheckMenuItem) {
       checkItems.set(id, item);
     }
-    if (command.needsForm) {
-      formItems.push([command, item]);
-    } else if (command.needsProtection) {
-      protectionItems.push([command, item]);
+    if (needsContent(command)) {
+      contentItems.push([command, item]);
     } else if (command.needsDocument || command.needsMarkdown) {
       documentItems.push([command, item]);
     }
@@ -379,8 +381,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
         ...documentItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state))),
         ...splitItems.map((item) => item.setEnabled(state.split)),
         ...comparisonItems.map((item) => item.setEnabled(state.comparing)),
-        ...formItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state) && state.hasForm)),
-        ...protectionItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state) && state.isProtected)),
+        ...contentItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state) && contentAvailable(command, state))),
         checkItems.get("toggleDocumentMap")?.setEnabled(state.documentMapAvailable),
         ...[...checkItems].map(([id, item]) => item.setChecked(checked.has(id))),
       ]);

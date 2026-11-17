@@ -105,6 +105,11 @@
           "slug": "passwords",
           "title": "Passwords",
           "summary": "Set, change, or remove the password a PDF needs to open."
+        },
+        {
+          "slug": "document-info",
+          "title": "Properties, attachments, and layers",
+          "summary": "See who made a PDF and with what, open the files inside it, and switch its layers on and off."
         }
       ]
     },

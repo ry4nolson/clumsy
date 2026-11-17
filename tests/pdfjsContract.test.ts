@@ -163,6 +163,29 @@ describe("events", () => {
   });
 });
 
+describe("document info", () => {
+  it("hands attachments to the viewer's downloadManager", () => {
+    expectIn(display, /this\.downloadManager\?\.openOrDownloadData\(content, filename\)/);
+    expectIn(display, /this\.downloadManager\?\.openOrDownloadData\(content, attachment\.filename, dest\)/);
+    expectIn(viewer, "this.downloadManager = options.downloadManager || null;");
+    expectIn(classMembers(display, "PDFDocumentProxy"), "getAttachmentContent");
+    expectIn(worker, "this.data.fileId = this._getAttachmentId(");
+    expectIn(worker, "this.data.file = new FileSpec(fsDict).serializable;");
+  });
+
+  it("re-renders and announces a new optional content config", () => {
+    const setter = viewer.slice(viewer.indexOf("set optionalContentConfigPromise(promise) {"));
+    expectIn(setter.slice(0, 600), /this\.refresh\(false, \{\s*optionalContentConfigPromise: promise\s*\}\);\s*this\.eventBus\.dispatch\("optionalcontentconfigchanged", \{\s*source: this,\s*promise/);
+    expectIn(viewer, /this\._optionalContentConfigPromise = optionalContentConfigPromise;[\s\S]{0,8000}eventBus\.dispatch\("pagesinit"/);
+    const config = classMembers(display, "OptionalContentConfig");
+    for (const name of ["getOrder", "getGroup", "getHash", "setVisibility"]) {
+      expect(config, `OptionalContentConfig.${name}`).toContain(name);
+    }
+    expectIn(classSource(display, "OptionalContentConfig"), "[Symbol.iterator]() {");
+    expectIn(classSource(display, "OptionalContentGroup"), "get visible() {");
+  });
+});
+
 describe("viewer internals", () => {
   it("expose the editor UI manager through _layerProperties", () => {
     expectIn(viewer, /get _layerProperties\(\) \{[\s\S]{0,200}get annotationEditorUIManager\(\)/);
