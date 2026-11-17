@@ -1,3 +1,5 @@
+import { winAnsiSafe } from "./winAnsi";
+
 export const CUSTOM_PREFIX = "custom:";
 export const CUSTOM_STAMPS_KEY = "clumsy.customStamps";
 export const MAX_CUSTOM_STAMPS = 50;
@@ -21,7 +23,7 @@ const isColor = (value: unknown): value is number[] =>
 
 const isSize = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value > 0 && value <= 4096;
 
-export const cleanText = (text: string) => text.replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH);
+export const cleanText = (text: string) => winAnsiSafe(text.replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_LENGTH));
 
 export const cleanName = (name: string) => name.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
 
@@ -44,6 +46,7 @@ export function parseCustomStamp(value: unknown): CustomStamp | null {
     raw.data.length > 0 &&
     raw.data.length <= MAX_IMAGE_CHARS &&
     /^[A-Za-z0-9+/]+=*$/.test(raw.data) &&
+    raw.data.startsWith(raw.mime === "image/png" ? "iVBORw0KGgo" : "/9j/") &&
     isSize(raw.width) &&
     isSize(raw.height)
   ) {
@@ -123,6 +126,8 @@ export function setLibrary(stamps: CustomStamp[]) {
 }
 
 export const customStamp = (id: string) => registry.get(id) ?? null;
+
+export const knownStampIds = () => [...registry.keys()];
 
 export const inLibrary = (id: string) => library.has(id);
 

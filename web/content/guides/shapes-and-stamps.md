@@ -49,7 +49,7 @@ Stamps move and resize like shapes, and always keep their proportions.
 The **Custom** section of the stamp picker holds stamps you make yourself:
 
 - **New Image Stamp…** turns a PNG, JPEG, or SVG into a stamp: a logo, a signature block, an engineer's seal. Transparent parts stay transparent. Large images are scaled down to keep the stamp small, and SVGs become a sharp picture at that size.
-- **New Text Stamp…** makes a stamp like the review stamps from your own words, such as APPROVED AS NOTED or NOT FOR CONSTRUCTION, in the color you choose. Leave **Add the date it's placed** on to print the date under the words.
+- **New Text Stamp…** makes a stamp like the review stamps from your own words, such as APPROVED AS NOTED or NOT FOR CONSTRUCTION, in the color you choose. Leave **Add the date it's placed** on to print the date under the words. Letters, numbers, and everyday punctuation all work; symbols the PDF's standard font doesn't have, such as emoji or ✓, show as ? in the preview and in the saved stamp.
 
 A new stamp is ready to place as soon as you make it. Custom stamps show up in Recently Used and in search like the built-in ones.
 

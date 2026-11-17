@@ -70,7 +70,7 @@ export async function imageStampFrom(file: File): Promise<ImageStamp> {
 function imageStampFromPixels(stamp: PixelStamp): ImageStamp | null {
   try {
     const { canvas, context } = canvasOf(stamp.width, stamp.height);
-    context.putImageData(new ImageData(new Uint8ClampedArray(stamp.rgba), stamp.width, stamp.height), 0, 0);
+    context.putImageData(new ImageData(stamp.rgba as Uint8ClampedArray<ArrayBuffer>, stamp.width, stamp.height), 0, 0);
     return { id: stamp.id, name: stamp.name, kind: "image", mime: "image/png", data: base64Of(canvas.toDataURL("image/png")), width: stamp.width, height: stamp.height };
   } catch {
     return null;

@@ -66,6 +66,26 @@ function captionElement(markup: Markup, color: string) {
 
 export const isImageStamp = (markup: Markup) => markup.kind === "stamp" && !!markup.stamp && customStamp(markup.stamp)?.kind === "image";
 
+export function runsOf<T extends { image: boolean }>(entries: T[]) {
+  const runs: T[][] = [];
+  for (const entry of entries) {
+    const run = runs.at(-1);
+    if (run && run[0].image === entry.image) {
+      run.push(entry);
+    } else {
+      runs.push([entry]);
+    }
+  }
+  return runs;
+}
+
+export const orderedRuns = (entries: Array<{ image: boolean; group: SVGGElement }>, transform: string) =>
+  runsOf(entries).map((run) => {
+    const element = svg("g", { class: run[0].image ? "markup-images" : "markup-content", transform });
+    element.append(...run.map((entry) => entry.group));
+    return element;
+  });
+
 export function markupDrawing(markup: Markup) {
   const color = hexColor(markup.color);
   const group = svg("g", { "stroke-opacity": markup.opacity, "fill-opacity": markup.opacity, "stroke-linecap": "round", "stroke-linejoin": "round" });

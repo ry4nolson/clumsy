@@ -6,7 +6,7 @@ import { createFormScripting } from "./formScripting";
 import type { Markup } from "./markup";
 import { attachMarkup, type MarkupLayer } from "./markupLayer";
 import { customStampsFrom } from "./customStampImage";
-import { registerStamps } from "./customStamps";
+import { knownStampIds, registerStamps } from "./customStamps";
 import { readMarkupParams, styleOf } from "./markupParams";
 import { dateLabel, isMarkDescription } from "./marks";
 import { readMarkupOffThread, readScalesOffThread } from "./pageEditWorker";
@@ -188,7 +188,7 @@ export function createEditorManagers(eventBus: EventBus, linkService: PDFLinkSer
       addCommands: comments.addCommands,
       style: () => styleOf(readMarkupParams()),
       readFile: async (doc) => {
-        const found = await readMarkupOffThread(await doc.getData(), passwordOf(doc));
+        const found = await readMarkupOffThread(await doc.getData(), passwordOf(doc), knownStampIds());
         registerStamps(customStampsFrom(found.stamps));
         return found;
       },

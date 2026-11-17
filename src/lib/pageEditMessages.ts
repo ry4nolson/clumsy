@@ -15,7 +15,7 @@ export type PageEditJob =
   | { op: "flatten"; bytes: Uint8Array; pages: number[] | null; password?: string }
   | { op: "encrypt"; bytes: Uint8Array; password: string }
   | { op: "annotations"; bytes: Uint8Array; notes: StickyNote[]; markup: Markup[]; password?: string; stamps?: CustomStamp[] }
-  | { op: "readMarkup"; bytes: Uint8Array; password?: string }
+  | { op: "readMarkup"; bytes: Uint8Array; password?: string; known?: string[] }
   | { op: "readScales"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
   | { op: "combine"; files: Uint8Array[] }

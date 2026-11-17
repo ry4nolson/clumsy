@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFStream, PDFString, decodePDFRawStream } from "@cantoo/pdf-lib";
 import { OPS } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { readCustomStamps, type FileStamp } from "../src/lib/customStampPdf";
+import { MAX_RECONSTRUCTED_PIXELS, readCustomStamps, type FileStamp } from "../src/lib/customStampPdf";
 import { registerStamps, setLibrary, type CustomStamp } from "../src/lib/customStamps";
 import { movedMarkup, newMarkup, type Markup } from "../src/lib/markup";
 import { idOfRef, readMarkup } from "../src/lib/markupPdf";
@@ -123,5 +123,43 @@ describe("custom stamps in PDFs", () => {
     expect(textOf(entries[0].dict, "ClumsyStampText")).toBe("FIELD VERIFY");
     expect(resources.lookup(PDFName.of("Font"), PDFDict).has(PDFName.of("HeBo"))).toBe(true);
     expect(text).toContain("0 0.4 0 rg");
+  });
+
+  it("skips stamps the window already has and stops at the pixel budget", async () => {
+    const saved = await writeAnnotations(await blank(), [], [stamp("png", logo.id, [100, 100, 150, 150]), stamp("txt", words.id, [100, 300, 260, 340])], "", [logo, words]);
+    const doc = await PDFDocument.load(saved);
+    expect(readCustomStamps(doc, [logo.id]).map((entry) => entry.id)).toEqual([words.id]);
+    const page = doc.context.lookup(doc.getPage(0).ref, PDFDict);
+    const image = doc.context.lookup(page.lookup(PDFName.of("Annots"), PDFArray).lookup(0, PDFDict).get(PDFName.of("ClumsyStampImage")) as PDFRef, PDFRawStream);
+    image.dict.set(PDFName.of("Width"), PDFNumber.of(4096));
+    image.dict.set(PDFName.of("Height"), PDFNumber.of(4096));
+    expect(4096 * 4096).toBeLessThanOrEqual(MAX_RECONSTRUCTED_PIXELS);
+    const big = (id: string) => doc.context.register(doc.context.obj({ Type: "Annot", Subtype: "Stamp", Rect: [0, 0, 10, 10], Name: `Clumsy:${id}`, ClumsyStampImage: page.lookup(PDFName.of("Annots"), PDFArray).lookup(0, PDFDict).get(PDFName.of("ClumsyStampImage")) as PDFRef }));
+    page.lookup(PDFName.of("Annots"), PDFArray).push(big("custom:66666666-6666-4666-8666-666666666666"));
+    const read = readCustomStamps(doc).map((entry) => entry.id);
+    expect(read).not.toContain("custom:66666666-6666-4666-8666-666666666666");
+    expect(read).toContain(words.id);
+  });
+
+  it("neither reads nor reuses a stamp image reference that isn't an image", async () => {
+    const saved = await writeAnnotations(await blank(), [], [stamp("png", logo.id, [100, 100, 150, 150])], "", [logo]);
+    const doc = await PDFDocument.load(saved);
+    const dict = doc.context.lookup(doc.context.lookup(doc.getPage(0).ref, PDFDict).lookup(PDFName.of("Annots"), PDFArray).get(0) as PDFRef, PDFDict);
+    const content = doc.context.register(doc.context.flateStream("0 0 m 10 10 l S", {}));
+    dict.set(PDFName.of("ClumsyStampImage"), content);
+    const tampered = await doc.save({ useObjectStreams: false });
+    expect(readCustomStamps(await PDFDocument.load(tampered))).toEqual([]);
+    const resaved = await writeAnnotations(tampered, [], [stamp("again", logo.id, [300, 100, 350, 150])], "", [logo]);
+    const { entries } = await annots(resaved);
+    expect(String(entries[1].dict.get(PDFName.of("ClumsyStampImage")))).not.toBe(content.toString());
+  });
+
+  it("still saves everything else when a stamp's image can't be decoded", async () => {
+    const broken: CustomStamp = { ...logo, id: "custom:77777777-7777-4777-8777-777777777777", data: "iVBORw0KGgoAAAA" };
+    const saved = await writeAnnotations(await blank(), [], [stamp("bad", broken.id, [100, 100, 150, 150]), stamp("txt", words.id, [100, 300, 260, 340])], "", [broken, words]);
+    const { entries } = await annots(saved);
+    expect(entries).toHaveLength(2);
+    expect(entries[0].dict.has(PDFName.of("ClumsyStampImage"))).toBe(false);
+    expect(textOf(entries[1].dict, "ClumsyStampText")).toBe("FIELD VERIFY");
   });
 });

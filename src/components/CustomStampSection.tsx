@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CustomStamp } from "../lib/customStamps";
 import type { CustomStampsApi } from "../hooks/useCustomStamps";
 import { StampButton } from "./StampButton";
@@ -16,7 +16,22 @@ type SectionProps = {
 
 function NameField({ stamp, onRename }: { stamp: CustomStamp; onRename: (name: string) => void }) {
   const [draft, setDraft] = useState(stamp.name);
-  const commit = () => (draft.trim() && draft !== stamp.name ? onRename(draft) : setDraft(stamp.name));
+  const edited = useRef(false);
+  useEffect(() => {
+    if (!edited.current) {
+      setDraft(stamp.name);
+    }
+  }, [stamp.name]);
+  const revert = () => {
+    edited.current = false;
+    setDraft(stamp.name);
+  };
+  const commit = () => {
+    if (edited.current && draft.trim() && draft !== stamp.name) {
+      onRename(draft);
+    }
+    revert();
+  };
   return (
     <input
       className="text-input"
@@ -24,12 +39,20 @@ function NameField({ stamp, onRename }: { stamp: CustomStamp; onRename: (name: s
       autoComplete="off"
       spellCheck={false}
       value={draft}
-      onChange={(event) => setDraft(event.target.value)}
+      onChange={(event) => {
+        edited.current = true;
+        setDraft(event.target.value);
+      }}
       onBlur={commit}
       onKeyDown={(event) => {
         if (event.key === "Enter") {
           event.preventDefault();
           commit();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          revert();
+          event.currentTarget.blur();
         }
       }}
     />

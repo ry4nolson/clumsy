@@ -1,5 +1,5 @@
 import { JpegEmbedder, PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFRawStream, PDFRef, PDFString, PngEmbedder, decodePDFRawStream, type PDFContext, type PDFDocument } from "@cantoo/pdf-lib";
-import { cleanName, cleanText, customStamp, isCustomId, type CustomStamp } from "./customStamps";
+import { cleanName, cleanText, customStamp, isCustomId, type CustomStamp, type ImageStamp } from "./customStamps";
 import { STAMP_NAME_PREFIX, type Markup } from "./markup";
 import { toRgba } from "./imagePixels";
 import { pageLeafRefs } from "./pdfStructure";
@@ -8,6 +8,7 @@ import { base64ToBytes, bytesToBase64 } from "./webviewPolyfills";
 export const STAMP_IMAGE_KEY = PDFName.of("ClumsyStampImage");
 export const STAMP_TEXT_KEY = PDFName.of("ClumsyStampText");
 const MAX_SIDE = 4096;
+export const MAX_RECONSTRUCTED_PIXELS = 16_777_216;
 
 export type PixelStamp = { id: string; name: string; kind: "pixels"; width: number; height: number; rgba: Uint8ClampedArray };
 export type FileStamp = CustomStamp | PixelStamp;
@@ -33,16 +34,25 @@ function annotations(doc: PDFDocument) {
   });
 }
 
+const isImage = (stream: PDFRawStream | null) =>
+  !!stream && stream.dict.lookup(name("Subtype")) === name("Image") && !!numberOf(stream.dict, "Width") && !!numberOf(stream.dict, "Height");
+
 function existingImages(doc: PDFDocument) {
   const found = new Map<string, PDFRef>();
   for (const dict of annotations(doc)) {
     const id = stampIdOf(dict);
     const ref = dict.get(STAMP_IMAGE_KEY);
-    if (id && ref instanceof PDFRef && !found.has(id) && rawStream(doc.context.lookup(ref))) {
+    if (id && ref instanceof PDFRef && !found.has(id) && isImage(rawStream(doc.context.lookup(ref)))) {
       found.set(id, ref);
     }
   }
   return found;
+}
+
+async function embedImage(doc: PDFDocument, stamp: ImageStamp) {
+  const bytes = base64ToBytes(stamp.data);
+  const embedder = stamp.mime === "image/png" ? await PngEmbedder.for(bytes) : await JpegEmbedder.for(bytes);
+  return embedder.embedIntoContext(doc.context);
 }
 
 export async function embedStampImages(doc: PDFDocument, markup: Markup[]) {
@@ -58,9 +68,10 @@ export async function embedStampImages(doc: PDFDocument, markup: Markup[]) {
     if (reused) {
       images.set(id, reused);
     } else if (stamp?.kind === "image") {
-      const bytes = base64ToBytes(stamp.data);
-      const embedder = stamp.mime === "image/png" ? await PngEmbedder.for(bytes) : await JpegEmbedder.for(bytes);
-      images.set(id, await embedder.embedIntoContext(doc.context));
+      const embedded = await embedImage(doc, stamp).catch(() => null);
+      if (embedded) {
+        images.set(id, embedded);
+      }
     }
   }
   return images;
@@ -109,7 +120,8 @@ function samplesOf(stream: PDFRawStream, width: number, height: number, componen
 }
 
 export function stampImageOf(context: PDFContext, ref: PDFRef, id: string, stampName: string): FileStamp | null {
-  const stream = rawStream(context.lookup(ref));
+  const found = rawStream(context.lookup(ref));
+  const stream = isImage(found) ? found : null;
   const width = stream && numberOf(stream.dict, "Width");
   const height = stream && numberOf(stream.dict, "Height");
   const components = stream && componentsOf(stream.dict);
@@ -138,16 +150,29 @@ export function stampImageOf(context: PDFContext, ref: PDFRef, id: string, stamp
   return { id, name: stampName, kind: "pixels", width, height, rgba };
 }
 
-export function readCustomStamps(doc: PDFDocument): FileStamp[] {
+function imageSize(context: PDFContext, ref: PDFRef) {
+  const stream = rawStream(context.lookup(ref));
+  return stream ? (numberOf(stream.dict, "Width") ?? 0) * (numberOf(stream.dict, "Height") ?? 0) : 0;
+}
+
+export function readCustomStamps(doc: PDFDocument, known: Iterable<string> = []): FileStamp[] {
   const found = new Map<string, FileStamp>();
+  const skip = new Set(known);
+  let budget = MAX_RECONSTRUCTED_PIXELS;
   for (const dict of annotations(doc)) {
     const id = stampIdOf(dict);
-    if (!id || found.has(id)) {
+    if (!id || found.has(id) || skip.has(id)) {
       continue;
     }
     const stampName = cleanName(textOf(dict.get(name("Subj"))) ?? "");
     const text = cleanText(textOf(dict.get(STAMP_TEXT_KEY)) ?? "");
     const image = dict.get(STAMP_IMAGE_KEY);
+    const pixels = !text && image instanceof PDFRef ? imageSize(doc.context, image) : 0;
+    if (pixels > budget) {
+      skip.add(id);
+      continue;
+    }
+    budget -= pixels;
     const stamp: FileStamp | null = text
       ? { id, name: stampName || text, kind: "text", text, color: [0, 0, 0], date: false }
       : image instanceof PDFRef

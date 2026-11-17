@@ -190,7 +190,7 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
       return writeAnnotationsReporting(job.bytes, job.notes, job.markup, job.password, job.stamps);
     case "readMarkup": {
       const doc = await load(job.bytes, job.password);
-      return { bytes: new Uint8Array(), markup: readMarkup(doc), subjects: readSubjects(doc), stamps: readCustomStamps(doc) };
+      return { bytes: new Uint8Array(), markup: readMarkup(doc), subjects: readSubjects(doc), stamps: readCustomStamps(doc, job.known) };
     }
     case "readScales": {
       const doc = await load(job.bytes, job.password);

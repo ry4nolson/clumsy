@@ -279,6 +279,13 @@ const BOLD_WIDTHS: Record<string, number> = {
   s: 0.556,
   m: 0.889,
   w: 0.778,
+  "‘": 0.278,
+  "’": 0.278,
+  "“": 0.5,
+  "”": 0.5,
+  "–": 0.556,
+  "—": 1,
+  "…": 1,
 };
 const charWidth = (char: string) => BOLD_WIDTHS[char] ?? (/[0-9]/.test(char) ? 0.556 : /[a-z]/.test(char) ? 0.611 : 0.722);
 const wordWidth = (text: string, size: number) => [...text].reduce((sum, char) => sum + charWidth(char), 0) * size;

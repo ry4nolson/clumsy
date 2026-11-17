@@ -27,6 +27,7 @@ import { isMeasureKind, isTextKind, type Markup } from "./markup";
 import { lineEndings, outlinePath, segmentsPath, stampMatrix, textMarkupSegments } from "./markupShapes";
 import { CAPTION_SIZE, captionBaseline, captionPlacement, captionText, vertexPath } from "./measureMarkup";
 import { CAP_HEIGHT, stampDesign, type StampDesign } from "./stampSymbols";
+import { winAnsiSafe } from "./winAnsi";
 
 const FONT = "HeBo";
 const IMAGE = "Im0";
@@ -39,7 +40,7 @@ const embedder = (font: StandardFonts) => embedders.get(font) ?? embedders.set(f
 const bold = () => embedder(StandardFonts.HelveticaBold);
 const regular = () => embedder(StandardFonts.Helvetica);
 
-export const winAnsiSafe = (text: string) => text.replace(/[^\x20-\x7e\xa0-\xff]/g, "?");
+export { winAnsiSafe };
 
 const colorOf = (values: number[]) => rgb(values[0] ?? 0, values[1] ?? 0, values[2] ?? 0);
 

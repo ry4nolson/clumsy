@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { runsOf } from "../src/lib/markupSvg";
+import { winAnsiSafe } from "../src/lib/winAnsi";
 import {
   CUSTOM_STAMPS_KEY,
+  cleanText,
   MAX_CUSTOM_STAMPS,
   MAX_IMAGE_CHARS,
   customStamp,
@@ -154,5 +157,24 @@ describe("custom stamps in the stamp lookups", () => {
     setLibrary([text("custom:a")]);
     const store = memoryStore({ "clumsy.recentStamps": JSON.stringify(["custom:a", "custom:deleted", "review:void"]) });
     expect(readRecentStamps(store)).toEqual(["custom:a", "review:void"]);
+  });
+});
+
+describe("custom stamp text and drawing order", () => {
+  it("keeps WinAnsi punctuation and replaces what Helvetica can't encode", () => {
+    expect(winAnsiSafe("Approved – J.D.’s “OK” … €5")).toBe("Approved – J.D.’s “OK” … €5");
+    expect(winAnsiSafe("Done ✓ 完成")).toBe("Done ? ??");
+    expect(cleanText("  Owner’s   review ✓ ")).toBe("Owner’s review ?");
+  });
+
+  it("refuses image data that doesn't start like its type", () => {
+    expect(parseCustomStamp(image("custom:a", { data: "/9j/4AAQ" }))).toBeNull();
+    expect(parseCustomStamp(image("custom:b", { mime: "image/jpeg", data: "/9j/4AAQ" }))?.kind).toBe("image");
+  });
+
+  it("groups markup into runs that keep their order", () => {
+    const entries = [false, false, true, false, true, true].map((image, index) => ({ image, index }));
+    expect(runsOf(entries).map((run) => run.map((entry) => entry.index))).toEqual([[0, 1], [2], [3], [4, 5]]);
+    expect(runsOf([])).toEqual([]);
   });
 });
