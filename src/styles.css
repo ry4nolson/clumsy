@@ -765,6 +765,15 @@ body {
   cursor: pointer;
 }
 
+.sidebar-tabs button.icon-tab {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  max-width: 30px;
+  padding: 0;
+}
+
 .sidebar-tabs button[aria-selected="true"] {
   background: var(--active);
   color: var(--text);

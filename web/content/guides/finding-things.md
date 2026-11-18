@@ -23,12 +23,15 @@ The map follows vertical scrolling, so it steps aside in horizontal and page-by-
 
 ## Sidebar
 
-[[⌘B]] toggles the sidebar. It has two tabs most of the time:
+[[⌘B]] toggles the sidebar. Its tabs are icons along the top; hover over one to see its name. These are always there on a PDF:
 
 - **Pages** ([[⇧⌘E]]) shows thumbnails. Click one to go there. This is also where you [rearrange pages](/guides/page-edits).
 - **Outline** ([[⇧⌘O]]) shows the document's bookmarks, if it has any, as a collapsible tree.
+- **Markups** ([[⇧⌘M]]) lists every markup in the document. See [the Markups list](/guides/markups).
+- **Info** ([[⌘D]]) shows what the file says about itself. See [properties, attachments, and layers](/guides/document-info).
+- **Tool Chest** holds your saved tools. See [the tool chest](/guides/tool-chest).
 
-More tabs appear when they have something to show: Comments while the Comments tool is on, Changes during a comparison, and Signatures on a signed PDF. Drag the sidebar's edge to resize it.
+More tabs appear when they have something to show: Attachments and Layers when the file has them, Comments while the Comments tool is on, Changes during a comparison, and Signatures on a signed PDF. Drag the sidebar's edge to resize it.
 
 ## Going to a page
 
