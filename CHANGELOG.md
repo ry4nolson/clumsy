@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.22.2] - 2026-11-18
+
 ### Changed
 - The sidebar's Pages, Outline, and Markups tabs are icons now, like Tool Chest, so every tab fits without its name being cut off. Hover over one to see its name
 
