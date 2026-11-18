@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-11-18
+
 ### Fixed
 - Signatures from DocuSign and other services that write their signature data in BER no longer read as invalid with "The signature's /Contents is empty or not DER"
 - A signature whose certificate has since expired no longer says the certificate had expired when it was used, unless a timestamp proves it. Without one, it says nothing in the file proves it was signed before the certificate expired
