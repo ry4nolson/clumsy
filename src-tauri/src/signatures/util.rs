@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn hex_upper(bytes: &[u8]) -> String {
@@ -76,6 +77,102 @@ pub fn children(value: &[u8]) -> Option<Vec<Tlv<'_>>> {
     Some(items)
 }
 
+const MAX_BER_DEPTH: usize = 64;
+const OCTET_STRING: u8 = 0x04;
+const CONSTRUCTED: u8 = 0x20;
+
+fn encode_tlv(tag: u8, value: &[u8]) -> Vec<u8> {
+    let length = value.len().to_be_bytes();
+    let significant = &length[length.iter().position(|&byte| byte != 0).unwrap_or(length.len())..];
+    let mut out = Vec::with_capacity(value.len() + 2 + significant.len());
+    out.push(tag);
+    if value.len() < 0x80 {
+        out.push(value.len() as u8);
+    } else {
+        out.push(0x80 | significant.len() as u8);
+        out.extend_from_slice(significant);
+    }
+    out.extend_from_slice(value);
+    out
+}
+
+fn joined_octets(parts: &[u8]) -> Option<Vec<u8>> {
+    let mut joined = Vec::new();
+    for part in children(parts)? {
+        if part.tag != OCTET_STRING {
+            return None;
+        }
+        joined.extend_from_slice(part.value);
+    }
+    Some(joined)
+}
+
+fn header_len(length: usize) -> usize {
+    if length < 0x80 { 2 } else { 2 + (usize::BITS - length.leading_zeros()).div_ceil(8) as usize }
+}
+
+fn normalize(input: &[u8], depth: usize) -> Option<(Cow<'_, [u8]>, usize)> {
+    if depth > MAX_BER_DEPTH {
+        return None;
+    }
+    let (&tag, rest) = input.split_first()?;
+    if tag & 0x1f == 0x1f {
+        return None;
+    }
+    let constructed = tag & CONSTRUCTED != 0;
+    let (mut body, definite_len, mut changed) = match rest.first() {
+        Some(0x80) if constructed => (&rest[1..], None, true),
+        Some(0x80) => return None,
+        _ => {
+            let (tlv, _) = read_tlv(input)?;
+            let padded = tlv.raw.len() - tlv.value.len() != header_len(tlv.value.len());
+            if !constructed {
+                return Some((if padded { Cow::Owned(encode_tlv(tag, tlv.value)) } else { Cow::Borrowed(tlv.raw) }, tlv.raw.len()));
+            }
+            (tlv.value, Some(tlv.raw.len()), padded)
+        }
+    };
+    let start = body;
+    let mut contents: Option<Vec<u8>> = None;
+    loop {
+        if definite_len.is_none() && body.starts_with(&[0, 0]) {
+            body = &body[2..];
+            break;
+        }
+        if definite_len.is_some() && body.is_empty() {
+            break;
+        }
+        let (child, used) = normalize(body, depth + 1)?;
+        if let Cow::Owned(owned) = &child {
+            let done = start.len() - body.len();
+            contents.get_or_insert_with(|| start[..done].to_vec()).extend_from_slice(owned);
+        } else if let Some(contents) = &mut contents {
+            contents.extend_from_slice(&child);
+        }
+        body = &body[used..];
+    }
+    let used = definite_len.unwrap_or(input.len() - body.len());
+    let value_end = if definite_len.is_some() { start.len() } else { start.len() - body.len() - 2 };
+    changed |= contents.is_some();
+    let contents = contents.map_or(Cow::Borrowed(&start[..value_end]), Cow::Owned);
+    if tag == OCTET_STRING | CONSTRUCTED {
+        return Some((Cow::Owned(encode_tlv(OCTET_STRING, &joined_octets(&contents)?)), used));
+    }
+    if !changed {
+        return Some((Cow::Borrowed(&input[..used]), used));
+    }
+    Some((Cow::Owned(encode_tlv(tag, &contents)), used))
+}
+
+pub fn ber_element_len(input: &[u8]) -> Option<usize> {
+    normalize(input, 0).map(|(_, used)| used)
+}
+
+pub fn ber_to_der(input: &[u8]) -> Option<Cow<'_, [u8]>> {
+    let (element, used) = normalize(input, 0)?;
+    (used == input.len()).then_some(element)
+}
+
 pub fn first_child(der: &[u8]) -> Option<Tlv<'_>> {
     let (outer, _) = read_tlv(der)?;
     read_tlv(outer.value).map(|(child, _)| child)
@@ -109,5 +206,55 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(items[1].value, &[0xaa]);
         assert!(read_tlv(&[0x30, 0x05, 0x00]).is_none());
+    }
+
+    #[test]
+    fn rewrites_indefinite_lengths_as_definite() {
+        let ber = [0x30, 0x80, 0xa0, 0x80, 0x02, 0x01, 0x05, 0x00, 0x00, 0x04, 0x01, 0xaa, 0x00, 0x00, 0x00, 0x00];
+        assert_eq!(ber_element_len(&ber), Some(14));
+        assert!(ber_to_der(&ber).is_none());
+        assert_eq!(ber_to_der(&ber[..14]).unwrap().as_ref(), &[0x30, 0x08, 0xa0, 0x03, 0x02, 0x01, 0x05, 0x04, 0x01, 0xaa]);
+    }
+
+    #[test]
+    fn keeps_definite_elements_byte_for_byte() {
+        let der = [0x30, 0x06, 0x02, 0x01, 0x01, 0x04, 0x01, 0xaa];
+        assert!(matches!(ber_to_der(&der), Some(Cow::Borrowed(_))));
+        let mixed = [0x30, 0x80, 0x31, 0x03, 0x02, 0x01, 0x07, 0x00, 0x00];
+        assert_eq!(ber_to_der(&mixed).unwrap().as_ref(), &[0x30, 0x05, 0x31, 0x03, 0x02, 0x01, 0x07]);
+        let nested = [0x30, 0x06, 0x30, 0x80, 0x05, 0x00, 0x00, 0x00];
+        assert_eq!(ber_to_der(&nested).unwrap().as_ref(), &[0x30, 0x04, 0x30, 0x02, 0x05, 0x00]);
+    }
+
+    #[test]
+    fn shortens_padded_lengths() {
+        let padded = [0x30, 0x82, 0x00, 0x06, 0x31, 0x04, 0x02, 0x81, 0x01, 0x07];
+        assert_eq!(ber_to_der(&padded).unwrap().as_ref(), &[0x30, 0x05, 0x31, 0x03, 0x02, 0x01, 0x07]);
+        let long: Vec<u8> = [&[0x04, 0x81, 0x80][..], &[0xee; 128]].concat();
+        assert!(matches!(ber_to_der(&long), Some(Cow::Borrowed(_))));
+    }
+
+    #[test]
+    fn joins_constructed_octet_strings() {
+        let ber = [0x24, 0x80, 0x04, 0x02, 0x01, 0x02, 0x04, 0x01, 0x03, 0x00, 0x00];
+        assert_eq!(ber_to_der(&ber).unwrap().as_ref(), &[0x04, 0x03, 0x01, 0x02, 0x03]);
+        assert!(ber_to_der(&[0x24, 0x80, 0x02, 0x01, 0x01, 0x00, 0x00]).is_none());
+    }
+
+    #[test]
+    fn encodes_long_lengths_minimally() {
+        let ber: Vec<u8> = [&[0x30, 0x80, 0x04, 0x81, 0xc8][..], &[0xee; 200], &[0x00, 0x00]].concat();
+        let der = ber_to_der(&ber).unwrap();
+        assert_eq!(&der[..5], &[0x30, 0x81, 0xcb, 0x04, 0x81]);
+        assert_eq!(der.len(), 206);
+    }
+
+    #[test]
+    fn refuses_malformed_ber() {
+        assert!(ber_to_der(&[0x04, 0x80, 0x01, 0x00, 0x00]).is_none());
+        assert!(ber_to_der(&[0x30, 0x80, 0x02, 0x01, 0x01]).is_none());
+        assert!(ber_to_der(&[]).is_none());
+        let deep: Vec<u8> = std::iter::repeat_n([0x30, 0x80], 100).flatten().chain(std::iter::repeat_n(0x00, 200)).collect();
+        assert!(ber_to_der(&deep).is_none());
     }
 }

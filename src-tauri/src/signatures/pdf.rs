@@ -1,6 +1,6 @@
 use super::algorithms::Digest;
 use super::types::{ByteRange, CONTENTS_HEX_LENGTH, SignaturePlaceholder};
-use super::util::{hex_decode, hex_upper, read_tlv};
+use super::util::{ber_element_len, hex_decode, hex_upper};
 
 fn preceded_by(pdf: &[u8], at: usize, key: &[u8]) -> bool {
     let before = pdf[..at].trim_ascii_end();
@@ -74,7 +74,7 @@ pub fn signature_contents(pdf: &[u8], range: &ByteRange) -> Result<Vec<u8>, Stri
     let gap = &pdf[range[1] as usize..range[2] as usize];
     let hex = gap.strip_prefix(b"<").and_then(|rest| rest.strip_suffix(b">")).ok_or("The signature's /Contents isn't a hex string")?;
     let bytes = hex_decode(hex).ok_or("The signature's /Contents isn't valid hex")?;
-    let length = read_tlv(&bytes).map(|(tlv, _)| tlv.raw.len()).ok_or("The signature's /Contents is empty or not DER")?;
+    let length = ber_element_len(&bytes).ok_or("The signature's /Contents is empty or unreadable")?;
     Ok(bytes[..length].to_vec())
 }
 

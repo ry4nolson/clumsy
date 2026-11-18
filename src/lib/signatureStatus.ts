@@ -1,4 +1,4 @@
-import { TRUSTED_SIGNERS_KEY, type DocMdpPermission, type PdfSignature, type SignatureScan, type SignatureStatus, type SignatureVerdict } from "./signatureTypes";
+import { TRUSTED_SIGNERS_KEY, type CertificateSummary, type DocMdpPermission, type PdfSignature, type SignatureScan, type SignatureStatus, type SignatureVerdict } from "./signatureTypes";
 
 export type ShownVerdict = SignatureVerdict & { trustedInClumsy: boolean };
 
@@ -16,6 +16,33 @@ export const statusWords: Record<SignatureStatus, StatusWords> = {
   unknown: { label: "Couldn't check", sentence: "The signature couldn't be checked.", tone: "neutral" },
   unsupported: { label: "Not checked", sentence: "Signatures can't be checked here.", tone: "neutral" },
 };
+
+const EXPIRED_UNPROVEN = "The signer's certificate has expired, and nothing in the file proves it was signed before then.";
+
+export function statusSentence(verdict: SignatureVerdict) {
+  return verdict.status === "expired" && verdict.signingTime?.source !== "timestamp" ? EXPIRED_UNPROVEN : statusWords[verdict.status].sentence;
+}
+
+export function certificateLine(certificate: CertificateSummary) {
+  const name = certificate.commonName.trim();
+  const organization = certificate.organization?.trim();
+  const bare = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  return organization && bare(organization) !== bare(name) ? [name, organization].filter(Boolean).join(", ") : name;
+}
+
+export function algorithmText(verdict: SignatureVerdict) {
+  const { signatureAlgorithm: scheme, digestAlgorithm: digest } = verdict;
+  if (!digest) {
+    return null;
+  }
+  if (!scheme) {
+    return digest;
+  }
+  if (scheme.endsWith(` with ${digest}`)) {
+    return scheme;
+  }
+  return scheme.includes(" with ") ? `${scheme}, document digest ${digest}` : `${scheme} with ${digest}`;
+}
 
 const severity: SignatureStatus[] = ["invalid", "revoked", "weak", "expired", "unverified", "unknown", "unsupported", "valid"];
 
@@ -76,7 +103,7 @@ export function barMessage(rows: SignatureRow[], checking: boolean) {
   }
   const changed = changedAfter(worst.signature);
   const status = worst.verdict.status;
-  const sentence = status === "valid" && changed ? `The signature is valid, but the document has been changed since it was signed.` : statusWords[status].sentence;
+  const sentence = status === "valid" && changed ? `The signature is valid, but the document has been changed since it was signed.` : statusSentence(worst.verdict);
   return { text: `${who} ${sentence}`, status, changed };
 }
 
