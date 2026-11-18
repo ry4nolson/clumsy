@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- The sidebar's Pages, Outline, and Markups tabs are icons now, like Tool Chest, so every tab fits without its name being cut off. Hover over one to see its name
+
 ## [0.22.1] - 2026-11-18
 
 ### Fixed
@@ -20,9 +23,6 @@ and this project uses [Semantic Versioning](https://semver.org/).
 - **Document info.** A new Info tab in the sidebar shows what a PDF says about itself: title, author, subject, keywords, the app that made it, when it was created and modified, its PDF version, page count, page size with its paper name, whether it's tagged or needs a password, and whether it has a form, signatures, attachments, or layers. File > Document Properties (⌘D) opens it
 - **Attachments.** When a PDF has files attached, an Attachments tab appears in the sidebar (View > Attachments) listing them, including files attached to a spot on a page. Open an attached PDF or Markdown file in a new tab, or save any attachment where you choose. Double-clicking an attachment's icon on the page does the same. Clumsy never runs an attachment or hands it to another app
 - **Layers.** When a PDF has layers, as many drawings exported from CAD do, a Layers tab appears in the sidebar (View > Layers) to show and hide them, with Show All, Hide All, and Reset. Thumbnails and the Document Map follow, the layers stay as you set them through page edits and reloads, and the file itself isn't changed
-
-### Changed
-- The sidebar's Pages, Outline, and Markups tabs are icons now, like Tool Chest, so every tab fits without its name being cut off. Hover over one to see its name
 
 ## [0.21.0] - 2026-11-17
 
