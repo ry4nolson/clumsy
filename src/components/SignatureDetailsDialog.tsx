@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import type { TabSignatures } from "../hooks/useTabSignatures";
 import { canSignDigitally } from "../lib/platform";
-import { canTrust, CHANGED_AFTER, docMdpWords, kindLabel, signerName, statusWords, type SignatureRow } from "../lib/signatureStatus";
-import type { CertificateSummary, SignatureVerdict } from "../lib/signatureTypes";
+import { algorithmText, canTrust, certificateLine, CHANGED_AFTER, docMdpWords, kindLabel, signerName, statusSentence, statusWords, type SignatureRow } from "../lib/signatureStatus";
+import type { SignatureVerdict } from "../lib/signatureTypes";
 import { formatTime, signingTimeText } from "./SignaturesList";
 import { SignatureStatusIcon } from "./SignatureStatusIcon";
 
@@ -24,10 +24,6 @@ function revocationText(verdict: SignatureVerdict) {
   return `${revocationWords[verdict.revocation]}${source}`;
 }
 
-function certificateLine(certificate: CertificateSummary) {
-  return [certificate.commonName, certificate.organization].filter(Boolean).join(", ");
-}
-
 function Facts({ row }: { row: SignatureRow }) {
   const { signature, verdict } = row;
   const signer = verdict?.signer;
@@ -45,7 +41,7 @@ function Facts({ row }: { row: SignatureRow }) {
     ["Allows", signature.docMdp ? docMdpWords[signature.docMdp] : null],
     ["Revocation", verdict ? revocationText(verdict) : null],
     ["Level", verdict?.level ? `PAdES ${verdict.level}` : null],
-    ["Algorithm", verdict?.digestAlgorithm ? `${verdict.signatureAlgorithm} with ${verdict.digestAlgorithm}` : null],
+    ["Algorithm", verdict ? algorithmText(verdict) : null],
     ["Reason", signature.reason],
     ["Location", signature.location],
     ["Contact", signature.contactInfo],
@@ -98,7 +94,7 @@ export function SignatureDetailsDialog({ signatures }: { signatures: TabSignatur
             {signerName(row)}
           </h2>
           <p className="dialog-hint">
-            {verdict ? statusWords[verdict.status].sentence : signatures.loading ? "Checking the signature…" : statusWords.unknown.sentence}
+            {verdict ? statusSentence(verdict) : signatures.loading ? "Checking the signature…" : statusWords.unknown.sentence}
             {verdict?.trustedInClumsy && " You chose to trust this signer in Clumsy; other apps won't know that."}
           </p>
           <Facts row={row} />

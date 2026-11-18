@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  algorithmText,
   applyTrust,
   barMessage,
   canTrust,
+  certificateLine,
   parseTrustedSigners,
   signatureRows,
   signedVersionName,
+  statusSentence,
   statusWords,
   withTrust,
   worstRow,
@@ -134,6 +137,42 @@ describe("barMessage", () => {
   it("says it's checking until verdicts arrive", () => {
     const rows = signatureRows(scanOf(signature("1", { name: "Pat" })), [], new Set());
     expect(barMessage(rows, true)?.text).toBe("Signed by Pat. Checking the signature…");
+  });
+});
+
+describe("statusSentence", () => {
+  it("only says a certificate had expired at signing when a timestamp proves it", () => {
+    const stamped = verdict("1", "expired", { signingTime: { time: "2024-01-26T22:44:12Z", source: "timestamp", authority: "TSA" } });
+    const claimed = verdict("1", "expired", { signingTime: { time: "2024-01-26T22:44:12Z", source: "claimed", authority: null } });
+    expect(statusSentence(stamped)).toBe(statusWords.expired.sentence);
+    expect(statusSentence(claimed)).toMatch(/has expired, and nothing in the file proves/);
+    expect(statusSentence(verdict("1", "expired"))).toBe(statusSentence(claimed));
+    expect(statusSentence(verdict("1", "valid"))).toBe(statusWords.valid.sentence);
+  });
+
+  it("is what the bar says for an expired certificate", () => {
+    const rows = signatureRows(scanOf(signature("1")), [verdict("1", "expired")], new Set());
+    expect(barMessage(rows, false)?.text).toBe(`Signed by Signer 1. ${statusSentence(verdict("1", "expired"))}`);
+  });
+});
+
+describe("certificateLine", () => {
+  const certificate = verdict("1", "valid").signer!;
+  it("leaves out an organization that repeats the name", () => {
+    expect(certificateLine({ ...certificate, commonName: "DocuSign, Inc.", organization: "DocuSign, Inc." })).toBe("DocuSign, Inc.");
+    expect(certificateLine({ ...certificate, commonName: "Acme Corp", organization: "ACME Corp." })).toBe("Acme Corp");
+    expect(certificateLine({ ...certificate, commonName: "Pat", organization: "Acme" })).toBe("Pat, Acme");
+    expect(certificateLine({ ...certificate, commonName: "Pat", organization: null })).toBe("Pat");
+  });
+});
+
+describe("algorithmText", () => {
+  it("names the digest once", () => {
+    expect(algorithmText(verdict("1", "valid", { signatureAlgorithm: "RSA with SHA-256", digestAlgorithm: "SHA-256" }))).toBe("RSA with SHA-256");
+    expect(algorithmText(verdict("1", "valid", { signatureAlgorithm: "RSA with SHA-1", digestAlgorithm: "SHA-256" }))).toBe("RSA with SHA-1, document digest SHA-256");
+    expect(algorithmText(verdict("1", "valid", { signatureAlgorithm: "RSA", digestAlgorithm: "SHA-256" }))).toBe("RSA with SHA-256");
+    expect(algorithmText(verdict("1", "valid", { signatureAlgorithm: "", digestAlgorithm: "SHA-256" }))).toBe("SHA-256");
+    expect(algorithmText(verdict("1", "valid", { digestAlgorithm: "" }))).toBeNull();
   });
 });
 

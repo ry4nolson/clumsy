@@ -12,7 +12,7 @@ use super::test_pki::*;
 use super::trust::TrustOptions;
 use super::tsa;
 use super::types::{ByteRange, Integrity, Material, PadesLevel, Revocation, RevocationSource, SignatureStatus, SignatureVerdict, TimeSource, VerifyItem};
-use super::util::now;
+use super::util::{ber_to_der, children, now};
 use super::verify::{CADES, Context, RFC3161, verify_all};
 
 struct Pki {
@@ -82,6 +82,35 @@ fn a_valid_signature_verifies() {
     assert_eq!(verdict.revocation_source, Some(RevocationSource::Embedded));
     assert_eq!(verdict.level, Some(PadesLevel::Basic));
     assert_eq!(verdict.signing_time.as_ref().unwrap().source, TimeSource::Claimed);
+}
+
+fn indefinite(der: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for element in children(der).unwrap() {
+        if element.tag & 0x20 == 0 {
+            out.extend_from_slice(element.raw);
+            continue;
+        }
+        out.extend_from_slice(&[element.tag, 0x80]);
+        out.extend(indefinite(element.value));
+        out.extend_from_slice(&[0, 0]);
+    }
+    out
+}
+
+#[test]
+fn a_ber_signature_with_indefinite_lengths_verifies() {
+    let pki = pki();
+    let (pdf, range) = signed_pdf(&pki, ecdsa(Digest::Sha256), |der| {
+        let ber = indefinite(&der);
+        assert_eq!(&ber[..2], &[0x30, 0x80]);
+        assert_eq!(ber_to_der(&ber).unwrap().as_ref(), der.as_slice());
+        ber
+    });
+    let verdict = &verify(&pdf, &[item("a", range, CADES)], Some(empty_crl(&pki)), &[&pki.root])[0];
+    assert_eq!(verdict.integrity, Integrity::Intact, "{:?}", verdict.problems);
+    assert_eq!(verdict.status, SignatureStatus::Valid, "{:?}", verdict.problems);
+    assert_eq!(verdict.signer.as_ref().unwrap().common_name, "Ryan Tester");
 }
 
 #[test]

@@ -83,14 +83,6 @@ export function gapBytes(bytes: Uint8Array, range: ByteRange) {
   return out;
 }
 
-export function trimZeroPadding(der: Uint8Array) {
-  let end = der.length;
-  while (end > 0 && der[end - 1] === 0) {
-    end -= 1;
-  }
-  return der.subarray(0, end);
-}
-
 export function parseByteRange(values: Array<number | undefined> | null): { range: ByteRange; problems: string[] } {
   if (!values) {
     return { range: [0, 0, 0, 0], problems: ["The signature has no byte range."] };

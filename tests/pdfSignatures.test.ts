@@ -17,7 +17,6 @@ import {
   rewriteAction,
   scanSignatures,
   signatureWarning,
-  trimZeroPadding,
   verifyItemsOf,
 } from "../src/lib/pdfSignatures";
 import type { ByteRange, SignatureScan, SignatureVerdict } from "../src/lib/signatureTypes";
@@ -149,12 +148,11 @@ describe("byte helpers", () => {
     expect(parseByteRange(null).problems).toEqual(["The signature has no byte range."]);
   });
 
-  it("decodes the contents gap and trims trailing zero padding", () => {
+  it("decodes the contents gap", () => {
     const bytes = encoder.encode("/Contents <3082ab00000000>%%EOF");
     const range: ByteRange = [0, 10, 26, 5];
     expect(checkByteRange(bytes, range).ok).toBe(true);
     expect([...gapBytes(bytes, range)]).toEqual([0x30, 0x82, 0xab, 0, 0, 0, 0]);
-    expect([...trimZeroPadding(gapBytes(bytes, range))]).toEqual([0x30, 0x82, 0xab]);
   });
 
   it("rejects malformed byte ranges without throwing", () => {

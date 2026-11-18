@@ -10,7 +10,7 @@ use x509_cert::spki::AlgorithmIdentifierOwned;
 
 use super::algorithms::{Digest, Scheme, verify};
 use super::certs;
-use super::util::{children, read_tlv};
+use super::util::{ber_to_der, children, read_tlv};
 
 pub const ID_DATA: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.7.1");
 pub const ID_SIGNED_DATA: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.113549.1.7.2");
@@ -58,6 +58,8 @@ fn raw_signed_attributes(content_info: &[u8]) -> Option<Vec<u8>> {
 
 pub fn parse(der: &[u8]) -> Result<Cms, String> {
     let malformed = |err: der::Error| format!("The signature data couldn't be read: {err}");
+    let normalized = ber_to_der(der).ok_or("The signature data couldn't be read")?;
+    let der = normalized.as_ref();
     let content_info = ContentInfo::from_der(der).map_err(malformed)?;
     if content_info.content_type != ID_SIGNED_DATA {
         return Err("The signature data isn't CMS SignedData".into());
