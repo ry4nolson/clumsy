@@ -1,6 +1,12 @@
 import type { ChangeKind } from "./comparison";
-import { MAP_MAX_WIDTH, type MapLayout, type ViewerScroll } from "./documentMap";
+import { MAP_MAX_WIDTH, MIN_PAGE_WIDTH, type MapLayout, type ViewerScroll } from "./documentMap";
 import { lineAtOffset, offsetForLine, offsetsForLines, type LineBlock } from "./markdownScroll";
+
+const ARTICLE_WIDTH = 860;
+
+export const mapWidth = (articleWidth: number) => Math.min(MAP_MAX_WIDTH, Math.max(MIN_PAGE_WIDTH, Math.round((articleWidth * MAP_MAX_WIDTH) / ARTICLE_WIDTH)));
+
+export const mapScale = (articleWidth: number) => mapWidth(articleWidth) / Math.max(articleWidth, 1);
 
 export function documentLayout(contentHeight: number, scale: number): MapLayout {
   const height = Math.max(0, contentHeight * scale);

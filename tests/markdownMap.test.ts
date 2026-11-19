@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { scrollForSlider, sliderFor } from "../src/lib/documentMap";
-import { changeBands, documentLayout, sourceViewport } from "../src/lib/markdownMap";
+import { MAP_MAX_WIDTH, MIN_PAGE_WIDTH, scrollForSlider, sliderFor } from "../src/lib/documentMap";
+import { changeBands, documentLayout, mapScale, mapWidth, sourceViewport } from "../src/lib/markdownMap";
 import type { LineBlock } from "../src/lib/markdownScroll";
 
 describe("documentLayout", () => {
@@ -49,5 +49,19 @@ describe("changeBands", () => {
     const [band] = changeBands(blocks, [{ start: 11, end: 14, kind: "removed", current: false }]);
     expect(band.y).toBeCloseTo(425);
     expect(band.y + band.height).toBeCloseTo(500);
+  });
+});
+
+describe("mapWidth and mapScale", () => {
+  it("narrows the map with the article and keeps the scale", () => {
+    expect(mapWidth(860)).toBe(MAP_MAX_WIDTH);
+    expect(mapWidth(430)).toBe(MAP_MAX_WIDTH / 2);
+    expect(mapScale(430)).toBeCloseTo(mapScale(860));
+  });
+
+  it("stops at the smallest and largest widths", () => {
+    expect(mapWidth(40)).toBe(MIN_PAGE_WIDTH);
+    expect(mapWidth(1720)).toBe(MAP_MAX_WIDTH);
+    expect(mapScale(1720)).toBeCloseTo(mapScale(860) / 2);
   });
 });

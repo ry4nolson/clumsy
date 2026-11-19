@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The minimap beside a Markdown file no longer stretches its contents when the window gets narrower. Like the Document Map on a long PDF, it now narrows with the document and keeps its proportions
+
 ## [0.23.0] - 2026-11-19
 
 ### Added
