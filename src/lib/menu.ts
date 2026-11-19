@@ -252,6 +252,7 @@ export type MenuState = {
   markdownSource: boolean;
   split: boolean;
   comparing: boolean;
+  comparingPdf?: boolean;
   documentMap: boolean;
   documentMapAvailable: boolean;
   darkPages: boolean;
@@ -300,7 +301,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
   const documentItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
   const checkItems = new Map<CommandId, CheckMenuItem>();
   const splitItems: MenuItem[] = [];
-  const comparisonItems: MenuItem[] = [];
+  const comparisonItems: [Command, MenuItem][] = [];
   const contentItems: Array<[Command, MenuItem | CheckMenuItem]> = [];
   const recentMenu = await Submenu.new({ text: "Open Recent", items: [] });
 
@@ -330,7 +331,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
       splitItems.push(item);
     }
     if (command.needsComparison && item instanceof MenuItem) {
-      comparisonItems.push(item);
+      comparisonItems.push([command, item]);
     }
     return item;
   };
@@ -380,7 +381,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
       await Promise.all([
         ...documentItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state))),
         ...splitItems.map((item) => item.setEnabled(state.split)),
-        ...comparisonItems.map((item) => item.setEnabled(state.comparing)),
+        ...comparisonItems.map(([command, item]) => item.setEnabled(state.comparing && (!command.needsPdfComparison || !!state.comparingPdf))),
         ...contentItems.map(([command, item]) => item.setEnabled(documentAvailable(command, state) && contentAvailable(command, state))),
         checkItems.get("toggleDocumentMap")?.setEnabled(state.documentMapAvailable),
         ...[...checkItems].map(([id, item]) => item.setChecked(checked.has(id))),

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import type { CompareView } from "../hooks/useComparison";
+import type { MarkdownCompareView } from "../hooks/useMarkdownComparison";
 import type { Tab } from "../lib/tabs";
 import type * as ws from "../lib/workspace";
 import { DocumentTab, type DocumentHandle, type DocumentTabProps } from "./DocumentTab";
@@ -26,11 +27,12 @@ type TabContentsProps = {
   markdownProps: SharedMarkdownProps;
   caretBrowsing: boolean;
   compareFor: (tabId: string) => CompareView | null;
+  markdownCompareFor: (tabId: string) => MarkdownCompareView | null;
   setHandle: (id: string, handle: DocumentHandle | null) => void;
   setMarkdownHandle: (id: string, handle: MarkdownHandle | null) => void;
 };
 
-export function TabContents({ workspace, welcome, documentProps, markdownProps, caretBrowsing, compareFor, setHandle, setMarkdownHandle }: TabContentsProps) {
+export function TabContents({ workspace, welcome, documentProps, markdownProps, caretBrowsing, compareFor, markdownCompareFor, setHandle, setMarkdownHandle }: TabContentsProps) {
   return workspace.panes.flatMap((pane, index) =>
     pane.tabIds.map((tabId) => {
       const tab = workspace.tabs[tabId];
@@ -58,6 +60,7 @@ export function TabContents({ workspace, welcome, documentProps, markdownProps, 
               path={tab.path}
               initialView={tab.view}
               active={active}
+              compare={markdownCompareFor(tab.id)}
               {...markdownProps}
             />
           </Suspense>

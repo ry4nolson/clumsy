@@ -46,6 +46,10 @@
   inset: 0;
 }
 
+.viewer-area.comparing .markdown-source {
+  top: 36px;
+}
+
 .markdown-source .cm-editor {
   height: 100%;
 }

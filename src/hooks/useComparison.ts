@@ -6,11 +6,12 @@ import { diffInWorker } from "../lib/diffWorker";
 import { documentText } from "../lib/pdfText";
 import { downloadPdf } from "../lib/download";
 import { openErrorDetail } from "../lib/openErrors";
-import { isDesktop, pickPdf, pickSavePath, showError, writePdf, type PdfSource } from "../lib/platform";
+import { isDesktop, isMarkdownSource, pickDocument, pickPdf, pickSavePath, showError, writePdf, type DocumentSource } from "../lib/platform";
 import { changeAtLocation, syncLocation } from "../lib/scrollSync";
-import { createPaneId, type DocTab } from "../lib/tabs";
+import { createPaneId, isFileTab, type FileTab } from "../lib/tabs";
 import { scrollsVertically } from "../lib/viewModes";
 import * as ws from "../lib/workspace";
+import { useMarkdownComparison } from "./useMarkdownComparison";
 import type { WorkspaceApi } from "./useWorkspace";
 
 export type CompareStatus = "comparing" | "ready" | "failed";
@@ -41,7 +42,9 @@ export type CompareView = Omit<ComparisonState, "tabs" | "result" | "inView"> & 
 
 const sides: Side[] = ["left", "right"];
 
-export function useComparison({ workspace, snapshots, workspaceRef, handles, update, openSource }: WorkspaceApi, onStart: () => void) {
+export function useComparison(api: WorkspaceApi, onStart: () => void) {
+  const { workspace, snapshots, workspaceRef, handles, update, openSource } = api;
+  const markdown = useMarkdownComparison(api);
   const [state, setState] = useState<ComparisonState | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -196,13 +199,23 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
 
   const start = useCallback((left: string, right: string) => {
     const latest = stateRef.current;
+    markdown.end();
     onStartRef.current();
     if (latest?.tabs.left === left && latest.tabs.right === right && latest.status !== "failed") {
       return;
     }
     expected.current = { left: null, right: null };
     setState({ tabs: { left, right }, status: "comparing", progress: "Reading pages…", result: null, current: -1, inView: { left: -1, right: -1 }, linked: true });
-  }, []);
+  }, [markdown.end]);
+
+  const startFor = (left: FileTab, rightId: string) => {
+    if (left.kind === "document") {
+      start(left.id, rightId);
+    } else {
+      setState(null);
+      markdown.start(left.id, rightId);
+    }
+  };
 
   const end = useCallback(() => setState(null), []);
 
@@ -242,8 +255,8 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
   const swap = useCallback(() => setState((previous) => previous && { ...previous, tabs: { left: previous.tabs.right, right: previous.tabs.left } }), []);
   const toggleLinked = useCallback(() => setState((previous) => previous && { ...previous, linked: !previous.linked }), []);
 
-  const openBeside = async (left: DocTab, source: PdfSource) => {
-    const existing = ws.orderedTabs(workspaceRef.current).find((tab) => tab.kind === "document" && tab.path && tab.path === source.path && tab.id !== left.id);
+  const openBeside = async (left: FileTab, source: DocumentSource) => {
+    const existing = ws.orderedTabs(workspaceRef.current).find((tab) => tab.kind === left.kind && tab.path && tab.path === source.path && tab.id !== left.id);
     if (existing) {
       return existing.id;
     }
@@ -258,14 +271,19 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
 
   const compareWithFile = async () => {
     const left = ws.focusedTab(workspaceRef.current);
-    if (left.kind !== "document") {
+    if (!isFileTab(left)) {
       return;
     }
-    let source: PdfSource | null;
+    const wantsMarkdown = left.kind === "markdown";
+    let source: DocumentSource | null;
     try {
-      source = await pickPdf();
+      source = await (wantsMarkdown ? pickDocument() : pickPdf());
     } catch (error) {
-      await showError(`Could not open this PDF.\n\n${openErrorDetail(error)}`);
+      await showError(`Could not open this file.\n\n${openErrorDetail(error)}`);
+      return;
+    }
+    if (source && isMarkdownSource(source) !== wantsMarkdown) {
+      await showError("Choose a Markdown file to compare with this one.");
       return;
     }
     const rightId = source && (await openBeside(left, source));
@@ -280,7 +298,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
   const compareTabs = (leftId: string, rightId: string) => {
     const { tabs } = workspaceRef.current;
     const left = tabs[leftId];
-    if (left?.kind !== "document" || tabs[rightId]?.kind !== "document" || leftId === rightId) {
+    if (!isFileTab(left) || tabs[rightId]?.kind !== left.kind || leftId === rightId) {
       return;
     }
     update((latest) => {
@@ -291,7 +309,7 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
       const moved = ws.paneOfTab(latest, rightId) === leftPane ? ws.moveTab(latest, rightId, target) : latest;
       return ws.selectTab(ws.selectTab(moved, rightId), left.id);
     });
-    start(left.id, rightId);
+    startFor(left, rightId);
   };
 
   const compareSplitPanes = () => {
@@ -300,11 +318,11 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     const [leftPane, rightPane] = panes[index + 1] ? [panes[index], panes[index + 1]] : [panes[index - 1], panes[index]];
     const left = leftPane && tabs[leftPane.activeTabId];
     const right = rightPane && tabs[rightPane.activeTabId];
-    if (left?.kind !== "document" || right?.kind !== "document") {
-      showError("Open a PDF in both panes to compare them.");
+    if (!isFileTab(left) || right?.kind !== left.kind) {
+      showError("Open a PDF in both panes, or a Markdown file in both, to compare them.");
       return;
     }
-    start(left.id, right.id);
+    startFor(left, right.id);
   };
 
   const exportReport = async () => {
@@ -344,11 +362,11 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
       compareWithFile,
       compareSplitPanes,
       exportComparison: exportReport,
-      nextChange: () => step(1),
-      previousChange: () => step(-1),
-      swapComparison: swap,
-      toggleLinkedScroll: toggleLinked,
-      endComparison: end,
+      nextChange: () => (markdown.active ? markdown.step(1) : step(1)),
+      previousChange: () => (markdown.active ? markdown.step(-1) : step(-1)),
+      swapComparison: markdown.active ? markdown.swap : swap,
+      toggleLinkedScroll: markdown.active ? markdown.toggleLinked : toggleLinked,
+      endComparison: markdown.active ? markdown.end : end,
     };
     const action = actions[id];
     action?.();
@@ -366,5 +384,5 @@ export function useComparison({ workspace, snapshots, workspaceRef, handles, upd
     return { ...rest, comparison, inView: inView[side], side, otherName: other?.name ?? "", linkable, onSelect: goTo, onStep: step, onSwap: swap, onToggleLinked: toggleLinked, onExport: exportReport, onEnd: end };
   };
 
-  return { comparing: !!state, runCompareCommand, compareTabs, viewFor };
+  return { comparing: !!state || markdown.active, comparingPdf: !!state, runCompareCommand, compareTabs, viewFor, markdownViewFor: markdown.viewFor };
 }

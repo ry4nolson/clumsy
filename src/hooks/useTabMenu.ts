@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react";
 import { revealLabel, type CommandId } from "../lib/commands";
 import { canPrint, isMobile, showDocumentMenu } from "../lib/platform";
 import { comparedTabId, tabMenu, tabsToRight } from "../lib/tabMenu";
+import { isFileTab } from "../lib/tabs";
 import * as ws from "../lib/workspace";
 import type { WorkspaceApi } from "./useWorkspace";
 
@@ -30,7 +31,7 @@ export function useTabMenu({ workspaceRef, selectTab, closeTabs }: WorkspaceApi,
       const spec = tabMenu({
         tab: { id: tab.id, kind: tab.kind, path: tab.kind === "start" ? null : tab.path, protected: tab.kind === "document" && !!tab.protection },
         paneTabIds,
-        comparable: ws.orderedTabs(current).flatMap((other) => (other.kind === "document" ? [{ id: other.id, name: other.name }] : [])),
+        comparable: ws.orderedTabs(current).flatMap((other) => (isFileTab(other) && other.kind === tab.kind ? [{ id: other.id, name: other.name }] : [])),
         revealLabel,
         canPrint,
         canSplit: current.panes.length < ws.MAX_PANES,

@@ -154,6 +154,7 @@ export type Command = {
   needsMarkdown?: boolean;
   needsSplit?: boolean;
   needsComparison?: boolean;
+  needsPdfComparison?: boolean;
   needsForm?: boolean;
   needsProtection?: boolean;
   needsAttachments?: boolean;
@@ -187,8 +188,8 @@ export const commands: Command[] = [
   { id: "combineFiles", label: "Combine Files…", menu: "File", combos: [] },
   { id: "newPdfFromImages", label: "New PDF from Images…", menu: "File", combos: [] },
   { id: "exportPagesAsImages", label: "Export Pages as Images…", menu: "File", combos: [], needsDocument: true, needsDesktop: true },
-  { id: "compareWithFile", label: "Compare With File…", menu: "File", combos: [], needsDocument: true },
-  { id: "exportComparison", label: "Export Comparison Report…", menu: "File", combos: [], needsComparison: true },
+  { id: "compareWithFile", label: "Compare With File…", menu: "File", combos: [], needsDocument: true, markdown: true },
+  { id: "exportComparison", label: "Export Comparison Report…", menu: "File", combos: [], needsComparison: true, needsPdfComparison: true },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"], needsDesktop: true },
   { id: "save", label: "Save", menu: "File", combos: ["mod+s"], needsDocument: true, markdown: true },
@@ -338,6 +339,7 @@ export type CommandContext = {
   hasLayers?: boolean;
   split: boolean;
   comparing: boolean;
+  comparingPdf?: boolean;
   canPrint?: boolean;
   canSignDigitally?: boolean;
   desktopShell?: boolean;
@@ -369,6 +371,7 @@ export function commandAvailable(command: Command, context: CommandContext) {
     documentAvailable(command, context) &&
     (context.split || !command.needsSplit) &&
     (context.comparing || !command.needsComparison) &&
+    (!!context.comparingPdf || !command.needsPdfComparison) &&
     contentAvailable(command, context) &&
     platformSupports(command, context)
   );

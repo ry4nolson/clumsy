@@ -31,6 +31,7 @@
       "title": "Comparing",
       "items": [
         "Compare two PDFs side by side, word by word.",
+        "Compare two Markdown files line by line, and edit while you do.",
         "Filter changes by added, removed, or changed.",
         "Export a comparison report as a PDF.",
         "Export pages as PNG or JPEG at up to 300 dpi."

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject, type WheelEvent } from "react";
 import { MAP_MAX_WIDTH, scrollForSlider, sliderFor, type ViewerScroll } from "../lib/documentMap";
-import { documentLayout } from "../lib/markdownMap";
-import { barCollector, collectMarks, collectShapes, onlyFindMarks, packBars, paintShapes, type BarCollector, type MapShapes } from "../lib/markdownMapShapes";
+import { measureBlocks } from "../lib/markdownDom";
+import { changeBands, documentLayout, type LineChange, type MapChange } from "../lib/markdownMap";
+import { barCollector, collectMarks, collectShapes, onlyFindMarks, packBars, paintChanges, paintShapes, type BarCollector, type ChangePalette, type MapShapes } from "../lib/markdownMapShapes";
+import type { LineBlock } from "../lib/markdownScroll";
 import type { MarkdownMode } from "../lib/tabs";
 
 const MIN_SLIDER_HEIGHT = 4;
@@ -16,12 +18,24 @@ type MarkdownMapProps = {
   view: () => ViewerScroll | null;
   scrollTo: (scrollTop: number) => void;
   scrollBy: (delta: number) => void;
+  changes: readonly LineChange[] | null;
 };
 
-export function MarkdownMap({ content, container, editorHost, mode, view, scrollTo, scrollBy }: MarkdownMapProps) {
+const paletteOf = (element: HTMLElement): ChangePalette => {
+  const style = getComputedStyle(element);
+  const read = (name: string) => style.getPropertyValue(name).trim();
+  return { added: read("--diff-added"), removed: read("--diff-removed"), modified: read("--diff-modified"), current: read("--accent") };
+};
+
+export function MarkdownMap({ content, container, editorHost, mode, view, scrollTo, scrollBy, changes }: MarkdownMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shapesRef = useRef<MapShapes | null>(null);
+  const blocksRef = useRef<LineBlock[] | null>(null);
+  const paletteRef = useRef<ChangePalette | null>(null);
+  const bandsRef = useRef<MapChange[]>([]);
+  const changesRef = useRef(changes);
+  changesRef.current = changes;
   const sliderRef = useRef<HTMLDivElement>(null);
   const grabRef = useRef<number | null>(null);
   const [areaHeight, setAreaHeight] = useState(0);
@@ -57,8 +71,34 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
     }
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     const background = mapRef.current ? getComputedStyle(mapRef.current).backgroundColor : "transparent";
-    paintShapes(context, shapes, { scale: MAP_MAX_WIDTH / Math.max(shapes.width, 1), offset, width: MAP_MAX_WIDTH, height: areaHeight, background });
+    const area = { scale: MAP_MAX_WIDTH / Math.max(shapes.width, 1), offset, width: MAP_MAX_WIDTH, height: areaHeight };
+    paintShapes(context, shapes, { ...area, background });
+    if (bandsRef.current.length && mapRef.current) {
+      paintChanges(context, bandsRef.current, (paletteRef.current ??= paletteOf(mapRef.current)), area);
+    }
   }, []);
+
+  const placeChanges = useCallback(
+    (remeasure: boolean) => {
+      const article = content.current;
+      const list = changesRef.current;
+      if (!article || !list?.length) {
+        blocksRef.current = null;
+        bandsRef.current = [];
+        return;
+      }
+      if (remeasure || !blocksRef.current) {
+        blocksRef.current = measureBlocks(article, article);
+      }
+      bandsRef.current = changeBands(blocksRef.current, list);
+    },
+    [content],
+  );
+
+  useEffect(() => {
+    placeChanges(false);
+    paint();
+  }, [changes, placeChanges, paint]);
 
   useLayoutEffect(() => {
     const map = mapRef.current;
@@ -97,6 +137,7 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
         window.clearTimeout(slice);
         const bars = collectBars(barCollector(article)) ?? shapesRef.current?.bars ?? packBars([], [], 0);
         shapesRef.current = collectShapes(article, bars);
+        placeChanges(true);
         setSize((previous) =>
           previous.width === article.offsetWidth && previous.height === article.offsetHeight ? previous : { width: article.offsetWidth, height: article.offsetHeight },
         );
@@ -115,7 +156,10 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
     const resize = new ResizeObserver(() => schedule(true));
     resize.observe(article);
     const scheme = window.matchMedia("(prefers-color-scheme: dark)");
-    const recolor = () => schedule(true);
+    const recolor = () => {
+      paletteRef.current = null;
+      schedule(true);
+    };
     scheme.addEventListener("change", recolor);
     article.addEventListener("load", paint, true);
     full = true;
@@ -128,7 +172,7 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
       window.clearTimeout(timer);
       window.clearTimeout(slice);
     };
-  }, [content, paint]);
+  }, [content, paint, placeChanges]);
 
   useEffect(() => {
     const box = container.current;

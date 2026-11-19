@@ -46,6 +46,22 @@ Scroll one side and the other follows, lined up on matching text rather than pag
 
 **File > Export Comparison Report** saves a PDF listing every change with its page, its kind, and the text before and after, plus the totals. Send that instead of trying to describe forty edits in an email.
 
+## Comparing Markdown files
+
+The same two commands compare two Markdown files. Open one, choose **File > Compare With File**, and pick the other, or put both in a split and choose **View > Compare Split Panes**.
+
+Both files switch to their source, since that's where a Markdown change lives:
+
+- A line that was **changed** is tinted on both sides, with the words that differ highlighted inside it.
+- Lines that were **added** are tinted on the changed side, and a thin line on the original shows where they'd go.
+- Lines that were **removed** are tinted on the original, with the thin line on the changed side.
+
+Each change is also marked on the minimap beside each file. Next Change, Previous Change, linked scrolling, and Swap sides work as they do for PDFs. The bar counts the changes, and hovering over the count shows how many lines were added and removed.
+
+Both sides stay editable, and the marks follow as you type. That makes it a way to merge by hand: step to a change, fix it on one side, and watch it disappear.
+
+Switching either file back to the formatted view ends the comparison. There's no Changes tab and no report for Markdown, and a PDF can't be compared with a Markdown file.
+
 ## Ending it
 
 The **End comparison** button in the bar, or View > End Comparison. Closing either tab ends it too. Nothing about a comparison is ever saved into either document: the marks are only on your screen.

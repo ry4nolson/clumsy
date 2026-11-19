@@ -218,6 +218,7 @@ export default function App() {
     ...contents,
     split: workspace.panes.length > 1,
     comparing: comparison.comparing,
+    comparingPdf: comparison.comparingPdf,
     canPrint,
     canSignDigitally,
     desktopShell: !isMobile,
@@ -379,6 +380,7 @@ export default function App() {
       markdownSource: markdownSnapshot?.mode === "source",
       split: workspace.panes.length > 1,
       comparing: comparison.comparing,
+      comparingPdf: comparison.comparingPdf,
       documentMap,
       darkPages,
       invertImages: darkPagesImages === "invert",
@@ -492,6 +494,7 @@ export default function App() {
           markdownProps={{ sidebarOpen, documentMap, onSnapshot: handleMarkdownSnapshot, onLoaded: handleLoaded, onOpenUrl: openExternal, onOpenFile: markdown.openLinked }}
           caretBrowsing={viewControls.caretBrowsing}
           compareFor={comparison.viewFor}
+          markdownCompareFor={comparison.markdownViewFor}
           setHandle={setHandle}
           setMarkdownHandle={setMarkdownHandle}
         />

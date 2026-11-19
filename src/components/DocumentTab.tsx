@@ -23,7 +23,7 @@ import { scrollsVertically, type DocumentSidebar, type ViewModes } from "../lib/
 import { viewStart } from "../lib/viewStart";
 import { ChangesList } from "./ChangesList";
 import { CommentsList } from "./CommentsList";
-import { CompareBar } from "./CompareBar";
+import { CompareBar, pdfCompareBar } from "./CompareBar";
 import { useDocumentInfo } from "./DocumentInfo";
 import { DocumentMap } from "./DocumentMap";
 import { EditorSheets, EditorUndoBar } from "./EditorSheets";
@@ -449,7 +449,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
         />
       )}
       <main className={`viewer-area${compare ? " comparing" : signatures.bar ? " signed" : ""}`}>
-        {compare ? <CompareBar view={compare} /> : <SignatureBar signatures={signatures} />}
+        {compare ? <CompareBar view={pdfCompareBar(compare)} /> : <SignatureBar signatures={signatures} />}
         {findOpen && (
           <FindBar
             status={viewer.findStatus}

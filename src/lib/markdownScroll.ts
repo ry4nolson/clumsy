@@ -42,3 +42,46 @@ export function offsetForLine(blocks: LineBlock[], line: number) {
   const from = before ? { line: before.end, offset: before.bottom } : { line: 0, offset: 0 };
   return interpolate(line, from.line, after.start, from.offset, after.top);
 }
+
+type Entry = { block: LineBlock; index: number };
+
+const height = (block: LineBlock) => block.bottom - block.top;
+
+const isInner = (a: Entry, b: Entry) =>
+  span(a.block) < span(b.block) || (span(a.block) === span(b.block) && (height(a.block) < height(b.block) || (height(a.block) === height(b.block) && a.index < b.index)));
+
+export function offsetsForLines(blocks: LineBlock[], lines: readonly number[]) {
+  const byStart = blocks.map((block, index) => ({ block, index })).sort((a, b) => a.block.start - b.block.start || a.index - b.index);
+  const byEnd = [...byStart].sort((a, b) => a.block.end - b.block.end || a.index - b.index);
+  const offsets = new Map<number, number>();
+  let active: Entry[] = [];
+  let opened = 0;
+  let closed = 0;
+  let before: LineBlock | null = null;
+  for (const line of [...new Set(lines)].sort((a, b) => a - b)) {
+    while (opened < byStart.length && byStart[opened].block.start <= line) {
+      active.push(byStart[opened++]);
+    }
+    active = active.filter(({ block }) => line < block.end);
+    while (closed < byEnd.length && byEnd[closed].block.end <= line) {
+      const { block } = byEnd[closed++];
+      if (!before || block.end > before.end || (block.end === before.end && block.bottom > before.bottom)) {
+        before = block;
+      }
+    }
+    const inside = active.reduce<Entry | null>((best, entry) => (!best || isInner(entry, best) ? entry : best), null)?.block;
+    if (inside) {
+      offsets.set(line, interpolate(line, inside.start, inside.end, inside.top, inside.bottom));
+      continue;
+    }
+    let after: LineBlock | null = byStart[opened]?.block ?? null;
+    for (let next = opened + 1; after && next < byStart.length && byStart[next].block.start === after.start; next++) {
+      if (byStart[next].block.top < after.top) {
+        after = byStart[next].block;
+      }
+    }
+    const from = before ? { line: before.end, offset: before.bottom } : { line: 0, offset: 0 };
+    offsets.set(line, after ? interpolate(line, from.line, after.start, from.offset, after.top) : before ? before.bottom : 0);
+  }
+  return offsets;
+}
