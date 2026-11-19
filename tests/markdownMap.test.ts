@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scrollForSlider, sliderFor } from "../src/lib/documentMap";
-import { documentLayout, sourceViewport } from "../src/lib/markdownMap";
+import { changeBands, documentLayout, sourceViewport } from "../src/lib/markdownMap";
 import type { LineBlock } from "../src/lib/markdownScroll";
 
 describe("documentLayout", () => {
@@ -28,5 +28,26 @@ describe("sourceViewport", () => {
 
   it("places the editor's visible lines on the rendered layout", () => {
     expect(sourceViewport(blocks, [5, 15], 600)).toEqual({ scrollTop: 200, clientHeight: 300, scrollHeight: 600 });
+  });
+});
+
+describe("changeBands", () => {
+  const blocks: LineBlock[] = [
+    { start: 0, end: 10, top: 0, bottom: 400 },
+    { start: 12, end: 20, top: 450, bottom: 650 },
+  ];
+
+  it("places each changed line range on the rendered layout", () => {
+    expect(changeBands(blocks, [{ start: 2, end: 4, kind: "modified", current: false }])).toEqual([{ y: 80, height: 80, kind: "modified", current: false }]);
+  });
+
+  it("gives a range that only exists on the other side no height", () => {
+    expect(changeBands(blocks, [{ start: 10, end: 10, kind: "added", current: true }])).toEqual([{ y: 400, height: 0, kind: "added", current: true }]);
+  });
+
+  it("interpolates across the gap between blocks", () => {
+    const [band] = changeBands(blocks, [{ start: 11, end: 14, kind: "removed", current: false }]);
+    expect(band.y).toBeCloseTo(425);
+    expect(band.y + band.height).toBeCloseTo(500);
   });
 });

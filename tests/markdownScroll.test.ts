@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lineAtOffset, offsetForLine, type LineBlock } from "../src/lib/markdownScroll";
+import { lineAtOffset, offsetForLine, offsetsForLines, type LineBlock } from "../src/lib/markdownScroll";
 
 const blocks: LineBlock[] = [
   { start: 0, end: 1, top: 20, bottom: 60 },
@@ -48,5 +48,35 @@ describe("offsetForLine", () => {
   it("handles lines outside every block", () => {
     expect(offsetForLine(blocks, 40)).toBe(600);
     expect(offsetForLine([], 3)).toBe(0);
+  });
+});
+
+describe("offsetsForLines", () => {
+  it("matches offsetForLine for every line, with nested blocks and gaps", () => {
+    let seed = 7;
+    const random = (limit: number) => (seed = (seed * 16807) % 2147483647) % limit;
+    for (let round = 0; round < 20; round++) {
+      const blocks: LineBlock[] = [];
+      let line = random(3);
+      let top = random(20);
+      while (blocks.length < 40) {
+        const size = 1 + random(4);
+        const height = 10 + random(40);
+        blocks.push({ start: line, end: line + size, top, bottom: top + height });
+        if (random(3) === 0) {
+          blocks.push({ start: line + random(size), end: line + size, top: top + 2, bottom: top + height - 2 });
+        }
+        if (random(5) === 0) {
+          blocks.push({ start: line, end: line + size, top, bottom: top + height });
+        }
+        line += size + random(3);
+        top += height + random(30);
+      }
+      const lines = Array.from({ length: line + 3 }, (_, index) => index);
+      const offsets = offsetsForLines(blocks, lines);
+      for (const query of lines) {
+        expect(offsets.get(query)).toBe(offsetForLine(blocks, query));
+      }
+    }
   });
 });

@@ -1,18 +1,26 @@
 import { history, defaultKeymap, historyKeymap, redo, undo, cursorDocStart, cursorDocEnd } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { EditorSelection, EditorState, StateEffect, StateField, type Range } from "@codemirror/state";
+import { EditorSelection, EditorState, StateEffect, StateField, type ChangeSet, type Range } from "@codemirror/state";
 import { Decoration, EditorView, keymap, type DecorationSet } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import type { TextMatch } from "./textFind";
 
+export type DiffLine = { from: number; className: string };
+
+export type DiffMarks = { lines: DiffLine[]; text: Array<{ from: number; to: number }> };
+
 export type MarkdownEditor = {
+  view: EditorView;
   text: () => string;
   setText: (text: string) => void;
   lineAtTop: () => number;
   visibleLines: () => [number, number];
   scrollBy: (delta: number) => void;
   scrollToLine: (line: number) => void;
+  setTopLine: (line: number) => number;
+  setDiff: (marks: DiffMarks | null) => void;
+  subscribe: (listener: (changes: ChangeSet | null) => void) => () => void;
   placeCursorAtLine: (line: number) => void;
   setMatches: (matches: TextMatch[], current: number) => void;
   revealMatch: (match: TextMatch) => void;
@@ -59,7 +67,46 @@ const matchField = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+const setDiffEffect = StateEffect.define<DiffMarks | null>();
+
+const diffText = Decoration.mark({ class: "diff-text" });
+
+const diffField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decorations, transaction) {
+    let next = decorations.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (effect.is(setDiffEffect)) {
+        const marks = effect.value;
+        next = marks
+          ? Decoration.set(
+              [...marks.lines.map((line) => Decoration.line({ class: line.className }).range(line.from)), ...marks.text.map((range) => diffText.range(range.from, range.to))],
+              true,
+            )
+          : Decoration.none;
+      }
+    }
+    return next;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+const tint = (color: string, amount: number) => `color-mix(in srgb, var(--diff-${color}) ${amount}%, transparent)`;
+
+const diffTheme = Object.fromEntries(
+  ["added", "removed", "modified"].flatMap((kind) => [
+    [`.diff-line.${kind}`, { background: tint(kind, 13) }],
+    [`.diff-line.${kind} .diff-text`, { background: tint(kind, 30), borderRadius: "2px" }],
+    [`.diff-gap.${kind}`, { boxShadow: `inset 0 2px var(--diff-${kind})` }],
+    [`.diff-gap.after.${kind}`, { boxShadow: `inset 0 -2px var(--diff-${kind})` }],
+    [`.diff-line.${kind}.diff-current`, { boxShadow: `inset 3px 0 var(--diff-${kind})` }],
+    [`.diff-gap.${kind}.diff-current`, { boxShadow: `inset 0 2px var(--diff-${kind}), inset 3px 0 var(--diff-${kind})` }],
+    [`.diff-gap.after.${kind}.diff-current`, { boxShadow: `inset 0 -2px var(--diff-${kind}), inset 3px 0 var(--diff-${kind})` }],
+  ]),
+);
+
 const theme = EditorView.theme({
+  ...diffTheme,
   "&": { height: "100%", fontSize: "var(--md-source-size, 13px)", background: "transparent", color: "var(--text)" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", lineHeight: "1.6", scrollbarGutter: "stable" },
@@ -74,6 +121,9 @@ function topOffset(view: EditorView) {
 }
 
 export function createMarkdownEditor(parent: HTMLElement, text: string, onChange: (text: string) => void): MarkdownEditor {
+  const listeners = new Set<(changes: ChangeSet | null) => void>();
+  const changed = (changes: ChangeSet | null) => listeners.forEach((listener) => listener(changes));
+  let alive = true;
   const extensions = [
     history(),
     keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -81,10 +131,12 @@ export function createMarkdownEditor(parent: HTMLElement, text: string, onChange
     syntaxHighlighting(highlightStyle),
     EditorView.lineWrapping,
     matchField,
+    diffField,
     theme,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         onChange(update.state.doc.toString());
+        changed(update.changes);
       }
     }),
   ];
@@ -96,12 +148,15 @@ export function createMarkdownEditor(parent: HTMLElement, text: string, onChange
     return { pos: doc.line(number).from, fraction: Math.floor(line) + 1 > doc.lines ? 1 : line - Math.floor(line) };
   };
 
-  const scrollToLine = (line: number) => {
+  const setTopLine = (line: number) => {
     const { pos, fraction } = lineStart(line);
-    const apply = () => {
-      const block = view.lineBlockAt(pos);
-      view.scrollDOM.scrollTop += block.top + fraction * block.height - topOffset(view);
-    };
+    const block = view.lineBlockAt(pos);
+    view.scrollDOM.scrollTop += block.top + fraction * block.height - topOffset(view);
+    return view.scrollDOM.scrollTop;
+  };
+
+  const scrollToLine = (line: number) => {
+    const apply = () => setTopLine(line);
     apply();
     requestAnimationFrame(() => {
       apply();
@@ -117,10 +172,12 @@ export function createMarkdownEditor(parent: HTMLElement, text: string, onChange
   };
 
   return {
+    view,
     text: () => view.state.doc.toString(),
     setText(next) {
       if (next !== view.state.doc.toString()) {
         view.setState(EditorState.create({ doc: next, extensions }));
+        changed(null);
       }
     },
     lineAtTop: () => lineAtHeight(topOffset(view)),
@@ -131,6 +188,16 @@ export function createMarkdownEditor(parent: HTMLElement, text: string, onChange
     scrollBy: (delta) => view.scrollDOM.scrollBy({ top: delta }),
     offsetAtTop: () => view.lineBlockAtHeight(Math.max(0, topOffset(view))).from,
     scrollToLine,
+    setTopLine,
+    setDiff(marks) {
+      if (alive) {
+        view.dispatch({ effects: setDiffEffect.of(marks) });
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     placeCursorAtLine(line) {
       view.dispatch({ selection: EditorSelection.cursor(lineStart(Math.ceil(line - 0.001)).pos) });
     },
@@ -152,6 +219,10 @@ export function createMarkdownEditor(parent: HTMLElement, text: string, onChange
     focus: () => view.contentDOM.focus({ preventScroll: true }),
     hasFocus: () => view.contentDOM.contains(document.activeElement),
     measure: () => view.requestMeasure(),
-    destroy: () => view.destroy(),
+    destroy() {
+      alive = false;
+      listeners.clear();
+      view.destroy();
+    },
   };
 }

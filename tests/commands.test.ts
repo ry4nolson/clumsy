@@ -67,6 +67,12 @@ describe("commandAvailable", () => {
   const markdownTab = { hasDocument: false, hasMarkdown: true, split: false, comparing: false };
   const pdfTab = { hasDocument: true, hasMarkdown: false, split: false, comparing: false };
 
+  it("offers Export Comparison Report only during a PDF comparison", () => {
+    expect(available("exportComparison", { ...pdfTab, comparing: true, comparingPdf: true })).toBe(true);
+    expect(available("exportComparison", { ...markdownTab, comparing: true })).toBe(false);
+    expect(available("nextChange", { ...markdownTab, comparing: true })).toBe(true);
+  });
+
   it("offers printing only where the platform can print, and Print Selected Pages for PDFs only", () => {
     for (const id of ["print", "printSelectedPages"] as const) {
       expect(commandById.get(id)?.needsDocument, id).toBe(true);
@@ -100,10 +106,10 @@ describe("commandAvailable", () => {
   });
 
   it("offers file commands for Markdown tabs and keeps PDF-only ones off", () => {
-    for (const id of ["save", "saveAs", "find", "findNext", "toggleSidebar", "showOutline", "zoomIn", "firstPage", "toggleMarkdownSource"] as const) {
+    for (const id of ["save", "saveAs", "find", "findNext", "toggleSidebar", "showOutline", "zoomIn", "firstPage", "toggleMarkdownSource", "compareWithFile"] as const) {
       expect(available(id, markdownTab), id).toBe(true);
     }
-    for (const id of ["fitWidth", "rotateRight", "toolHighlight", "deletePages", "exportPagesAsImages", "compareWithFile", "goToPage", "showPages"] as const) {
+    for (const id of ["fitWidth", "rotateRight", "toolHighlight", "deletePages", "exportPagesAsImages", "goToPage", "showPages"] as const) {
       expect(available(id, markdownTab), id).toBe(false);
     }
   });

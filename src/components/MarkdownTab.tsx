@@ -1,16 +1,19 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import { useLinkedImages } from "../hooks/useLinkedImages";
 import { useMarkdownFind } from "../hooks/useMarkdownFind";
 import { useRenderedMarkdown } from "../hooks/useRenderedMarkdown";
-import { imageTypeOf } from "../lib/imageFiles";
+import { useRenderFollow } from "../hooks/useRenderFollow";
 import { headingAt, renderMarkdown, type Heading, type HeadingNode } from "../lib/markdown";
 import type { ViewerScroll } from "../lib/documentMap";
 import { measureBlocks, offsetWithin, printableArticle, printCopy, renderedLineAtTop, renderedOffsetOf } from "../lib/markdownDom";
 import type { MarkdownEditor } from "../lib/markdownEditor";
 import { isTypingTarget } from "../lib/commands";
-import { anchorIds, classifyHref, localImagePath } from "../lib/markdownLinks";
+import { anchorIds, classifyHref } from "../lib/markdownLinks";
 import { sourceLineAt, sourceViewport } from "../lib/markdownMap";
-import { readLinkedImage, type MarkdownSource } from "../lib/platform";
+import type { MarkdownSource } from "../lib/platform";
 import type { MarkdownMode, MarkdownViewState } from "../lib/tabs";
+import type { MarkdownCompareView } from "../hooks/useMarkdownComparison";
+import { CompareBar } from "./CompareBar";
 import { FindBar } from "./FindBar";
 import { MarkdownMap } from "./MarkdownMap";
 import { OutlineTree } from "./OutlineTree";
@@ -28,6 +31,7 @@ export type MarkdownHandle = {
   closeFind: () => void;
   findAgain: (previous: boolean) => void;
   toggleSource: () => void;
+  showSource: (focus: boolean) => Promise<MarkdownEditor>;
   zoom: (step: -1 | 0 | 1) => void;
   toEdge: (top: boolean) => boolean;
   editingCommand: (name: "undo" | "redo") => boolean;
@@ -44,6 +48,7 @@ type MarkdownTabProps = {
   active: boolean;
   sidebarOpen: boolean;
   documentMap: boolean;
+  compare: MarkdownCompareView | null;
   onSnapshot: (id: string, snapshot: MarkdownSnapshot) => void;
   onLoaded: (id: string) => void;
   onOpenUrl: (url: string) => void;
@@ -58,7 +63,7 @@ const anchorSelector = (id: string) =>
     .join(", ");
 
 export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function MarkdownTab(
-  { id, paneId, column, source, path, initialView, active, sidebarOpen, documentMap, onSnapshot, onLoaded, onOpenUrl, onOpenFile },
+  { id, paneId, column, source, path, initialView, active, sidebarOpen, documentMap, compare, onSnapshot, onLoaded, onOpenUrl, onOpenFile },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,13 +76,16 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
   const sourceRef = useRef(source);
   const pendingLine = useRef<number | null>(initialView?.line ?? null);
   const heldLine = useRef<number | null>(null);
-  const images = useRef(new Map<string, Promise<string | null>>());
   const pathRef = useRef(path);
   pathRef.current = path;
+  const compareRef = useRef(compare);
+  compareRef.current = compare;
+  const loadImages = useLinkedImages(pathRef);
   const unmounted = useRef(false);
   const [modified, setModified] = useState(false);
   const [renderedText, setRenderedText] = useState(source.text);
   const [mode, setMode] = useState<MarkdownMode>(initialView?.mode ?? "rendered");
+  const follow = useRenderFollow(documentMap && !!compare, () => setRenderedText(textRef.current));
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const [zoom, setZoom] = useState(initialView?.zoom ?? 1);
@@ -121,7 +129,8 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     if (modeRef.current === "source") {
       refreshFind.current();
     }
-  }, []);
+    follow();
+  }, [follow]);
 
   const ensureEditor = useCallback(() => {
     if (editorRef.current) {
@@ -144,11 +153,9 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     if (initialView?.mode === "source") {
       ensureEditor().then((editor) => editor.scrollToLine(initialView.line));
     }
-    const loaded = images.current;
     return () => {
       unmounted.current = true;
       editorRef.current?.destroy();
-      loaded.forEach((url) => url.then((value) => value && URL.revokeObjectURL(value)));
     };
   }, []);
 
@@ -168,34 +175,6 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     pendingLine.current = line;
     setRenderedText(source.text);
   }, [source]);
-
-  const loadImages = useCallback((root: HTMLElement) => {
-    const path = pathRef.current;
-    const loading = [...root.querySelectorAll<HTMLImageElement>("img[data-local-src]")].map((image) => {
-      const src = image.dataset.localSrc!;
-      const fallback = () => {
-        const missing = document.createElement("span");
-        missing.className = "missing-image";
-        missing.textContent = image.alt || src;
-        image.replaceWith(missing);
-      };
-      if (!path) {
-        fallback();
-        return Promise.resolve();
-      }
-      const key = `${path}\n${src}`;
-      let url = images.current.get(key);
-      if (!url) {
-        const file = localImagePath(src);
-        url = readLinkedImage(path, file)
-          .then((bytes) => URL.createObjectURL(new Blob([bytes as BlobPart], { type: imageTypeOf(file) })))
-          .catch(() => null);
-        images.current.set(key, url);
-      }
-      return url.then((value) => (value ? (image.src = value) : fallback()));
-    });
-    return Promise.all(loading);
-  }, []);
 
   useLayoutEffect(() => {
     const content = contentRef.current;
@@ -258,19 +237,33 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     };
   }, [sidebarOpen, mode, currentLine]);
 
-  const toggleSource = useCallback(() => {
-    if (modeRef.current === "rendered") {
+  const showSource = useCallback(
+    (focus: boolean) => {
+      if (modeRef.current === "source") {
+        return ensureEditor();
+      }
       const line = currentLine();
       heldLine.current = null;
       setMode("source");
-      ensureEditor().then((editor) => {
+      return ensureEditor().then((editor) => {
         editor.scrollToLine(line);
         editor.placeCursorAtLine(line);
-        editor.focus();
+        if (focus) {
+          editor.focus();
+        }
         refreshFind.current();
+        return editor;
       });
+    },
+    [ensureEditor, currentLine],
+  );
+
+  const toggleSource = useCallback(() => {
+    if (modeRef.current === "rendered") {
+      void showSource(true);
       return;
     }
+    compareRef.current?.onEnd();
     const line = editorRef.current?.lineAtTop() ?? 0;
     setMode("rendered");
     containerRef.current?.focus({ preventScroll: true });
@@ -280,7 +273,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
     } else {
       scrollRendered(line);
     }
-  }, [ensureEditor, currentLine, renderedText, scrollRendered]);
+  }, [showSource, renderedText, scrollRendered]);
 
   useEffect(() => {
     refreshFind.current();
@@ -399,6 +392,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
       closeFind: find.closeFind,
       findAgain: find.findAgain,
       toggleSource,
+      showSource,
       zoom: changeZoom,
       toEdge: (top) => {
         if (modeRef.current === "source") {
@@ -423,7 +417,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
       printable: () =>
         modeRef.current === "rendered" && contentRef.current ? printCopy(contentRef.current, loadImages) : printableArticle(renderMarkdown(textRef.current).html, loadImages),
     }),
-    [changeZoom, currentLine, find.closeFind, find.findAgain, find.openFind, loadImages, toggleSource, zoom],
+    [changeZoom, currentLine, find.closeFind, find.findAgain, find.openFind, loadImages, showSource, toggleSource, zoom],
   );
 
   useEffect(() => {
@@ -468,7 +462,8 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
           </div>
         </SidebarShell>
       )}
-      <main className="viewer-area markdown-area">
+      <main className={`viewer-area markdown-area${compare ? " comparing" : ""}`}>
+        {compare && <CompareBar view={compare} />}
         {find.findOpen && (
           <FindBar status={find.status} focusToken={find.focusToken} seed={find.seed} onFind={find.find} onClose={find.closeFind} />
         )}
@@ -492,6 +487,7 @@ export const MarkdownTab = forwardRef<MarkdownHandle, MarkdownTabProps>(function
           view={mapView}
           scrollTo={mapScrollTo}
           scrollBy={mapScrollBy}
+          changes={compare?.changes ?? null}
         />
       )}
     </div>

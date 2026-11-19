@@ -23,6 +23,10 @@ Clumsy only follows links to files inside the same project: the folder the Markd
 
 The source editor has syntax coloring, undo and redo, and find. [[⌘S]] saves. Clumsy keeps the file's line endings and encoding as it found them.
 
+## Comparing two versions
+
+**File > Compare With File** puts another Markdown file beside this one and marks every line that differs in the source of both. See [Comparing two PDFs](/guides/compare#comparing-markdown-files) for how to read it.
+
 ## Getting around
 
 Most of what works on a PDF works here:

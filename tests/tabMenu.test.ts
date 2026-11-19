@@ -79,7 +79,7 @@ describe("tabMenu", () => {
       ["Close Tab", "Close Other Tabs", "Close Tabs to the Right"],
       ["Save", "Save As…"],
       ["Copy Path", "Show in Finder"],
-      ["Split Right", "Move Tab to New Window"],
+      ["Compare With", "Split Right", "Move Tab to New Window"],
       [],
     ]);
   });

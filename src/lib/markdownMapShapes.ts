@@ -2,6 +2,9 @@ export type MapBox = { x: number; y: number; width: number; height: number; fill
 export type MapImage = { image: HTMLImageElement; x: number; y: number; width: number; height: number };
 export type MapHighlight = { x: number; y: number; width: number; height: number; color: string };
 export type MapBars = { geometry: Float32Array; colors: string[]; colorIndex: Uint16Array; tallest: number };
+import type { ChangeKind } from "./comparison";
+import type { MapChange } from "./markdownMap";
+
 export type MapShapes = { width: number; height: number; boxes: MapBox[]; bars: MapBars; images: MapImage[]; marks: MapHighlight[] };
 
 const BOX_SELECTOR = "pre, code, blockquote, hr, h1, h2, tr, th, td, kbd, .missing-image";
@@ -165,6 +168,36 @@ export function firstBarFrom(geometry: Float32Array, top: number) {
 }
 
 type PaintArea = { scale: number; offset: number; width: number; height: number; background: string };
+
+export type ChangePalette = Record<ChangeKind | "current", string>;
+
+const CHANGE_ALPHA = 0.3;
+const CHANGE_STRIP = 3;
+
+export function paintChanges(context: CanvasRenderingContext2D, changes: readonly MapChange[], palette: ChangePalette, { scale, offset, width, height }: Omit<PaintArea, "background">) {
+  if (!scale) {
+    return;
+  }
+  for (const change of changes) {
+    const top = change.y * scale - offset;
+    const extent = Math.max(change.height * scale, MIN_MARK);
+    if (top + extent < 0 || top > height) {
+      continue;
+    }
+    context.fillStyle = palette[change.kind];
+    if (change.height) {
+      context.globalAlpha = CHANGE_ALPHA;
+      context.fillRect(0, top, width, extent);
+      context.globalAlpha = 1;
+    }
+    context.fillRect(0, top, change.height ? CHANGE_STRIP : width, extent);
+    if (change.current) {
+      context.strokeStyle = palette.current;
+      context.lineWidth = 1;
+      context.strokeRect(0.5, top - 0.5, width - 1, extent + 1);
+    }
+  }
+}
 
 export function paintShapes(context: CanvasRenderingContext2D, shapes: MapShapes, { scale, offset, width, height, background }: PaintArea) {
   context.fillStyle = background;

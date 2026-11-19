@@ -42,7 +42,7 @@ export function tabMenu(context: TabMenuContext): DocumentMenuSpec {
     });
   }
   const arrange = [item("splitRight", "Split Right", context.canSplit), item("moveTabToNewWindow", "Move Tab to New Window")];
-  if (isPdf) {
+  if (isFile) {
     const others = context.comparable.filter((other) => other.id !== tab.id).map((other) => item(`${comparePrefix}${other.id}`, other.name));
     arrange.unshift({
       kind: "submenu",

@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Compare Markdown files**: Compare With File and Compare Split Panes now work on two Markdown files. Both open in source view side by side with changed, added, and removed lines marked, the changed words highlighted inside them, linked scrolling, Next and Previous Change, and every change marked on the minimap. The marks update as you edit either side
+
 ## [0.22.2] - 2026-11-18
 
 ### Changed
