@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject, type WheelEvent } from "react";
-import { MAP_MAX_WIDTH, scrollForSlider, sliderFor, type ViewerScroll } from "../lib/documentMap";
+import { scrollForSlider, sliderFor, type ViewerScroll } from "../lib/documentMap";
 import { measureBlocks } from "../lib/markdownDom";
-import { changeBands, documentLayout, type LineChange, type MapChange } from "../lib/markdownMap";
+import { changeBands, documentLayout, mapScale, mapWidth, type LineChange, type MapChange } from "../lib/markdownMap";
 import { barCollector, collectMarks, collectShapes, onlyFindMarks, packBars, paintChanges, paintShapes, type BarCollector, type ChangePalette, type MapShapes } from "../lib/markdownMapShapes";
 import type { LineBlock } from "../lib/markdownScroll";
 import type { MarkdownMode } from "../lib/tabs";
@@ -41,7 +41,8 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
   const [areaHeight, setAreaHeight] = useState(0);
   const [size, setSize] = useState({ width: 1, height: 0 });
   const [dragging, setDragging] = useState(false);
-  const scale = MAP_MAX_WIDTH / Math.max(size.width, 1);
+  const scale = mapScale(size.width);
+  const width = mapWidth(size.width);
   const layout = useMemo(() => documentLayout(size.height, scale), [size, scale]);
   const current = useRef({ layout, areaHeight, view });
   current.current = { layout, areaHeight, view };
@@ -58,20 +59,21 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
     slider.style.transform = `translateY(${top}px)`;
     slider.style.height = `${Math.max(height, MIN_SLIDER_HEIGHT)}px`;
     const ratio = window.devicePixelRatio || 1;
-    const width = Math.round(MAP_MAX_WIDTH * ratio);
+    const shapes = shapesRef.current;
+    const mapped = shapes ? mapWidth(shapes.width) : 0;
+    const wide = Math.round(mapped * ratio);
     const pixels = Math.round(areaHeight * ratio);
-    if (canvas.width !== width || canvas.height !== pixels) {
-      canvas.width = width;
+    if (canvas.width !== wide || canvas.height !== pixels) {
+      canvas.width = wide;
       canvas.height = pixels;
     }
     const context = canvas.getContext("2d");
-    const shapes = shapesRef.current;
     if (!context || !shapes) {
       return;
     }
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     const background = mapRef.current ? getComputedStyle(mapRef.current).backgroundColor : "transparent";
-    const area = { scale: MAP_MAX_WIDTH / Math.max(shapes.width, 1), offset, width: MAP_MAX_WIDTH, height: areaHeight };
+    const area = { scale: mapScale(shapes.width), offset, width: mapped, height: areaHeight };
     paintShapes(context, shapes, { ...area, background });
     if (bandsRef.current.length && mapRef.current) {
       paintChanges(context, bandsRef.current, (paletteRef.current ??= paletteOf(mapRef.current)), area);
@@ -226,7 +228,7 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
     <div
       ref={mapRef}
       className={`document-map markdown-map${dragging ? " dragging" : ""}`}
-      style={{ width: MAP_MAX_WIDTH }}
+      style={{ width }}
       aria-hidden="true"
       onPointerDown={onPointerDown}
       onPointerMove={(event) => dragTo(event.clientY)}
