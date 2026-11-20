@@ -15,6 +15,7 @@ mod recent;
 mod session;
 mod tool_chest;
 mod signatures;
+mod title_bar;
 mod updates;
 mod uploads;
 mod windows;
@@ -407,6 +408,8 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            title_bar::create_main_window(app)?;
             let recent = app.state::<RecentFiles>();
             recent.load(app.handle());
             allow_recent(app.handle(), &recent.paths());
@@ -446,6 +449,7 @@ pub fn run() {
             context_menu::show_document_menu,
             print::print_pdf,
             print::print_webview,
+            title_bar::traffic_light_position,
             report_documents,
             document_window,
             owns_app_menu,

@@ -7,6 +7,9 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The window buttons line up with the toolbar's icons in downloaded copies and on macOS 15, not only in local builds
+
 ## [0.23.2] - 2026-11-20
 
 ### Changed

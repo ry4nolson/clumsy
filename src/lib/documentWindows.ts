@@ -192,12 +192,20 @@ export async function documentWindowAt(screenX: number, screenY: number) {
   return null;
 }
 
+let windowButtons: Promise<LogicalPosition | undefined> | null = null;
+
+const windowButtonPosition = () =>
+  (windowButtons ??= isMac
+    ? invoke<[number, number]>("traffic_light_position").then(([x, y]) => new LogicalPosition(x, y))
+    : Promise.resolve(undefined));
+
 export async function openDocumentWindow(transfer: TabTransfer | null, at?: { x: number; y: number }, restore?: number) {
   if (!isDesktop) {
     return;
   }
   const current = getCurrentWindow();
   const rect = await logicalRect(current);
+  const trafficLightPosition = await windowButtonPosition();
   const label = `doc-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const query = new URLSearchParams({
     window: "document",
@@ -216,7 +224,7 @@ export async function openDocumentWindow(transfer: TabTransfer | null, at?: { x:
     decorations: !hasWindowControls,
     titleBarStyle: "overlay",
     hiddenTitle: true,
-    trafficLightPosition: new LogicalPosition(16, 24.5),
+    trafficLightPosition,
   });
 }
 

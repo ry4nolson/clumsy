@@ -1,0 +1,17 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "Clumsy",
+        "width": 1200,
+        "height": 860,
+        "minWidth": 640,
+        "minHeight": 420,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ]
+  }
+}

@@ -98,7 +98,7 @@ jobs:
 
   build:
     needs: version
-    runs-on: macos-15
+    runs-on: macos-26
     env:
       APP_PATH: src-tauri/target/universal-apple-darwin/release/bundle/macos/Clumsy.app
     outputs:
