@@ -33,7 +33,7 @@ Your unsaved markup and form answers are in the images. If any of the files alre
 ::: mac
 ## Print
 
-[[⌘P]] prints the document. **Pages > Print Selected Pages** prints only the thumbnails you've selected, and it's in the right-click menu too.
+[[⌘P]] or the printer button next to Save prints the document. **Pages > Print Selected Pages** prints only the thumbnails you've selected, and it's in the right-click menu too.
 
 What comes out is what Save would write: the pages, your markup, your form answers, sticky notes. You don't need to save first. What doesn't print is anything that's only on your screen: find highlights, comparison marks, and dark pages.
 

@@ -434,6 +434,7 @@ export default function App() {
               onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
               onOpen={() => openSource(pickDocument())}
               onSave={() => save(false)}
+              onPrint={canPrint ? () => runCommandRef.current("print") : undefined}
               onPage={(page) => viewer?.goToPage(page, true)}
               onZoom={(direction) => viewer?.zoom(direction)}
               onZoomValue={(value) => viewer?.setZoom(value)}

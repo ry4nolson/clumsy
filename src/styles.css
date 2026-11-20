@@ -119,6 +119,10 @@ body {
   border-left: 1px solid var(--border);
 }
 
+.toolbar-group:first-child {
+  border-left: none;
+}
+
 .toolbar-group.end {
   margin-left: auto;
   border-left: none;

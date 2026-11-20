@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Code, Ellipsis, EllipsisVertical, FolderOpen, Minus, Moon, PanelLeft, Plus, Redo2, RotateCw, Save, Search, Sun, Undo2 } from "lucide-react";
+import { Code, Ellipsis, EllipsisVertical, FolderOpen, Minus, Moon, PanelLeft, Plus, Printer, Redo2, RotateCw, Save, Search, Sun, Undo2 } from "lucide-react";
 import { shortcutFor, type CommandId } from "../lib/commands";
 import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { usesMacKeys } from "../lib/platform";
@@ -42,6 +42,7 @@ type ToolbarProps = {
   onToggleSidebar: () => void;
   onOpen: () => void;
   onSave: () => void;
+  onPrint?: () => void;
   onPage: (page: number) => void;
   onZoom: (direction: 1 | -1) => void;
   onZoomValue: (value: string) => void;
@@ -139,6 +140,11 @@ export function Toolbar(props: ToolbarProps) {
           <IconButton title={withShortcut("Save", "save")} disabled={!hasFile} onClick={props.onSave}>
             <Save size={18} />
           </IconButton>
+          {props.onPrint && (
+            <IconButton title={withShortcut("Print", "print")} disabled={!hasFile} onClick={props.onPrint}>
+              <Printer size={18} />
+            </IconButton>
+          )}
         </div>
 
         {hasDocument && (

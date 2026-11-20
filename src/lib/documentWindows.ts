@@ -216,7 +216,7 @@ export async function openDocumentWindow(transfer: TabTransfer | null, at?: { x:
     decorations: !hasWindowControls,
     titleBarStyle: "overlay",
     hiddenTitle: true,
-    trafficLightPosition: new LogicalPosition(16, 17),
+    trafficLightPosition: new LogicalPosition(16, 24.5),
   });
 }
 
