@@ -489,11 +489,13 @@ name = "clumsy"
 version = "0.23.3"
 dependencies = [
  "base64 0.22.1",
+ "block2",
  "cmpv2",
  "cms",
  "const-oid",
  "core-foundation 0.10.1",
  "der",
+ "dispatch2",
  "libc",
  "objc2",
  "objc2-app-kit",

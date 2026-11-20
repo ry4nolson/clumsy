@@ -7,6 +7,10 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The window buttons stay lined up with the toolbar's icons after opening a document, instead of jumping back to macOS's default spot.
+
 ## [0.23.3] - 2026-11-20
 
 ### Fixed

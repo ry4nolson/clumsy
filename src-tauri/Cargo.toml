@@ -41,8 +41,10 @@ strip = true
 core-foundation = "0.10"
 libc = "0.2"
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSData", "NSString", "NSGeometry", "NSProcessInfo"] }
-objc2-app-kit = { version = "0.3", features = ["NSPrintInfo", "NSPrintOperation", "NSWindow", "NSResponder", "NSView", "NSPrintPanel", "NSGraphicsContext", "NSMenu", "NSMenuItem", "NSImage", "NSCell", "NSPasteboard", "objc2-core-graphics"] }
+block2 = "0.6"
+dispatch2 = "0.3"
+objc2-foundation = { version = "0.3", features = ["NSData", "NSString", "NSGeometry", "NSProcessInfo", "NSNotification", "NSOperation", "block2"] }
+objc2-app-kit = { version = "0.3", features = ["NSPrintInfo", "NSPrintOperation", "NSWindow", "NSResponder", "NSView", "NSPrintPanel", "NSGraphicsContext", "NSMenu", "NSMenuItem", "NSImage", "NSCell", "NSPasteboard", "NSButton", "NSControl", "objc2-core-graphics"] }
 objc2-core-graphics = { version = "0.3", features = ["CGContext"] }
 objc2-pdf-kit = { version = "0.3", features = ["PDFDocument", "PDFPage", "objc2-app-kit", "objc2-core-graphics"] }
 objc2-web-kit = { version = "0.3", features = ["WKWebView", "objc2-app-kit"] }

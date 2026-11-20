@@ -390,6 +390,7 @@ pub fn run() {
         .manage(AllowedFolders::default())
         .manage(ReadOnlyPaths::default())
         .plugin(navigation::guard())
+        .plugin(title_bar::plugin())
         .register_asynchronous_uri_scheme_protocol(form_question::SCHEME, form_question::answer)
         .manage(Documents::default())
         .manage(QuitPrompt::default())
