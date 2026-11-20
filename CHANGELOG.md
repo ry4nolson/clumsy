@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.23.2] - 2026-11-20
+
 ### Changed
 - The toolbar has a Print button next to Save, and the window buttons line up with the toolbar's icons
 
