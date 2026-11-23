@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-23, through v0.24.0 (tool chest, document info, Markdown compare, title bar polish, and OCR since v0.20.0). OCR was pushed that day; check the v0.24.0 release finished before relying on that number. The "Next" order was reset the same day: OCR (now shipped), overlay, themes, then the rest.
+Last updated 2026-11-23, through v0.25.0 (tool chest, document info, Markdown compare, title bar polish, OCR, and overlay drawings since v0.20.0). Overlay was pushed that day; check the v0.25.0 release finished before relying on that number. The "Next" order was reset the same day: OCR and overlay (both now shipped), themes, then the rest. With overlay, all three Bluebeam Core features FSG named (specialty markup, measurement, overlay and compare) are built.
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -146,7 +146,7 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
   - Offered by a bar over a document with no text, a button on scanned pages of a mixed document, and the right-click menus for pages, thumbnails, and tabs.
   - Dark pages now turn scanned pages dark too; photos still stay as they are.
   - Started as a spike on the `ocr-spike` branch (Tesseract in WKWebView under the shipping CSP, and an invisible text layer pdf.js and PDFKit both read), then built on it. A subagent code review before release found no blockers and eight smaller issues, all fixed in the same release: text placement when the crop box overhangs the media box, a page button that could go missing, a run started during a page edit, a silent close when the document changed, lost line breaks, invisible text mode leaking, a bad download staying cached, and a blank canvas per scanned page in dark mode.
-- **v0.25.0 overlay drawings (plan in `docs/overlay-plan.md`):** File > Overlay Drawings… builds a new vector PDF tab with the previous revision in red and the current one in blue (or red/green, magenta/green), multiplied so shared linework stays dark, each side on its own layer. One sheet or a whole set paired by label or number with a correctable list, added and removed sheets at the end. Align by Points (two points, or three for skew) with one alignment for the set. Optional change clouds from a 75 dpi pixel diff, written as markup with the subject "Overlay change". This was the last of the three Bluebeam Core features FSG named. Left for later: per-pair alignment, auto-align, overlaying two pages of one file, updating an overlay when a source changes, slip sheets.
+- **v0.25.0 overlay drawings (plan in `docs/overlay-plan.md`):** File > Overlay Drawings… builds a new vector PDF tab with the previous revision in red and the current one in blue (or red/green, magenta/green), multiplied so shared linework stays dark, each side on its own layer. One sheet or a whole set paired by label or number with a correctable list, added and removed sheets at the end. Align by Points (two points, or three for skew) with one alignment for the set. Optional change clouds from a 75 dpi pixel diff, written as markup with the subject "Overlay change". This was the last of the three Bluebeam Core features FSG named. A subagent review before shipping caught four bugs, all fixed: hidden source layers turning visible, `/UserUnit` ignored, a tab reloading under the open sheet, and clouds computed from a different picture than the one built. Not yet checked: a real FSG drawing set, Acrobat and Preview, printing an overlay, Windows. Left for later: per-pair alignment, auto-align, overlaying two pages of one file, updating an overlay when a source changes, slip sheets.
 
 ## Website and distribution
 
@@ -166,7 +166,7 @@ Order set 2026-11-23: OCR (shipped in v0.24.0), overlay (shipped in v0.25.0), th
 3. **Real redaction.** Has to remove what's under the box. On a scan that means the pixels and, since 0.24.0, the OCR text layer over them; the OCR word boxes also give search and pattern presets something to match in scans. Start from `pdfStructure.ts` / `pdfStructTree.ts`. Checklist borrowed from KillerPDF's design: remove the content, verify the result before saving, report leftover matches in bookmarks, scripts, and metadata, always strip metadata and embedded thumbnails, ask before falling back to a rasterized page, and offer pattern presets (email, phone, SSN, card numbers with checksum) alongside search and manual boxes.
 4. **XFA.** Phase 2 of `docs/document-info-plan.md`, waiting on test files (`enableXfa` is still false). Not small: pdf.js lays dynamic forms out as HTML pages with no editors, a different page count, and blank canvases, so tools, page edits, thumbnails, and printing all need XFA paths.
 
-Cleanup, whenever: prune the merged remote branches, and the local `ocr-spike` branch and its `.claude/worktrees/ocr-spike` worktree now that 0.24.0 is out. The `styles.css` split (2,476 lines) moved into Themes.
+Cleanup, whenever: prune the merged remote branches, and the local `ocr-spike` and `overlay` branches and their `.claude/worktrees/` worktrees now that 0.24.0 and 0.25.0 are out. The `styles.css` split (2,476 lines) moved into Themes.
 
 ## From the KillerPDF review (2026-11-23), not scheduled
 
@@ -228,7 +228,7 @@ Shipped in 0.24.0 as searchable text only. Not scheduled against the list above.
 
 From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
 
-- **Phase 2:** pixel diff for pages with no text (scans, drawings; overlay's changed-region clouds build most of it), plus a Visual Diff toggle for layout and image changes. Compare with Saved. Options to ignore case, whitespace, and punctuation. Notices when page sizes differ.
+- **Phase 2:** pixel diff for pages with no text (scans, drawings; overlay's change clouds shipped the diffing in 0.25.0: `changeBoxes` in `src/lib/overlayChanges.ts` and the rendering in `overlayRender.ts`, ready to reuse), plus a Visual Diff toggle for layout and image changes. Compare with Saved. Options to ignore case, whitespace, and punctuation. Notices when page sizes differ.
 - **Phase 3:** annotation and form-field differences, matched by type and rect. Metadata differences.
 
 ## Small asks
