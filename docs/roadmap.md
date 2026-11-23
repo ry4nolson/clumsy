@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-16, with v0.20.0 (measurement and the Markups list) releasing.
+Last updated 2026-11-23, through v0.23.4 (tool chest, document info, Markdown compare, and title bar polish since v0.20.0).
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -124,25 +124,41 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
   - Measure tool: Length, Path, and Area with live readings and captions. Pages > Set Scale… with architectural, engineering, and metric presets or calibration from a known dimension, written as the page's `/VP` (a page edit, undoable). Measuring on a page with no scale asks first. Drag vertices; Option/Alt-click adds or removes one. Saved as standard `/Line`, `/PolyLine`, and `/Polygon` measurement annotations with `/IT` and `/Measure`. A Measure guide on the website.
   - Markups tab (View > Markups, ⇧⌘M): every markup, including other apps', grouped by subject with a count and total length and area per subject, so stamping a symbol on every fixture is a takeoff. Filters (type, subject, author, status, pages), search, and sort. Review status on one or several markups, through the spec's `/StateModel /Review` replies. Copy or export the list or a per-subject summary as CSV. Opt-in author name written as `/T` on new markup.
   - State replies from other apps no longer show as stray note icons.
+- **v0.21.0 tool chest, custom stamps, and the tab menu (PR #42, which combined the `tool-chest`, `custom-stamps`, `tab-menu`, and `xref-kind` branches; plans in `docs/tool-chest-plan.md` and `docs/custom-stamps-plan.md`):**
+  - Tool chest: a tool, its style, and a name, armed from the Tool Chest sidebar tab, the palette, or the right-click tools row, without touching your everyday style. The name is written as `/Subj`, so the Markups tab counts each saved tool on its own. Save as Tool… at the bottom of a tool's menu, or Add to Tool Chest on a selected markup. Rename, regroup, restyle, duplicate, delete, drag to reorder. Export the chest or a group as `.clumsytools`, import it or drop it on a window. A starter set fills the tab at first. Custom stamp tools survive relaunches.
+  - Custom stamps: image stamps (PNG, JPEG, SVG) and text stamps with optional date, in a Custom section of the Stamps picker, shared by every window, saved as standard stamps other apps draw.
+  - Tab menu: Close / Close Others / Close to the Right, Save, Save As, Copy Path, Show in Finder, Compare With, Split Right, Move Tab to New Window, Print, Export Pages as Images, Compress, Set Password. The webview's own Reload menu is blocked on the toolbar, tab bar, sidebar, and Document Map on macOS.
+  - Fix: appended annotation updates match the file's existing xref kind, so comments, shapes, and stamps no longer go missing in some other PDF apps or in Mac printing.
+- **v0.22.0 document info (PR #43, plan in `docs/document-info-plan.md`):**
+  - Info sidebar tab and File > Document Properties (⌘D): title, author, subject, keywords, producer, dates, PDF version, page count, page size with paper name, tagged, password, and whether it has a form, signatures, attachments, or layers.
+  - Attachments tab (View > Attachments) when a PDF has any, including page-level file attachments. Open attached PDFs and Markdown in a tab or save anything. Clumsy never runs an attachment.
+  - Layers tab (View > Layers) for optional content: show and hide, Show All, Hide All, Reset. Thumbnails and the Document Map follow, the state survives page edits and reloads, and the file isn't changed.
+  - The website offers the Linux download (PR #44).
+- **v0.22.1 BER signatures (PR #46):** DocuSign and other services that write BER-encoded CMS validate instead of failing with "not DER". An expired certificate without a timestamp says nothing proves it was signed in time, instead of claiming it had expired. Signature details stop repeating the organization and the digest.
+- **v0.22.2 sidebar icons (PR #45):** Pages, Outline, and Markups tabs are icons like Tool Chest, with the name on hover, so every tab fits.
+- **v0.23.0–0.23.1 Markdown compare (PRs #47, #48):**
+  - Compare With File and Compare Split Panes work on two Markdown files: both open in source view with changed, added, and removed lines marked, changed words highlighted, linked scrolling, Next / Previous Change, and minimap marks that update as either side is edited.
+  - 0.23.1: the Markdown minimap narrows with the document and keeps its proportions, like the PDF Document Map.
+- **v0.23.2–0.23.4 title bar polish:** a Print button next to Save, the first toolbar divider gone, and the window buttons lined up with the toolbar icons (`src-tauri/src/title_bar.rs`), holding through AppKit re-layouts and in downloaded builds on macOS 15. The Mac release builds on `macos-26`. The release script moves misplaced changelog entries instead of failing.
 
 ## Website and distribution
 
 - The site is https://getclumsy.app (`web/`). README, docs, and the repo homepage point there.
 - The site's tour is the infomercial video (`docs/media/clumsy-infomercial.mp4`), updated for digital signatures, form math, Windows, and Compress.
 - Optional $5 support checkout through Stripe. FSG is credited on the site and in About.
-- `/download` and `/download/windows` redirect to the latest release's `Clumsy-MacOS-Universal.dmg` (signed and notarized) and `Clumsy-Windows-Installer.exe` (unsigned, no in-app updates).
-- Install snag seen 2026-11-14: Chrome held a fresh DMG download as `Unconfirmed NNNNNN.crdownload` behind its "not commonly downloaded" warning, and double-clicking that file in Finder fails. The fix is Keep in chrome://downloads. It's download reputation for a new domain and file, and should fade as downloads grow. Worth a line on the download page if it keeps coming up.
+- Picking up FSG users (Bobby Graham, Brannon's creative team, Adam). FSG spends a lot on Bluebeam, mostly Core seats ($330/user/yr). Bobby named the features that matter: specialty markup, measurement (perimeter, count, angle, volume), overlay and compare, and square footage (Dynamic Fill, in Complete). The measurement, tool chest, markup list, and overlay plans came from that. Lighting Solutions or DavidB can confirm Complete-tier needs and supply Bluebeam sample files.
+- `/download` and `/download/windows` redirect to the latest release's `Clumsy-MacOS-Universal.dmg` (signed and notarized) and `Clumsy-Windows-Installer.exe` (unsigned, no in-app updates). The site offers the Linux packages too (PR #44).
+- Install snag seen 2026-11-14 (fixed by the `/install` page, PR #25): Chrome held a fresh DMG download as `Unconfirmed NNNNNN.crdownload` behind its "not commonly downloaded" warning, and double-clicking that file in Finder fails. The fix is Keep in chrome://downloads. It's download reputation for a new domain and file, and should fade as downloads grow. The `/install` page now walks people through it.
 
 ## Next, in order
 
-1. **Tool chest.** Plan in `docs/tool-chest-plan.md`. Saved tools: a tool, its style, and a name ("Drywall" is a blue Area, "Duplex outlet" an electrical stamp), armed from a sidebar tab, the palette, or the right-click row, without touching your everyday style. The name is written as `/Subj`, so it becomes a Markups tab subject with its own count. Export and import as a `.clumsytools` file so a team shares one set.
-2. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for.
-3. **Measurement, the rest of what FSG asked for:** Angle (three clicks) and Volume (Area with a depth, in cu ft or cu yd), then Dynamic Fill (click inside a room, flood-fill the rendered page, trace the boundary to an Area) and snapping to drawing geometry, both from the plan's phase 2. Counts already work through subjects in the Markups tab.
-4. **Document info batch** (`document-info` branch, plan in `docs/document-info-plan.md`): the Info tab (Document Properties), the Attachments tab, and the Layers tab are built. XFA turned out not to be small (pdf.js lays dynamic forms out as HTML pages with no editors, a different page count, and blank canvases, so tools, page edits, thumbnails, and printing all need XFA paths) and is phase 2 of that plan, waiting on test files. Overlay can reuse the Layers tab for its two sides.
-5. **OCR.** Local and free. Apple's Vision framework would be Mac-only, and Clumsy now ships on Windows, Linux, Android, and iOS too, so look for a cross-platform engine before building it.
-6. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
+1. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for, and the last of the three not built. The Layers tab from 0.22.0 already gives each side a show/hide toggle.
+2. **Measurement, the rest of what FSG asked for:** Angle (three clicks) and Volume (Area with a depth, in cu ft or cu yd), then Dynamic Fill (click inside a room, flood-fill the rendered page, trace the boundary to an Area) and snapping to drawing geometry, both from the plan's phase 2. Counts already work through subjects in the Markups tab and saved tools in the Tool Chest.
+3. **OCR.** Local and free. Apple's Vision framework would be Mac-only, and Clumsy now ships on Windows, Linux, Android, and iOS too, so look for a cross-platform engine before building it.
+4. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
+5. **XFA.** Phase 2 of `docs/document-info-plan.md`, waiting on test files (`enableXfa` is still false). Not small: pdf.js lays dynamic forms out as HTML pages with no editors, a different page count, and blank canvases, so tools, page edits, thumbnails, and printing all need XFA paths.
 
-Cleanup, whenever: split `styles.css` (2,454 lines), prune the merged remote branches. Not blocking anything.
+Cleanup, whenever: split `styles.css` (2,476 lines), prune the merged remote branches. Not blocking anything.
 
 ## Hardening pass (done)
 
@@ -155,7 +171,7 @@ Done:
 - **Rust IPC surface, webview security, and pdf.js coupling reviews:** merged to `main` after 0.10.8. pdf.js pinned exactly, with a contract test and `docs/pdfjs-upgrade.md`.
 
 Leftovers, not blocking:
-- **Housekeeping:** split `styles.css` (2,454 lines); prune the remote branches. Git shows `code-review-fixes`, `markup`, `password-protect`, `print-phase-2`, `print-plan`, `split-release`, `windows-download`, and `windows-titlebar` as merged into `main`. `changelog-versioning`, `docs-new-features`, `feature/organize-pages`, `form-tools`, `images-in-and-out`, `page-labels-editor`, `pdfjs-parity-1`, `pdfjs-parity-fixes`, and `vscode-shortcuts` shipped but aren't ancestors of `main`, so confirm each before deleting. `fix/review-safety` isn't merged.
+- **Housekeeping:** split `styles.css` (2,476 lines); prune the remote branches. `markdown-compare`, `ber-signatures`, `sidebar-icons`, and `document-info` are merged, and the `.claude/worktrees/document-info` worktree is prunable. Before those, git showed `code-review-fixes`, `markup`, `password-protect`, `print-phase-2`, `print-plan`, `split-release`, `windows-download`, and `windows-titlebar` as merged into `main`. `changelog-versioning`, `docs-new-features`, `feature/organize-pages`, `form-tools`, `images-in-and-out`, `page-labels-editor`, `pdfjs-parity-1`, `pdfjs-parity-fixes`, and `vscode-shortcuts` shipped but aren't ancestors of `main`, so confirm each before deleting. `fix/review-safety` isn't merged.
 - **Performance leads:** comparing two 1,200-page files holds about 1.2 GB in WebKit, mostly the text of every page. Every command on text-1200 used to block the main thread for about 95 ms; page edits are fixed by the worker, so check whether Undo and the palette still do.
 
 ## pdf.js parity
@@ -165,7 +181,7 @@ Goal: every feature pdf.js 6.4.299 offers is reachable in Clumsy.
 Done: everything from the old "viewer flags and wiring" list (0.4.1), comments, signatures (moved onto pdf.js's `SignatureEditor`), alt text, and the undo bar (0.9.0), and print (0.11.0, through PDFKit rather than pdf.js's print service). `enableDetailCanvas` stays off on purpose; AGENTS.md explains the image-restore conflict.
 
 Left:
-- **Document Properties, Attachments, Layers:** built on the `document-info` branch (next item 4). **XFA** is phase 2 of `docs/document-info-plan.md`.
+- **XFA.** Next item 5, phase 2 of `docs/document-info-plan.md`. Document Properties, Attachments, and Layers shipped in 0.22.0.
 - **Presentation mode.** Full screen, one page at a time, arrow keys and click to advance.
 - **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
@@ -203,7 +219,7 @@ From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
 - Closing a tab mid-drawing logs one harmless unhandled rejection from pdf.js.
 - Picking any editing tool on a file with existing markup marks it edited, because pdf.js turns that markup into editors.
 - Restart sessions: edits made after a window answers but before the last one does aren't kept, and a crash before the windows finish restoring loses the session.
-- `styles.css` (2,454 lines) is over the 500-line rule.
+- `styles.css` (2,476 lines) is over the 500-line rule.
 - Comments on shapes, underlines, and strikeouts from other apps don't show a popup in Clumsy. They stay in the file (phase 2 of `docs/markup-plan.md`).
 - Unsaved shapes, stamps, and sticky notes don't appear in thumbnails or the Document Map until saved.
 - Digital signing is macOS-only, and encrypted files can't be signed.
