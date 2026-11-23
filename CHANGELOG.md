@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-23
+
 ### Added
 
 - **Overlay Drawings** in the File menu lays two revisions of a drawing on top of each other in a new PDF: lines only in the previous one are red, lines only in the current one are blue, and what they share stays dark, so anything that moved stands out. It stays vector, so it's sharp at any zoom, and it's an ordinary PDF you can mark up, measure, print, and send. Overlay one sheet or a whole set, matched by page label or page number, with added and removed sheets at the end. **Align by Points** lines up a revision that was re-plotted shifted, scaled, or turned. Clouds around what changed are optional, each drawing is on its own layer you can hide, and red and green or magenta and green are there if red and blue aren't for you
