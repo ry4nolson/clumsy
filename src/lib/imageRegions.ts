@@ -57,6 +57,22 @@ export function imageRects(coords: ArrayLike<number>, rotation: number): Rect[] 
   return rects;
 }
 
+const PAGE_COVER = 0.8;
+const PAPER_LUMINANCE = 180;
+const PAPER_SHARE = 0.5;
+
+export const coversPage = (rect: Rect, share = PAGE_COVER) => rect.width * rect.height >= share;
+
+export function looksLikePaper(rgba: ArrayLike<number>) {
+  let light = 0;
+  for (let index = 0; index + 3 < rgba.length; index += 4) {
+    if (0.299 * rgba[index] + 0.587 * rgba[index + 1] + 0.114 * rgba[index + 2] >= PAPER_LUMINANCE) {
+      light += 1;
+    }
+  }
+  return light >= (rgba.length / 4) * PAPER_SHARE;
+}
+
 export function pixelRects(rects: Rect[], width: number, height: number): Rect[] {
   return rects.map((rect) => ({
     x: Math.floor(rect.x * width),

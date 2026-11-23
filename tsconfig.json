@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "paths": { "tesseract-wasm": ["./node_modules/tesseract-wasm/dist/index.d.ts"] },
 
     /* Linting */
     "strict": true,

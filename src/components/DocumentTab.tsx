@@ -5,6 +5,7 @@ import { useEditorUi } from "../hooks/useEditorUi";
 import { useMapMarks } from "../hooks/useMapMarks";
 import { usePdfViewer, type EditorParams, type FindQuery, type FindType, type PdfViewerApi } from "../hooks/usePdfViewer";
 import { useScrolling } from "../hooks/useScrolling";
+import { useScanHint } from "../hooks/useScanHint";
 import { useTabSignatures } from "../hooks/useTabSignatures";
 import type { CommandId } from "../lib/commands";
 import type { ViewState } from "../lib/documentWindows";
@@ -31,6 +32,7 @@ import { FindBar } from "./FindBar";
 import { usePageSheets } from "./PageSheets";
 import { MarkupList } from "./MarkupList";
 import { Sidebar, type SidebarTab } from "./Sidebar";
+import { ScanBar } from "./ScanBar";
 import { SignatureBar } from "./SignatureBar";
 import { SignatureDetailsDialog } from "./SignatureDetailsDialog";
 import { SelectionBar } from "./SelectionBar";
@@ -155,6 +157,7 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
   const scrolling = useScrolling(viewer.containerRef);
   const editorState = useEditorUi(viewer.editorUi);
   const signatures = useTabSignatures(viewer, source.name, active, onOpenSource);
+  const scanHint = useScanHint(viewer.pdfDocument, active, viewer.containerRef, !!compare || !!signatures.bar, (pages) => onMenuCommand("recognizeText", pages));
   const sheetOpen = !!(editorState.altText || editorState.signature || editorState.description || editorState.comment);
   const [findOpen, setFindOpen] = useState(false);
   const [findFocusToken, setFindFocusToken] = useState(0);
@@ -448,8 +451,9 @@ export const DocumentTab = forwardRef<DocumentHandle, DocumentTabProps>(function
           layers={info.layersPanel}
         />
       )}
-      <main className={`viewer-area${compare ? " comparing" : signatures.bar ? " signed" : ""}`}>
+      <main className={`viewer-area${compare ? " comparing" : signatures.bar || scanHint.bar ? " signed" : ""}`}>
         {compare ? <CompareBar view={pdfCompareBar(compare)} /> : <SignatureBar signatures={signatures} />}
+        {scanHint.bar && <ScanBar onRecognize={scanHint.recognize} onDismiss={scanHint.dismiss} />}
         {findOpen && (
           <FindBar
             status={viewer.findStatus}

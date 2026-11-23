@@ -9,6 +9,7 @@ import { readCustomStamps } from "./customStampPdf";
 import { readMarkup, readSubjects } from "./markupPdf";
 import { pageScaleOf, setPageScale } from "./measurePdf";
 import { writeAnnotationsReporting } from "./notesPdf";
+import { addTextLayers, type OcrPage } from "./ocrPdf";
 import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { compressImages } from "./pdfCompress";
 import { flattenForPrint } from "./pdfFlatten";
@@ -117,6 +118,13 @@ export async function compressPdf(bytes: Uint8Array, settings: CompressSettings,
   return save(doc);
 }
 
+export async function textLayerPdf(bytes: Uint8Array, pages: OcrPage[], password?: string) {
+  const doc = await load(bytes, password);
+  flattenPageTree(doc);
+  addTextLayers(doc, pages);
+  return save(doc);
+}
+
 export async function encryptPdf(bytes: Uint8Array, password: string) {
   const doc = await load(bytes, password);
   collectGarbage(doc);
@@ -180,6 +188,8 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
       return { bytes: await extractPages(job.bytes, job.pages, job.password) };
     case "compress":
       return { bytes: await compressPdf(job.bytes, job.settings, job.password, onProgress) };
+    case "textLayer":
+      return { bytes: await textLayerPdf(job.bytes, job.pages, job.password) };
     case "decrypt":
       return { bytes: await decryptPdf(job.bytes, job.password) };
     case "flatten":

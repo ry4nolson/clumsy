@@ -53,6 +53,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "documentProperties",
       "-",
       "compressPdf",
+      "recognizeText",
       "setPassword",
       "removePassword",
       "-",

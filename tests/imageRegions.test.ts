@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillTransform, imageRects, pixelRects } from "../src/lib/imageRegions";
+import { coversPage, fillTransform, imageRects, looksLikePaper, pixelRects } from "../src/lib/imageRegions";
 
 const image = [0.1, 0.2, 0.1, 0.5, 0.6, 0.2];
 
@@ -52,5 +52,21 @@ describe("fillTransform", () => {
 
   it("leaves a whole-pixel viewport unscaled", () => {
     expect(fillTransform({ width: 612, height: 792 }, { width: 612, height: 792 })).toEqual([1, 0, 0, 1, 0, 0]);
+  });
+});
+
+describe("scanned pages", () => {
+  const pixels = (light: number, dark: number) => [...Array(light).fill([250, 248, 240, 255]), ...Array(dark).fill([20, 30, 40, 255])].flat();
+
+  it("counts an image as the page when it covers most of it", () => {
+    expect(coversPage({ x: 0, y: 0, width: 1, height: 1 })).toBe(true);
+    expect(coversPage({ x: 0.05, y: 0.05, width: 0.9, height: 0.9 })).toBe(true);
+    expect(coversPage({ x: 0, y: 0, width: 1, height: 0.5 })).toBe(false);
+  });
+
+  it("tells paper from a photo by how much of it is light", () => {
+    expect(looksLikePaper(pixels(90, 10))).toBe(true);
+    expect(looksLikePaper(pixels(30, 70))).toBe(false);
+    expect(looksLikePaper([])).toBe(true);
   });
 });

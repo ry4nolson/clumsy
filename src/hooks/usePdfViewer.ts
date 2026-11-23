@@ -10,6 +10,7 @@ import { isTouchDevice } from "../lib/drawer";
 import { attachHandTool, type HandTool } from "../lib/handTool";
 import { attachTapToEdit } from "../lib/touchEdit";
 import { attachZoomGestures } from "../lib/zoomGestures";
+import { PAGE_RENDERED } from "../lib/scanHints";
 import { restoreImages, restoreRenderedImages, type RenderedPageView } from "../lib/imageRestore";
 import { clampStop, createNavigator, type NavDirection, type NavStop } from "../lib/navHistory";
 import { publishPageCanvas } from "../lib/pageCanvases";
@@ -207,6 +208,7 @@ export function usePdfViewer() {
       if (!isDetailView && !error) {
         restoreImages(source, restoreRef.current);
         paintDiff(source.id - 1);
+        source.div.dispatchEvent(new CustomEvent(PAGE_RENDERED, { bubbles: true }));
         if (source.canvas && viewer.pdfDocument) {
           publishPageCanvas(viewer.pdfDocument, source.id - 1, source.canvas, viewer.pagesRotation);
         }

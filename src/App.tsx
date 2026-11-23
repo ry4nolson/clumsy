@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AboutDialog, type AboutRequest, type AboutTab } from "./components/AboutDialog";
 import { CompressDialog } from "./components/CompressDialog";
+import { OcrDialog } from "./components/OcrDialog";
 import { ExportImagesDialog } from "./components/ExportImagesDialog";
 import { PrintProgressDialog } from "./components/PrintProgressDialog";
 import { PaneGrid } from "./components/PaneGrid";
@@ -22,6 +23,7 @@ import { useEditorOptions } from "./hooks/useEditorOptions";
 import { useExternalChanges } from "./hooks/useExternalChanges";
 import { useFormControls } from "./hooks/useFormControls";
 import { useCompress } from "./hooks/useCompress";
+import { useOcr } from "./hooks/useOcr";
 import { useImageExport } from "./hooks/useImageExport";
 import { usePrint } from "./hooks/usePrint";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -109,6 +111,7 @@ export default function App() {
   const save = useSaveDocument(workspaceApi, pageEdits.settled);
   const imageExport = useImageExport(workspaceApi, pageEdits.settled);
   const compress = useCompress(workspaceApi, pageEdits);
+  const ocr = useOcr(workspaceApi, pageEdits);
   const printing = usePrint(workspaceApi, pageEdits.settled);
   const signing = useSignDigitally(workspaceApi, pageEdits.settled, useWriteAndReload(workspaceApi));
   const pageEditsRef = useRef(pageEdits);
@@ -264,7 +267,7 @@ export default function App() {
     if (markdown.runMarkdownCommand(id, fromMenu)) {
       return;
     }
-    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || markupControls.runMarkupCommand(id) || imageExport.runExportCommand(id, pages) || compress.runCompressCommand(id) || printing.runPrintCommand(id, pages) || signing.runSigningCommand(id)) {
+    if (pageEdits.runPageCommand(id, pages) || comparison.runCompareCommand(id) || viewControls.runViewCommand(id) || forms.runFormCommand(id) || markupControls.runMarkupCommand(id) || imageExport.runExportCommand(id, pages) || compress.runCompressCommand(id) || ocr.runOcrCommand(id, pages) || printing.runPrintCommand(id, pages) || signing.runSigningCommand(id)) {
       return;
     }
     if (fromMenu && (id === "firstPage" || id === "lastPage") && hasCaret(document.activeElement)) {
@@ -511,6 +514,7 @@ export default function App() {
       />
       <ExportImagesDialog {...imageExport.dialog} />
       <CompressDialog {...compress.dialog} />
+      <OcrDialog {...ocr.dialog} />
       <PrintProgressDialog {...printing.progressDialog} />
       <SignDigitallyDialog {...signing.dialog} />
       <AboutDialog

@@ -4,6 +4,7 @@ import type { FileStamp } from "./customStampPdf";
 import type { Markup } from "./markup";
 import type { PageScale } from "./measurePdf";
 import type { StickyNote } from "./notes";
+import type { OcrPage } from "./ocrPdf";
 import { PageEditError, type PageEdit } from "./pageEditPlan";
 import type { PasswordRole } from "./pdfDecrypt";
 import type { PrepareSignatureOptions, SignaturePlaceholder, SignatureScan, ValidationMaterial } from "./signatureTypes";
@@ -20,6 +21,7 @@ export type PageEditJob =
   | { op: "role"; bytes: Uint8Array; password: string }
   | { op: "combine"; files: Uint8Array[] }
   | { op: "compress"; bytes: Uint8Array; settings: CompressSettings; password?: string }
+  | { op: "textLayer"; bytes: Uint8Array; pages: OcrPage[]; password?: string }
   | { op: "scanSignatures"; bytes: Uint8Array; password?: string }
   | { op: "prepareSignature"; bytes: Uint8Array; options: PrepareSignatureOptions }
   | { op: "appendDss"; bytes: Uint8Array; material: ValidationMaterial }
@@ -55,6 +57,7 @@ export function jobBuffers(job: PageEditJob) {
       return buffersOf([job.bytes, job.edit.kind === "insert" ? job.edit.data : undefined]);
     case "extract":
     case "compress":
+    case "textLayer":
     case "decrypt":
     case "flatten":
     case "encrypt":

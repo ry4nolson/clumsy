@@ -270,6 +270,11 @@ function main() {
     "software listed below, used under the licenses that follow the list.",
     "Source for every package is available from npm (npmjs.com) or crates.io.",
     "",
+    "tesseract-wasm contains Tesseract OCR (Apache-2.0, github.com/tesseract-ocr/tesseract)",
+    "and Leptonica (BSD-2-Clause, leptonica.org). The font Clumsy embeds for recognized",
+    "text is Tesseract's glyphless font (Apache-2.0). Language data is downloaded from",
+    "github.com/tesseract-ocr/tessdata_fast (Apache-2.0).",
+    "",
     "",
   ].join("\n");
   mkdirSync(dirname(output), { recursive: true });

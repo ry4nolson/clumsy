@@ -55,7 +55,7 @@ export function tabMenu(context: TabMenuContext): DocumentMenuSpec {
     sections.push({
       items: [
         ...(context.canPrint ? [item("print", "Print…")] : []),
-        ...(isPdf ? [item("exportPagesAsImages", "Export Pages as Images…"), item("compressPdf", "Compress…"), item("setPassword", tab.protected ? "Change Password…" : "Set Password…")] : []),
+        ...(isPdf ? [item("exportPagesAsImages", "Export Pages as Images…"), item("compressPdf", "Compress…"), item("recognizeText", "Recognize Text (OCR)…"), item("setPassword", tab.protected ? "Change Password…" : "Set Password…")] : []),
         ...(isPdf && tab.protected ? [item("removePassword", "Remove Password")] : []),
       ],
     });

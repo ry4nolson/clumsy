@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Recognize Text (OCR)** in the File menu reads the words in scanned pages and adds them as invisible text over the scan, so you can search, select, copy, and compare them. It runs on your computer and nothing is uploaded. Pick all pages, the current page, a selection, or a range, in one of 26 languages; each language downloads once, the first time you use it. Text that's already there is left alone: typed pages are skipped, and a typed page with a scanned picture in it gets text for the picture only. The whole thing is one undo. A bar over a document with no text offers it, scanned pages in a mixed document get their own button, and it's in the right-click menu for pages, thumbnails, and tabs
+
+### Changed
+
+- Dark pages now turn scanned pages dark too. A scan is one picture of paper covering the page, so "Keep images" used to leave it bright; photos, including full-page ones, still stay as they are
+
 ## [0.23.4] - 2026-11-20
 
 ### Fixed

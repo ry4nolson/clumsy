@@ -15,6 +15,7 @@ export type CommandId =
   | "print"
   | "printSelectedPages"
   | "compressPdf"
+  | "recognizeText"
   | "documentProperties"
   | "setPassword"
   | "removePassword"
@@ -198,6 +199,7 @@ export const commands: Command[] = [
   { id: "revealInFinder", label: revealLabel, menu: "File", combos: ["alt+mod+r"], needsDocument: true, markdown: true, needsDesktop: true },
   { id: "documentProperties", label: "Document Properties", menu: "File", combos: ["mod+d"], needsDocument: true },
   { id: "compressPdf", label: "Compress…", menu: "File", combos: [], needsDocument: true },
+  { id: "recognizeText", label: "Recognize Text (OCR)…", menu: "File", combos: [], needsDocument: true, needsDesktop: true },
   { id: "setPassword", label: "Set Password…", menu: "File", combos: [], needsDocument: true },
   { id: "removePassword", label: "Remove Password", menu: "File", combos: [], needsDocument: true, needsProtection: true },
   { id: "print", label: "Print…", menu: "File", combos: ["mod+p"], needsDocument: true, markdown: true, needsPrinting: true },

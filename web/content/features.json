@@ -23,6 +23,7 @@
       "items": [
         "Reorder by dragging thumbnails. Rotate, delete, or extract.",
         "Insert pages from other PDFs or images, combine files, or make a new PDF from photos.",
+        "Recognize the text in scans (OCR) so you can search and copy it. Nothing is uploaded.",
         "Set a password, change it, or remove it.",
         "Every page change can be undone."
       ]

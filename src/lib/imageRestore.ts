@@ -1,5 +1,5 @@
 import type { PageViewport, PDFPageProxy } from "pdfjs-dist";
-import { fillTransform, imageRects, pixelRects, recordImageCoordinates, recordedImages, type Rect } from "./imageRegions";
+import { coversPage, fillTransform, imageRects, looksLikePaper, pixelRects, recordImageCoordinates, recordedImages, type Rect } from "./imageRegions";
 
 export type RenderedPageView = {
   id: number;
@@ -12,11 +12,29 @@ export type RenderedPageView = {
 
 export type ShownPreview = { page: object; canvas: HTMLCanvasElement; rotation: number };
 
+const SAMPLE = 32;
+
+function isScan(source: HTMLCanvasElement, { x, y, width, height }: Rect) {
+  const sample = document.createElement("canvas");
+  sample.width = SAMPLE;
+  sample.height = SAMPLE;
+  const context = sample.getContext("2d", { willReadFrequently: true });
+  if (!context || !width || !height) {
+    return false;
+  }
+  context.drawImage(source, x, y, width, height, 0, 0, SAMPLE, SAMPLE);
+  return looksLikePaper(context.getImageData(0, 0, SAMPLE, SAMPLE).data);
+}
+
 function drawImages(source: HTMLCanvasElement, overlay: HTMLCanvasElement, rects: Rect[]) {
   overlay.width = source.width;
   overlay.height = source.height;
   const context = overlay.getContext("2d")!;
-  for (const { x, y, width, height } of pixelRects(rects, source.width, source.height)) {
+  const pixels = pixelRects(rects, source.width, source.height);
+  for (const [index, { x, y, width, height }] of pixels.entries()) {
+    if (coversPage(rects[index]) && isScan(source, pixels[index])) {
+      continue;
+    }
     context.drawImage(source, x, y, width, height, x, y, width, height);
   }
 }

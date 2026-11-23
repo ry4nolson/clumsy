@@ -1,0 +1,39 @@
+.pdfViewer .page > .scan-hint {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+  font: 12px/1 system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.scan-hint button {
+  height: 28px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.scan-hint button:hover {
+  background: var(--hover);
+}
+
+.scan-hint-action {
+  padding: 0 10px;
+}
+
+.scan-hint-dismiss {
+  width: 26px;
+  border-left: 1px solid var(--border) !important;
+  color: var(--text-muted) !important;
+  font-size: 15px !important;
+}

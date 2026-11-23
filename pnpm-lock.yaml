@@ -116,6 +116,9 @@ dependencies:
   react-dom:
     specifier: ^19.1.0
     version: 19.3.1(react@19.3.1)
+  tesseract-wasm:
+    specifier: 0.11.0
+    version: 0.11.0
 
 devDependencies:
   '@tauri-apps/cli':
@@ -931,6 +934,10 @@ packages:
       fsevents: 2.3.3
     dev: true
 
+  /comlink@4.4.2:
+    resolution: {integrity: sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g==}
+    dev: false
+
   /crelt@1.0.7:
     resolution: {integrity: sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA==}
     dev: false
@@ -1340,6 +1347,12 @@ packages:
 
   /style-mod@4.1.4:
     resolution: {integrity: sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw==}
+    dev: false
+
+  /tesseract-wasm@0.11.0:
+    resolution: {integrity: sha512-a6TTRXTRKL6/zVa7lijMWEglLipqY10n7kG9QWr7rckknHkox+5PAzLbSluk+MfpbLgeXm6uoDI9ytezmJJr7Q==}
+    dependencies:
+      comlink: 4.4.2
     dev: false
 
   /tinybench@6.2.2:

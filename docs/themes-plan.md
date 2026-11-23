@@ -1,6 +1,6 @@
 # Themes plan
 
-Written 2026-11-23. Roadmap item 3, after OCR and overlay.
+Written 2026-11-23. Roadmap item 2, after overlay.
 
 ## What this is
 

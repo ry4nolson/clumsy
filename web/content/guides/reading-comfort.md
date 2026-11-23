@@ -6,7 +6,9 @@ The settings that decide how a document sits on your screen. All of them are in 
 
 The usual way to do that makes every photo look like a film negative. Clumsy finds the images on each page and draws them back the way they were, so text is inverted and pictures aren't. Thumbnails and the Document Map do the same.
 
-If a document's "images" are really scanned pages or line drawings, you may want them inverted too. The toolbar has a menu for it with two choices, **Keep images** and **Invert images**, or use View > Invert Images in Dark Pages.
+A scanned page is one picture of paper, so Clumsy treats it as a page, not a photo, and turns it dark with the rest. A full-page photo stays as it is.
+
+If a document's other "images" are really line drawings or pieces of a scan, you may want them inverted too. The toolbar has a menu for it with two choices, **Keep images** and **Invert images**, or use View > Invert Images in Dark Pages.
 
 Dark pages change what you see, not the file. Printing and saving are unaffected.
 

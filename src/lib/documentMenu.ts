@@ -63,6 +63,7 @@ export function pageSection(pages: number[], pagesCount: number, pageLabels: str
       separator,
       item("extractPages", `Extract ${plural} to New Tab`),
       item("exportSelectedPagesAsImages", count > 1 ? `Export ${plural} as Images…` : "Export Page as Image…"),
+      item("recognizeText", "Recognize Text (OCR)…"),
       ...(canPrint ? [item("printSelectedPages", `Print ${plural}…`)] : []),
       item("insertPages", "Insert Pages from File…"),
       item("pageLabels", "Page Labels…"),

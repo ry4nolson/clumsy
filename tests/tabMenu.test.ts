@@ -45,7 +45,7 @@ describe("tabMenu", () => {
       ["Save", "Save As…"],
       ["Copy Path", "Show in Finder"],
       ["Compare With", "Split Right", "Move Tab to New Window"],
-      ["Print…", "Export Pages as Images…", "Compress…", "Set Password…"],
+      ["Print…", "Export Pages as Images…", "Compress…", "Recognize Text (OCR)…", "Set Password…"],
     ]);
   });
 
@@ -71,7 +71,7 @@ describe("tabMenu", () => {
   });
 
   it("offers Change and Remove Password on a protected PDF", () => {
-    expect(sectionLabels({ tab: { ...base.tab, protected: true } }).at(-1)).toEqual(["Print…", "Export Pages as Images…", "Compress…", "Change Password…", "Remove Password"]);
+    expect(sectionLabels({ tab: { ...base.tab, protected: true } }).at(-1)).toEqual(["Print…", "Export Pages as Images…", "Compress…", "Recognize Text (OCR)…", "Change Password…", "Remove Password"]);
   });
 
   it("keeps a Markdown tab to what Markdown can do", () => {

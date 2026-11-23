@@ -3,6 +3,7 @@ import { errorFrom, jobBuffers, type PageEditJob, type PageEditResponse, type Pa
 import { stampsFor } from "./customStamps";
 import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
+import type { OcrPage } from "./ocrPdf";
 import type { PageEdit } from "./pageEditPlan";
 import type { PrepareSignatureOptions, PreparedSignature, SignatureScan, ValidationMaterial } from "./signatureTypes";
 
@@ -82,6 +83,9 @@ export const passwordRoleOffThread = async (bytes: Uint8Array, password: string)
 
 export const compressPdfOffThread = async (bytes: Uint8Array, settings: CompressSettings, password: string | undefined, options: RunOptions) =>
   (await runInWorker(spawn, { op: "compress", bytes, settings, password }, options)).bytes;
+
+export const textLayerPdfOffThread = async (bytes: Uint8Array, pages: OcrPage[], password?: string) =>
+  (await runInWorker(spawn, { op: "textLayer", bytes, pages, password })).bytes;
 
 export const combinePdfsOffThread = async (files: Uint8Array[]) => (await runInWorker(spawn, { op: "combine", files })).bytes;
 

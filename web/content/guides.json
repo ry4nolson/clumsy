@@ -102,6 +102,11 @@
           "summary": "Shrink a scan before emailing it, turn pages into images, and print with your markup on the page."
         },
         {
+          "slug": "ocr",
+          "title": "Making scans searchable",
+          "summary": "Recognize the text in scanned pages so you can search, select, and copy it. It all happens on your computer."
+        },
+        {
           "slug": "passwords",
           "title": "Passwords",
           "summary": "Set, change, or remove the password a PDF needs to open."
