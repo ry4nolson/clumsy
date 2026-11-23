@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-23, through v0.24.0 (tool chest, document info, Markdown compare, title bar polish, and OCR since v0.20.0). The "Next" order was reset the same day: OCR (now shipped), overlay, themes, then the rest.
+Last updated 2026-11-23, through v0.24.0 (tool chest, document info, Markdown compare, title bar polish, and OCR since v0.20.0). OCR was pushed that day; check the v0.24.0 release finished before relying on that number. The "Next" order was reset the same day: OCR (now shipped), overlay, themes, then the rest.
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -145,6 +145,7 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
   - Text that's already there is left alone: typed pages are skipped, and a typed page with a scanned picture gets text for the picture only.
   - Offered by a bar over a document with no text, a button on scanned pages of a mixed document, and the right-click menus for pages, thumbnails, and tabs.
   - Dark pages now turn scanned pages dark too; photos still stay as they are.
+  - Started as a spike on the `ocr-spike` branch (Tesseract in WKWebView under the shipping CSP, and an invisible text layer pdf.js and PDFKit both read), then built on it. A subagent code review before release found no blockers and eight smaller issues, all fixed in the same release: text placement when the crop box overhangs the media box, a page button that could go missing, a run started during a page edit, a silent close when the document changed, lost line breaks, invisible text mode leaking, a bad download staying cached, and a blank canvas per scanned page in dark mode.
 
 ## Website and distribution
 
@@ -162,10 +163,10 @@ Order set 2026-11-23: OCR (shipped in v0.24.0), overlay, themes, then the rest.
 1. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for, and the last of the three not built. The Layers tab from 0.22.0 already gives each side a show/hide toggle.
 2. **Themes.** Plan in `docs/themes-plan.md`. Color themes only: color tokens plus one accent, a set of named themes, and a picker in settings and the palette. The six presets come from Metrom (Ember, Ice, Forest, Paper, Snow, Bloom) instead of new designs. The document page never changes color. No textures, wordmark, or custom chrome (decided 2026-11-23). The `styles.css` split is part of this job: break the file up and pull every color into tokens on the way through, then each theme is a short block of variables. The native pieces (title bar, the right-click menu built in Rust) follow a light or dark base, so each theme picks one.
 3. **Measurement, the rest of what FSG asked for:** Angle (three clicks) and Volume (Area with a depth, in cu ft or cu yd), then Dynamic Fill (click inside a room, flood-fill the rendered page, trace the boundary to an Area) and snapping to drawing geometry, both from the plan's phase 2. Counts already work through subjects in the Markups tab and saved tools in the Tool Chest.
-4. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`. Checklist borrowed from KillerPDF's design: remove the content, verify the result before saving, report leftover matches in bookmarks, scripts, and metadata, always strip metadata and embedded thumbnails, ask before falling back to a rasterized page, and offer pattern presets (email, phone, SSN, card numbers with checksum) alongside search and manual boxes.
+4. **Real redaction.** Has to remove what's under the box. On a scan that means the pixels and, since 0.24.0, the OCR text layer over them; the OCR word boxes also give search and pattern presets something to match in scans. Start from `pdfStructure.ts` / `pdfStructTree.ts`. Checklist borrowed from KillerPDF's design: remove the content, verify the result before saving, report leftover matches in bookmarks, scripts, and metadata, always strip metadata and embedded thumbnails, ask before falling back to a rasterized page, and offer pattern presets (email, phone, SSN, card numbers with checksum) alongside search and manual boxes.
 5. **XFA.** Phase 2 of `docs/document-info-plan.md`, waiting on test files (`enableXfa` is still false). Not small: pdf.js lays dynamic forms out as HTML pages with no editors, a different page count, and blank canvases, so tools, page edits, thumbnails, and printing all need XFA paths.
 
-Cleanup, whenever: prune the merged remote branches. The `styles.css` split (2,476 lines) moved into Themes.
+Cleanup, whenever: prune the merged remote branches, and the local `ocr-spike` branch and its `.claude/worktrees/ocr-spike` worktree now that 0.24.0 is out. The `styles.css` split (2,476 lines) moved into Themes.
 
 ## From the KillerPDF review (2026-11-23), not scheduled
 
@@ -207,6 +208,22 @@ Left:
 - **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
 
+## OCR, later
+
+Shipped in 0.24.0 as searchable text only. Not scheduled against the list above.
+
+- **Try it where it hasn't been tried:** a real, messy scan (accuracy was only measured on clean pages, 99.9%), a long scan for memory and time, a language other than English, and the Windows and Linux builds.
+- **Phones:** the command is hidden on Android and iOS (`needsDesktop`). It should work in both webviews; check memory on a long scan before turning it on.
+- **Right-to-left scripts:** Arabic and Hebrew need the words laid out right to left in the text layer, the way Tesseract's own PDF output does it.
+- **Sideways and skewed scans:** detect the orientation (`getOrientation` in tesseract-wasm) and read the page turned, or offer to rotate it.
+- **Copy text from a region:** drag a box on a scan and copy what's in it, without changing the file.
+- **Replace a bad text layer:** today turning off "Leave text that's already there alone" adds a second layer over the old one. Removing the old invisible text first needs content-stream editing, which redaction also needs.
+- **More than one language at a time,** and the `tessdata_best` models as a slower, more accurate choice.
+- **Pictures on typed pages:** nothing offers OCR for a clipping or screenshot inside a typed page; you have to know to run it. A hint there would have to read the picture first to know it holds words.
+- **Scans stored as strips:** dark pages only treats a single page-covering image as a scan, so strip scans stay light unless Invert images is on.
+- **Size:** the SIMD and fallback engine builds add about 3.7 MB. Every supported webview has SIMD, so the fallback (1.8 MB) could go.
+- **Where the models come from:** `raw.githubusercontent.com` at a pinned commit, fetched by the webview and kept in IndexedDB. Hosting them on a Clumsy release or downloading from Rust into app data are the alternatives if that host is ever blocked for someone.
+
 ## Compare, later phases
 
 From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
@@ -237,7 +254,7 @@ From `docs/pdf-diffing-plan.md`. Not scheduled against the list above.
 - ⌃G (Go to Page) and ⌃- / ⌃⇧- (Back/Forward) are macOS-only. Windows needs other combos.
 - `LSSetDefaultRoleHandlerForContentType` has been deprecated since macOS 12. Replace it with `NSWorkspace.setDefaultApplication(at:toOpenContentType:)` eventually.
 - The comparison report uses standard Helvetica (WinAnsi only). Accents get stripped, CJK and emoji print as `?`.
-- Compare only sees text. Scanned or image-only pages get a "no text to compare" notice until phase 2.
+- Compare only sees text. Scanned or image-only pages get a "no text to compare" notice until phase 2, unless you run Recognize Text (OCR) on them first.
 - Comparing two long documents with little in common stops diffing after the worker's 12 s budget; everything past that point shows as one change. The Changes list shows 400 changes at a time.
 - Closing a tab mid-drawing logs one harmless unhandled rejection from pdf.js.
 - Picking any editing tool on a file with existing markup marks it edited, because pdf.js turns that markup into editors.
