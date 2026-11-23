@@ -1,6 +1,6 @@
 # Clumsy: roadmap and status
 
-Last updated 2026-11-23, through v0.23.4 (tool chest, document info, Markdown compare, and title bar polish since v0.20.0).
+Last updated 2026-11-23, through v0.23.4 (tool chest, document info, Markdown compare, and title bar polish since v0.20.0). The "Next" order was reset the same day: OCR, overlay, themes, then the rest.
 
 The idea: give away the PDF features other apps put behind a paid subscription. Free readers cover viewing, comments, and filling and signing forms. People pay $15–20 a month for combining, organizing, compressing, password protection, OCR, and redaction. Common complaints about the big subscription app: it's slow, it nags with upsells and AI popups, and it charges monthly just to combine and sign files. Preview users complain that it chokes on huge PDFs, exports one page at a time, and doesn't calculate form fields.
 
@@ -152,13 +152,30 @@ The idea: give away the PDF features other apps put behind a paid subscription. 
 
 ## Next, in order
 
-1. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for, and the last of the three not built. The Layers tab from 0.22.0 already gives each side a show/hide toggle.
-2. **Measurement, the rest of what FSG asked for:** Angle (three clicks) and Volume (Area with a depth, in cu ft or cu yd), then Dynamic Fill (click inside a room, flood-fill the rendered page, trace the boundary to an Area) and snapping to drawing geometry, both from the plan's phase 2. Counts already work through subjects in the Markups tab and saved tools in the Tool Chest.
-3. **OCR.** Local and free. Apple's Vision framework would be Mac-only, and Clumsy now ships on Windows, Linux, Android, and iOS too, so look for a cross-platform engine before building it.
-4. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`.
-5. **XFA.** Phase 2 of `docs/document-info-plan.md`, waiting on test files (`enableXfa` is still false). Not small: pdf.js lays dynamic forms out as HTML pages with no editors, a different page count, and blank canvases, so tools, page edits, thumbnails, and printing all need XFA paths.
+Order set 2026-11-23: OCR, overlay, themes, then the rest.
 
-Cleanup, whenever: split `styles.css` (2,476 lines), prune the merged remote branches. Not blocking anything.
+1. **OCR.** Local and free. Apple's Vision framework would be Mac-only, and Clumsy now ships on Windows, Linux, Android, and iOS too, so it needs a cross-platform engine. Lead candidate: Tesseract, the way KillerPDF does it, with each language model downloaded on first use and cached so the base install stays small. The WebAssembly build (tesseract.js) would run in a worker like pdf-lib does, but that hasn't been tried in WKWebView or on the phone builds yet, so start with a spike. Outputs to plan for: page or region text to the clipboard, and a searchable PDF (invisible text layer under the scan).
+2. **Overlay drawings.** Plan in `docs/overlay-plan.md`. Two revisions of a drawing laid on top of each other, old in red and new in blue, built as a new vector PDF tab with blend-mode tinting and a layer for each side. Pages pair by label or by number, alignment by page box or by two points, and changed regions can optionally get clouds. One of the three Bluebeam Core features FSG pays for, and the last of the three not built. The Layers tab from 0.22.0 already gives each side a show/hide toggle.
+3. **Themes.** Plan in `docs/themes-plan.md`. Color themes only: color tokens plus one accent, a set of named themes, and a picker in settings and the palette. The six presets come from Metrom (Ember, Ice, Forest, Paper, Snow, Bloom) instead of new designs. The document page never changes color. No textures, wordmark, or custom chrome (decided 2026-11-23). The `styles.css` split is part of this job: break the file up and pull every color into tokens on the way through, then each theme is a short block of variables. The native pieces (title bar, the right-click menu built in Rust) follow a light or dark base, so each theme picks one.
+4. **Measurement, the rest of what FSG asked for:** Angle (three clicks) and Volume (Area with a depth, in cu ft or cu yd), then Dynamic Fill (click inside a room, flood-fill the rendered page, trace the boundary to an Area) and snapping to drawing geometry, both from the plan's phase 2. Counts already work through subjects in the Markups tab and saved tools in the Tool Chest.
+5. **Real redaction.** Has to remove what's under the box. Start from `pdfStructure.ts` / `pdfStructTree.ts`. Checklist borrowed from KillerPDF's design: remove the content, verify the result before saving, report leftover matches in bookmarks, scripts, and metadata, always strip metadata and embedded thumbnails, ask before falling back to a rasterized page, and offer pattern presets (email, phone, SSN, card numbers with checksum) alongside search and manual boxes.
+6. **XFA.** Phase 2 of `docs/document-info-plan.md`, waiting on test files (`enableXfa` is still false). Not small: pdf.js lays dynamic forms out as HTML pages with no editors, a different page count, and blank canvases, so tools, page edits, thumbnails, and printing all need XFA paths.
+
+Cleanup, whenever: prune the merged remote branches. The `styles.css` split (2,476 lines) moved into Themes.
+
+## From the KillerPDF review (2026-11-23), not scheduled
+
+Reviewed https://killerpdf.net (v1.9.5, Windows-only, GPLv3, C#/WPF with its own engine). It's an Acrobat clone with a very wide feature list. It has nothing like the tool chest, overlay, or takeoff, so the Bluebeam lane is still Clumsy's. It's GPLv3: read it for ideas, don't copy code.
+
+Candidates it surfaced, none of them placed in the order above:
+
+- **Page dressing:** page numbers, headers and footers, Bates numbering, text watermark, and crop. All fit the undoable page-edit model.
+- **Windows catch-up:** code signing, in-app updates, and print. Already in Known gaps. KillerPDF ships through winget, Chocolatey, and the Microsoft Store.
+- **A small CLI,** and maybe an MCP server after it: merge, split, compress, export images, comparison report.
+- **FDF/XFDF** import and export for form data.
+- **Small ones:** single-letter tool keys, editing metadata (the Info tab only reads it).
+
+Looked at and still skipped: in-place text editing, Office export, prepress and preflight, EPUB and DjVu, TWAIN scanning, macros and watch folders, a custom PDF engine.
 
 ## Hardening pass (done)
 
@@ -171,7 +188,7 @@ Done:
 - **Rust IPC surface, webview security, and pdf.js coupling reviews:** merged to `main` after 0.10.8. pdf.js pinned exactly, with a contract test and `docs/pdfjs-upgrade.md`.
 
 Leftovers, not blocking:
-- **Housekeeping:** split `styles.css` (2,476 lines); prune the remote branches. `markdown-compare`, `ber-signatures`, `sidebar-icons`, and `document-info` are merged, and the `.claude/worktrees/document-info` worktree is prunable. Before those, git showed `code-review-fixes`, `markup`, `password-protect`, `print-phase-2`, `print-plan`, `split-release`, `windows-download`, and `windows-titlebar` as merged into `main`. `changelog-versioning`, `docs-new-features`, `feature/organize-pages`, `form-tools`, `images-in-and-out`, `page-labels-editor`, `pdfjs-parity-1`, `pdfjs-parity-fixes`, and `vscode-shortcuts` shipped but aren't ancestors of `main`, so confirm each before deleting. `fix/review-safety` isn't merged.
+- **Housekeeping:** split `styles.css` (2,476 lines; now part of Themes); prune the remote branches. `markdown-compare`, `ber-signatures`, `sidebar-icons`, and `document-info` are merged, and the `.claude/worktrees/document-info` worktree is prunable. Before those, git showed `code-review-fixes`, `markup`, `password-protect`, `print-phase-2`, `print-plan`, `split-release`, `windows-download`, and `windows-titlebar` as merged into `main`. `changelog-versioning`, `docs-new-features`, `feature/organize-pages`, `form-tools`, `images-in-and-out`, `page-labels-editor`, `pdfjs-parity-1`, `pdfjs-parity-fixes`, and `vscode-shortcuts` shipped but aren't ancestors of `main`, so confirm each before deleting. `fix/review-safety` isn't merged.
 - **Performance leads:** comparing two 1,200-page files holds about 1.2 GB in WebKit, mostly the text of every page. Every command on text-1200 used to block the main thread for about 95 ms; page edits are fixed by the worker, so check whether Undo and the palette still do.
 
 ## pdf.js parity
@@ -181,7 +198,7 @@ Goal: every feature pdf.js 6.4.299 offers is reachable in Clumsy.
 Done: everything from the old "viewer flags and wiring" list (0.4.1), comments, signatures (moved onto pdf.js's `SignatureEditor`), alt text, and the undo bar (0.9.0), and print (0.11.0, through PDFKit rather than pdf.js's print service). `enableDetailCanvas` stays off on purpose; AGENTS.md explains the image-restore conflict.
 
 Left:
-- **XFA.** Next item 5, phase 2 of `docs/document-info-plan.md`. Document Properties, Attachments, and Layers shipped in 0.22.0.
+- **XFA.** Next item 6, phase 2 of `docs/document-info-plan.md`. Document Properties, Attachments, and Layers shipped in 0.22.0.
 - **Presentation mode.** Full screen, one page at a time, arrow keys and click to advance.
 - **Form scripting: done**, with Clumsy's own scripting manager. A script's text prompt (`app.response`) is the one thing left unanswered.
 - **Copy and print permissions: decided, ignored** (2026-11-06). Every file can be copied from and printed, like Firefox's pdf.js and Evince. `TextLayerMode.ENABLE_PERMISSIONS` stays off.
