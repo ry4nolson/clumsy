@@ -10,6 +10,8 @@ import { readMarkup, readSubjects } from "./markupPdf";
 import { pageScaleOf, setPageScale } from "./measurePdf";
 import { writeAnnotationsReporting } from "./notesPdf";
 import { addTextLayers, type OcrPage } from "./ocrPdf";
+import { buildOverlay } from "./overlayPdf";
+import type { OverlayOptions } from "./overlayPlan";
 import { dropPdfAClaim, encryptUncompressedStrings, installDecryptedStrings, loadDecrypting, passwordRole } from "./pdfDecrypt";
 import { compressImages } from "./pdfCompress";
 import { flattenForPrint } from "./pdfFlatten";
@@ -22,6 +24,7 @@ installDecryptedStrings();
 
 const PASSWORD_FAILED = "This PDF's password didn't work.";
 const INSERTED_LOCKED = "Pages can't be added from a password-protected PDF.";
+const OVERLAY_LOCKED = "Open the password-protected PDF in a tab first, then overlay it from there.";
 
 const passwordRefused = (error: unknown) =>
   error instanceof EncryptedPDFError || (error instanceof Error && /^(NEEDS PASSWORD|Password incorrect)/.test(error.message));
@@ -177,6 +180,16 @@ export async function combinePdfs(files: Uint8Array[]) {
   return save(doc);
 }
 
+export async function overlayPdfs(previous: Uint8Array, current: Uint8Array, options: OverlayOptions, passwords: { previous?: string; current?: string } = {}, onProgress?: (progress: CompressProgress) => void) {
+  const before = await load(previous, passwords.previous, OVERLAY_LOCKED);
+  const after = await load(current, passwords.current, OVERLAY_LOCKED);
+  for (const doc of [before, after]) {
+    flattenPageTree(doc);
+    await flattenForPrint(doc);
+  }
+  return save((await buildOverlay(before, after, options, onProgress)).doc);
+}
+
 export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: CompressProgress) => void): Promise<PageEditResult> {
   switch (job.op) {
     case "edit": {
@@ -210,6 +223,8 @@ export async function runPageEditJob(job: PageEditJob, onProgress?: (progress: C
       return { bytes: new Uint8Array(), role: await passwordRole(job.bytes, job.password).catch(() => null) };
     case "combine":
       return { bytes: await combinePdfs(job.files) };
+    case "overlay":
+      return { bytes: await overlayPdfs(job.previous, job.current, job.options, { previous: job.previousPassword, current: job.currentPassword }, onProgress) };
     case "scanSignatures":
       return { bytes: new Uint8Array(), scan: await scanSignatures(job.bytes, job.password) };
     case "prepareSignature": {

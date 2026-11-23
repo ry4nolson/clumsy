@@ -1,5 +1,7 @@
 # Overlay plan
 
+**Status (2026-11-23): built, shipped in v0.25.0.** What differs from the plan below: pages are embedded with one object copier per source instead of `embedPage` (which copies shared fonts once per page); each tint group starts with a white fill so no viewer has to blend against a transparent backdrop; change detection renders on the main thread (the page-edit worker has no pdf.js) and only the diffing is pure code; the Layers toggle is the Layers tab from 0.22.0; alignment is one for the whole set, with no per-pair override yet. Spike 1 passed in pdf.js (Chromium and WKWebView) and CoreGraphics; Acrobat and a real FSG drawing set are still on the Mac checklist.
+
 Written 2026-11-14 against `main` after the measurement, tool chest, and markup list plans. Roadmap item 4. FSG's Bluebeam seats are mostly Core, and "overlay and compare drawings" is one of the three things Bobby Graham named that the license pays for.
 
 Overlay lays two revisions of a drawing on top of each other: the old one tinted red, the new one tinted blue. Lines that didn't change print dark, because both colors multiply to near black. Anything that moved, appeared, or disappeared shows up in red or blue. Clumsy's compare (0.3) only sees text, so a drawing where a wall moved 2 feet shows no changes at all. Overlay is the drawing-side answer, and it's pure TypeScript and pdf-lib, so it works on Windows too.

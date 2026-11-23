@@ -4,6 +4,7 @@ import { stampsFor } from "./customStamps";
 import type { Markup } from "./markup";
 import type { StickyNote } from "./notes";
 import type { OcrPage } from "./ocrPdf";
+import type { OverlayOptions } from "./overlayPlan";
 import type { PageEdit } from "./pageEditPlan";
 import type { PrepareSignatureOptions, PreparedSignature, SignatureScan, ValidationMaterial } from "./signatureTypes";
 
@@ -88,6 +89,11 @@ export const textLayerPdfOffThread = async (bytes: Uint8Array, pages: OcrPage[],
   (await runInWorker(spawn, { op: "textLayer", bytes, pages, password })).bytes;
 
 export const combinePdfsOffThread = async (files: Uint8Array[]) => (await runInWorker(spawn, { op: "combine", files })).bytes;
+
+export type OverlaySource = { bytes: Uint8Array; password?: string };
+
+export const overlayPdfsOffThread = async (previous: OverlaySource, current: OverlaySource, overlay: OverlayOptions, options: RunOptions) =>
+  (await runInWorker(spawn, { op: "overlay", previous: previous.bytes, current: current.bytes, options: overlay, previousPassword: previous.password, currentPassword: current.password }, options)).bytes;
 
 const EMPTY_SCAN: SignatureScan = { signatures: [], emptyFields: [], dss: null, encrypted: false, certified: null };
 

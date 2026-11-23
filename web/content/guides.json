@@ -97,6 +97,11 @@
           "imageAlt": "Clumsy comparing two versions of a PDF side by side"
         },
         {
+          "slug": "overlay",
+          "title": "Overlaying drawings",
+          "summary": "Lay two revisions of a drawing on top of each other. What moved shows up in red and blue."
+        },
+        {
           "slug": "compress-export-print",
           "title": "Compress, export, and print",
           "summary": "Shrink a scan before emailing it, turn pages into images, and print with your markup on the page."

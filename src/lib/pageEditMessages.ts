@@ -5,6 +5,7 @@ import type { Markup } from "./markup";
 import type { PageScale } from "./measurePdf";
 import type { StickyNote } from "./notes";
 import type { OcrPage } from "./ocrPdf";
+import type { OverlayOptions } from "./overlayPlan";
 import { PageEditError, type PageEdit } from "./pageEditPlan";
 import type { PasswordRole } from "./pdfDecrypt";
 import type { PrepareSignatureOptions, SignaturePlaceholder, SignatureScan, ValidationMaterial } from "./signatureTypes";
@@ -20,6 +21,7 @@ export type PageEditJob =
   | { op: "readScales"; bytes: Uint8Array; password?: string }
   | { op: "role"; bytes: Uint8Array; password: string }
   | { op: "combine"; files: Uint8Array[] }
+  | { op: "overlay"; previous: Uint8Array; current: Uint8Array; options: OverlayOptions; previousPassword?: string; currentPassword?: string }
   | { op: "compress"; bytes: Uint8Array; settings: CompressSettings; password?: string }
   | { op: "textLayer"; bytes: Uint8Array; pages: OcrPage[]; password?: string }
   | { op: "scanSignatures"; bytes: Uint8Array; password?: string }
@@ -73,6 +75,8 @@ export function jobBuffers(job: PageEditJob) {
       return buffersOf([job.bytes, ...job.material.certs, ...job.material.ocsps, ...job.material.crls]);
     case "combine":
       return buffersOf(job.files);
+    case "overlay":
+      return buffersOf([job.previous, job.current]);
   }
 }
 

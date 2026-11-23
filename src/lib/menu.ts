@@ -37,6 +37,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "newPdfFromImages",
       "combineFiles",
       "compareWithFile",
+      "overlayDrawings",
       "-",
       "exportPagesAsImages",
       "exportComparison",

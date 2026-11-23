@@ -20,6 +20,7 @@ export type CommandId =
   | "setPassword"
   | "removePassword"
   | "compareWithFile"
+  | "overlayDrawings"
   | "compareSplitPanes"
   | "exportComparison"
   | "nextChange"
@@ -190,6 +191,7 @@ export const commands: Command[] = [
   { id: "newPdfFromImages", label: "New PDF from Images…", menu: "File", combos: [] },
   { id: "exportPagesAsImages", label: "Export Pages as Images…", menu: "File", combos: [], needsDocument: true, needsDesktop: true },
   { id: "compareWithFile", label: "Compare With File…", menu: "File", combos: [], needsDocument: true, markdown: true },
+  { id: "overlayDrawings", label: "Overlay Drawings…", menu: "File", combos: [], needsDocument: true },
   { id: "exportComparison", label: "Export Comparison Report…", menu: "File", combos: [], needsComparison: true, needsPdfComparison: true },
   { id: "closeTab", label: "Close Tab", menu: "File", combos: ["mod+w"] },
   { id: "closeWindow", label: "Close Window", menu: "File", combos: ["mod+shift+w"], needsDesktop: true },
