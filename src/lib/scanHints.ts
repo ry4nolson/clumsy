@@ -34,16 +34,17 @@ export function attachScanHints(container: HTMLElement, doc: PDFDocumentProxy, a
   const scans = new Map<number, Promise<boolean>>();
   let detached = false;
 
-  const isScan = (pageIndex: number) => {
+  const isScan = async (pageIndex: number) => {
+    const images = recordedImages(await doc.getPage(pageIndex + 1));
+    if (!images) {
+      return false;
+    }
     const known = scans.get(pageIndex);
     if (known) {
       return known;
     }
-    const answer = (async () => {
-      const images = recordedImages(await doc.getPage(pageIndex + 1));
-      const pictured = !!images && imageRects(images.coords, 0).some((rect) => coversPage(rect, IMAGE_SHARE));
-      return pictured && !(await pageHasText(doc, pageIndex));
-    })().catch(() => false);
+    const pictured = imageRects(images.coords, 0).some((rect) => coversPage(rect, IMAGE_SHARE));
+    const answer = pictured ? pageHasText(doc, pageIndex).then((has) => !has) : Promise.resolve(false);
     scans.set(pageIndex, answer);
     return answer;
   };
@@ -53,7 +54,7 @@ export function attachScanHints(container: HTMLElement, doc: PDFDocumentProxy, a
     if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex >= doc.numPages) {
       return;
     }
-    const scan = await isScan(pageIndex);
+    const scan = await isScan(pageIndex).catch(() => false);
     if (!detached && scan && page.isConnected && !page.querySelector(`:scope > .${HINT}`)) {
       page.append(hintElement(pageIndex, actions));
     }

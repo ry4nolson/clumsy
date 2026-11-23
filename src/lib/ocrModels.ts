@@ -1,4 +1,4 @@
-import { modelKey, modelUrl } from "./ocr";
+import { MIN_MODEL_BYTES, modelKey, modelUrl } from "./ocr";
 
 const DATABASE = "clumsy-ocr";
 const STORE = "models";
@@ -20,7 +20,7 @@ async function cached(code: string) {
     const database = await openStore();
     const found = await settled<ArrayBuffer | undefined>(database.transaction(STORE).objectStore(STORE).get(modelKey(code)));
     database.close();
-    return found instanceof ArrayBuffer ? found : null;
+    return found instanceof ArrayBuffer && found.byteLength >= MIN_MODEL_BYTES ? found : null;
   } catch {
     return null;
   }
@@ -30,6 +30,16 @@ async function remember(code: string, model: ArrayBuffer) {
   try {
     const database = await openStore();
     await settled(database.transaction(STORE, "readwrite").objectStore(STORE).put(model, modelKey(code)));
+    database.close();
+  } catch {
+    return;
+  }
+}
+
+export async function forgetModel(code: string) {
+  try {
+    const database = await openStore();
+    await settled(database.transaction(STORE, "readwrite").objectStore(STORE).delete(modelKey(code)));
     database.close();
   } catch {
     return;
@@ -49,6 +59,9 @@ export async function loadModel(code: string, signal: AbortSignal, onDownload: (
     throw new Error(`The download failed (${response.status}).`);
   }
   const model = await response.arrayBuffer();
+  if (model.byteLength < MIN_MODEL_BYTES) {
+    throw new Error("The download wasn't language data.");
+  }
   await remember(code, model);
   return model;
 }

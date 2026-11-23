@@ -85,3 +85,11 @@ describe("text that's already on the page", () => {
     expect(coveredByText({ left: 1, top: 1, right: 1, bottom: 9 }, [])).toBe(true);
   });
 });
+
+describe("confidentWords with existing text", () => {
+  it("drops words on existing text and keeps the line break they carried", () => {
+    const at = (text: string, left: number, lineEnd = false): RecognizedWord => ({ text, confidence: 0.9, rect: { left, top: 100, right: left + 80, bottom: 130 }, lineEnd });
+    const words = confidentWords([at("kept", 0), at("typed", 200, true), at("next", 0, true)], [{ left: 190, top: 95, right: 300, bottom: 135 }]);
+    expect(words.map((word) => [word.text, word.lineEnd])).toEqual([["kept", true], ["next", true]]);
+  });
+});

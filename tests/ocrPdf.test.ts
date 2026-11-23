@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument, degrees } from "@cantoo/pdf-lib";
-import { addTextLayers, imageToPage, type OcrWord } from "../src/lib/ocrPdf";
+import { addTextLayers, imageToPage, textLayerContent, visibleBox, type OcrWord } from "../src/lib/ocrPdf";
 import { textLayerPdf } from "../src/lib/pageEdits";
 import { openPdf } from "./pdfjsNode";
 
@@ -71,5 +71,35 @@ describe("textLayerPdf", () => {
     doc.addPage([612, 792]);
     const bytes = await textLayerPdf(await doc.save(), [{ pageIndex: 4, width: 2550, height: 3300, words: WORDS }]);
     expect((await openPdf(bytes)).numPages).toBe(1);
+  });
+});
+
+describe("page boxes", () => {
+  it("uses the part of the crop box inside the media box, as pdf.js does", () => {
+    const media = { x: 0, y: 0, width: 612, height: 792 };
+    expect(visibleBox({ x: -50, y: -50, width: 750, height: 950 }, media)).toEqual(media);
+    expect(visibleBox({ x: 36, y: 36, width: 540, height: 720 }, media)).toEqual({ x: 36, y: 36, width: 540, height: 720 });
+    expect(visibleBox({ x: 700, y: 0, width: 50, height: 50 }, media)).toEqual(media);
+  });
+
+  it("ignores a rotation that isn't a quarter turn", () => {
+    const box = { x: 0, y: 0, width: 600, height: 800 };
+    expect(imageToPage(box, 45, 1200)).toEqual(imageToPage(box, 0, 1200));
+    expect(imageToPage(box, -90, 1600)).toEqual(imageToPage(box, 270, 1600));
+  });
+
+  it("keeps invisible text mode from leaking into later content", () => {
+    const content = textLayerContent(WORDS, imageToPage({ x: 0, y: 0, width: 612, height: 792 }, 0, 2550), "F1").split("\n");
+    expect(content[0]).toBe("q");
+    expect(content.at(-1)).toBe("Q");
+  });
+
+  it("places words by the visible box when the crop box overhangs the page", async () => {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([612, 792]);
+    page.setCropBox(-50, -50, 750, 950);
+    addTextLayers(doc, [{ pageIndex: 0, width: 2550, height: 3300, words: WORDS }]);
+    const found = await items(await doc.save());
+    expect(found[0]).toMatchObject({ x: 300, y: 350 });
   });
 });

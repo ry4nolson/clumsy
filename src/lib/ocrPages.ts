@@ -45,8 +45,8 @@ export type OcrInput = { image: ImageData; taken: Box[] };
 
 export async function pageForOcr(doc: PDFDocumentProxy, pageIndex: number, keepText: boolean, signal: AbortSignal): Promise<OcrInput | null> {
   const page = await doc.getPage(pageIndex + 1);
-  const content = await page.getTextContent();
-  const partial = keepText && hasText(stringsOf(content));
+  const content = keepText ? await page.getTextContent() : null;
+  const partial = !!content && hasText(stringsOf(content));
   const canvas = document.createElement("canvas");
   try {
     const natural = page.getViewport({ scale: 1 });
@@ -62,7 +62,7 @@ export async function pageForOcr(doc: PDFDocumentProxy, pageIndex: number, keepT
     } finally {
       signal.removeEventListener("abort", cancel);
     }
-    if (!partial) {
+    if (!partial || !content) {
       return { image: canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height), taken: [] };
     }
     recordImageCoordinates(page, page.imageCoordinates, viewport.rotation);

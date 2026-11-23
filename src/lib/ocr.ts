@@ -2,6 +2,7 @@ import type { OcrWord } from "./ocrPdf";
 
 export const OCR_DPI = 300;
 export const MIN_CONFIDENCE = 0.3;
+export const MIN_MODEL_BYTES = 100_000;
 const MIN_TEXT_CHARACTERS = 12;
 const TESSDATA_COMMIT = "87416418657359cb625c412a48b6e1d6d41c29bd";
 
@@ -88,10 +89,10 @@ export function scanSamplePages(pageCount: number) {
 
 export type RecognizedWord = { text: string; confidence: number; rect: { left: number; top: number; right: number; bottom: number }; lineEnd: boolean };
 
-export function confidentWords(words: RecognizedWord[]): OcrWord[] {
+export function confidentWords(words: RecognizedWord[], taken: Box[] = []): OcrWord[] {
   const kept: OcrWord[] = [];
   for (const { text, confidence, rect, lineEnd } of words) {
-    if (text.trim() && confidence >= MIN_CONFIDENCE) {
+    if (text.trim() && confidence >= MIN_CONFIDENCE && !(taken.length && coveredByText(rect, taken))) {
       kept.push({ text: text.trim(), ...rect, lineEnd });
     } else if (lineEnd && kept.length) {
       kept[kept.length - 1] = { ...kept[kept.length - 1], lineEnd: true };

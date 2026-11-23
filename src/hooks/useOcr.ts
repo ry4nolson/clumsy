@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import type { Progress } from "../components/ProgressView";
 import type { CommandId } from "../lib/commands";
-import { confidentWords, coveredByText, ocrLanguage, ocrSummary, type OcrTally } from "../lib/ocr";
+import { confidentWords, ocrLanguage, ocrSummary, type OcrTally } from "../lib/ocr";
 import { OcrStoppedError, createOcrClient } from "../lib/ocrClient";
-import { hasModel, loadModel } from "../lib/ocrModels";
+import { forgetModel, hasModel, loadModel } from "../lib/ocrModels";
 import { pageForOcr } from "../lib/ocrPages";
 import type { OcrPage } from "../lib/ocrPdf";
 import { textLayerPdfOffThread } from "../lib/pageEditWorker";
@@ -33,7 +33,7 @@ const optionsFrom = (stored: unknown): OcrOptions => {
   return { language: ocrLanguage(value.language).code, skipText: value.skipText !== false };
 };
 
-export function useOcr({ workspaceRef, handles }: WorkspaceApi, { capture, replaceCaptured }: Pick<PageEditsApi, "capture" | "replaceCaptured">) {
+export function useOcr({ workspaceRef, handles }: WorkspaceApi, { capture, replaceCaptured, settled }: Pick<PageEditsApi, "capture" | "replaceCaptured" | "settled">) {
   const [stored, setStored] = usePersistentState<unknown>("clumsy.ocr", null);
   const [request, setRequest] = useState<OcrRequest | null>(null);
   const [status, setStatus] = useState<OcrStatus>({ kind: "choosing" });
@@ -63,9 +63,14 @@ export function useOcr({ workspaceRef, handles }: WorkspaceApi, { capture, repla
     const model = await loadModel(language, signal, () => setStatus({ kind: "downloading", language: label })).catch((error) => {
       throw signal.aborted ? new OcrStoppedError() : new Error(`The ${label} ${OFFLINE}${error instanceof Error && error.message ? ` (${error.message})` : ""}`);
     });
+    await settled(tabId);
     const captured = await capture(tabId);
     const doc = handles.current.get(tabId)?.viewer.pdfDocument;
-    if (!captured || !doc) {
+    const sourceOf = () => {
+      const tab = workspaceRef.current.tabs[tabId];
+      return tab?.kind === "document" ? tab.source : null;
+    };
+    if (!captured || !doc || captured.source !== sourceOf()) {
       throw new Error("This PDF isn't ready yet. Try again in a moment.");
     }
     const client = createOcrClient(model, signal);
@@ -87,7 +92,15 @@ export function useOcr({ workspaceRef, handles }: WorkspaceApi, { capture, repla
         }
         const { width, height } = input.image;
         const partial = input.taken.length > 0;
-        const words = confidentWords(await client.recognize(input.image)).filter((word) => !coveredByText(word, input.taken));
+        const words = confidentWords(
+          await client.recognize(input.image).catch(async (error) => {
+            if (!signal.aborted && !found.length && !tally.empty) {
+              await forgetModel(language);
+            }
+            throw error;
+          }),
+          input.taken,
+        );
         if (!words.length && partial) {
           tally.skipped += 1;
           continue;
@@ -112,6 +125,9 @@ export function useOcr({ workspaceRef, handles }: WorkspaceApi, { capture, repla
         throw new Error(CHANGED);
       }
       if (!(await replaceCaptured(tabId, captured, bytes, SIGNATURE_ACTION))) {
+        if (sourceOf() !== captured.source) {
+          throw new Error(CHANGED);
+        }
         return null;
       }
     }
@@ -128,24 +144,33 @@ export function useOcr({ workspaceRef, handles }: WorkspaceApi, { capture, repla
     running.current = controller;
     try {
       const summary = await recognize(target.tabId, chosen, pages, controller.signal);
+      if (controller.signal.aborted) {
+        return;
+      }
       if (summary) {
         setStatus({ kind: "done", summary });
       } else {
         setRequest(null);
       }
     } catch (error) {
-      if (error instanceof OcrStoppedError || controller.signal.aborted) {
+      if (controller.signal.aborted) {
+        return;
+      }
+      if (error instanceof OcrStoppedError) {
         setRequest(null);
       } else {
         setStatus({ kind: "failed", message: error instanceof Error ? error.message : String(error) });
       }
     } finally {
-      running.current = null;
+      if (running.current === controller) {
+        running.current = null;
+      }
     }
   };
 
   const close = () => {
     running.current?.abort();
+    running.current = null;
     setRequest(null);
   };
 

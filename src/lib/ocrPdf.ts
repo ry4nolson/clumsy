@@ -27,8 +27,16 @@ const TO_UNICODE = [
   "end",
 ].join("\n");
 
+export function visibleBox(crop: Box, media: Box): Box {
+  const x = Math.max(crop.x, media.x);
+  const y = Math.max(crop.y, media.y);
+  const width = Math.min(crop.x + crop.width, media.x + media.width) - x;
+  const height = Math.min(crop.y + crop.height, media.y + media.height) - y;
+  return width > 0 && height > 0 ? { x, y, width, height } : media;
+}
+
 export function imageToPage(box: Box, rotation: number, imageWidth: number): Matrix {
-  const turns = ((Math.round(rotation / 90) % 4) + 4) % 4;
+  const turns = rotation % 90 === 0 ? (((rotation / 90) % 4) + 4) % 4 : 0;
   const unit = (turns % 2 ? box.height : box.width) / imageWidth;
   const right = box.x + box.width;
   const top = box.y + box.height;
@@ -57,7 +65,7 @@ function hexOf(text: string) {
 const printable = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, "");
 
 export function textLayerContent(words: OcrWord[], [a, b, c, d, e, f]: Matrix, font: string) {
-  const lines = ["BT", "3 Tr", `/${font} 1 Tf`];
+  const lines = ["q", "BT", "3 Tr", `/${font} 1 Tf`];
   words.forEach((word, index) => {
     const next = word.lineEnd ? undefined : words[index + 1];
     const text = printable(word.text) + (next ? " " : "");
@@ -70,7 +78,7 @@ export function textLayerContent(words: OcrWord[], [a, b, c, d, e, f]: Matrix, f
     const matrix = [a * stretch, b * stretch, -c * height, -d * height, a * word.left + c * word.bottom + e, b * word.left + d * word.bottom + f];
     lines.push(`${matrix.map(number).join(" ")} Tm`, `<${hexOf(text)}> Tj`);
   });
-  lines.push("ET");
+  lines.push("ET", "Q");
   return lines.join("\n");
 }
 
@@ -126,10 +134,10 @@ export function addTextLayers(doc: PDFDocument, pages: OcrPage[]) {
     if (!page || !words.length) {
       continue;
     }
-    const crop = page.getCropBox();
+    const box = visibleBox(page.getCropBox(), page.getMediaBox());
     page.node.normalize();
     const name = page.node.newFontDictionary("ClumsyOcr", (font ??= glyphlessFont(doc)));
-    const content = textLayerContent(words, imageToPage(crop, page.getRotation().angle, width), name.decodeText());
+    const content = textLayerContent(words, imageToPage(box, page.getRotation().angle, width), name.decodeText());
     page.node.addContentStream(doc.context.register(doc.context.flateStream(content)));
   }
 }

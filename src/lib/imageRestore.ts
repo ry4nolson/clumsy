@@ -31,12 +31,19 @@ function drawImages(source: HTMLCanvasElement, overlay: HTMLCanvasElement, rects
   overlay.height = source.height;
   const context = overlay.getContext("2d")!;
   const pixels = pixelRects(rects, source.width, source.height);
+  let drawn = 0;
   for (const [index, { x, y, width, height }] of pixels.entries()) {
     if (coversPage(rects[index]) && isScan(source, pixels[index])) {
       continue;
     }
     context.drawImage(source, x, y, width, height, x, y, width, height);
+    drawn += 1;
   }
+  if (!drawn) {
+    overlay.width = 0;
+    overlay.height = 0;
+  }
+  return drawn;
 }
 
 export function restoreImages(pageView: RenderedPageView, enabled: boolean) {
@@ -60,7 +67,9 @@ export function restoreImages(pageView: RenderedPageView, enabled: boolean) {
   if (!overlay.isConnected) {
     div.querySelector(".canvasWrapper")?.after(overlay);
   }
-  drawImages(canvas, overlay, imageRects(images.coords, viewport.rotation - images.rotation));
+  if (!drawImages(canvas, overlay, imageRects(images.coords, viewport.rotation - images.rotation))) {
+    overlay.remove();
+  }
 }
 
 export function restoreRenderedImages(viewer: { pagesCount: number; getPageView(index: number): unknown }, enabled: boolean) {
