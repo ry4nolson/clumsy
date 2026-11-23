@@ -1,4 +1,9 @@
+import { themeChoices, type ThemeChoice } from "./themes";
+
+export type ThemeCommandId = `theme-${ThemeChoice}`;
+
 export type CommandId =
+  | ThemeCommandId
   | "about"
   | "checkUpdates"
   | "makeDefault"
@@ -150,6 +155,7 @@ export type Command = {
   id: CommandId;
   label: string;
   menu: MenuName | null;
+  group?: string;
   combos: string[];
   needsDocument?: boolean;
   markdown?: boolean;
@@ -173,6 +179,12 @@ const tabCommands: Command[] = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((index) =
   menu: null,
   combos: [`mod+${index}`],
 }));
+
+export const themeCommandId = (choice: ThemeChoice): ThemeCommandId => `theme-${choice}`;
+
+export const themeOfCommand = (id: string): ThemeChoice | null => themeChoices.find((choice) => themeCommandId(choice.id) === id)?.id ?? null;
+
+const themeCommands: Command[] = themeChoices.map(({ id, label }) => ({ id: themeCommandId(id), label, menu: "View", group: "Theme", combos: [] }));
 
 export const revealLabel = typeof navigator !== "undefined" && navigator.userAgent.includes("Mac") ? "Show in Finder" : "Show in Folder";
 
@@ -236,6 +248,7 @@ export const commands: Command[] = [
   { id: "swapComparison", label: "Swap Compared Sides", menu: "View", combos: [], needsComparison: true },
   { id: "toggleLinkedScroll", label: "Toggle Linked Scrolling", menu: "View", combos: [], needsComparison: true },
   { id: "endComparison", label: "End Comparison", menu: "View", combos: [], needsComparison: true },
+  ...themeCommands,
   { id: "toggleDarkPages", label: "Dark Pages", menu: "View", combos: ["mod+shift+d"] },
   { id: "toggleInvertImages", label: "Invert Images in Dark Pages", menu: "View", combos: [] },
   { id: "scrollVertical", label: "Vertical Scrolling", menu: "View", combos: [], needsDocument: true },

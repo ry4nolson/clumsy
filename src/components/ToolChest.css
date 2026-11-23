@@ -18,10 +18,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--ink-elevated);
+  color: var(--bone);
   cursor: pointer;
 }
 
@@ -59,7 +59,7 @@
 
 .tool-chest-empty {
   margin: 8px 4px;
-  color: var(--text-muted);
+  color: var(--ash);
   line-height: 1.45;
 }
 
@@ -76,7 +76,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--text-muted);
+  color: var(--copper);
   text-transform: uppercase;
 }
 
@@ -101,7 +101,7 @@
   border: none;
   border-radius: 6px;
   background: none;
-  color: var(--text);
+  color: var(--bone);
   text-align: left;
   cursor: pointer;
   touch-action: none;
@@ -112,8 +112,8 @@
 }
 
 .tool-chest-item[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--ember-fill);
+  color: var(--on-ember);
 }
 
 .tool-chest-item[aria-pressed="true"] .tool-chest-kind {
@@ -135,7 +135,7 @@
 
 .tool-chest-kind {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .tool-chest-row-menu {
@@ -164,7 +164,7 @@
   height: 2px;
   margin: 0 4px;
   border-radius: 1px;
-  background: var(--accent);
+  background: var(--ember);
   content: "";
 }
 
@@ -182,7 +182,7 @@
   width: 36px;
   height: 24px;
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--page);
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
 }
 
@@ -228,7 +228,7 @@
 
 .tool-menu .save-tool {
   margin-top: 4px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ink-line);
   border-radius: 0;
   padding-top: 4px;
   height: 32px;
@@ -237,7 +237,7 @@
 .tool-menu-separator {
   margin: 4px 0;
   border: none;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ink-line);
 }
 
 .tool-chest .tool-menu-item:disabled,

@@ -9,6 +9,7 @@ type QuickPickProps = {
   mode: QuickPickMode | null;
   onPick: (id: string) => void;
   onClose: () => void;
+  onHighlight?: (id: string | null) => void;
 };
 
 function highlight(text: string, indices: number[]) {
@@ -36,12 +37,13 @@ function highlight(text: string, indices: number[]) {
   return parts;
 }
 
-export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
+export function QuickPick({ mode, onPick, onClose, onHighlight }: QuickPickProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
+  const [browsed, setBrowsed] = useState(false);
 
   const results = useMemo(() => {
     const jump = mode?.jump?.(query);
@@ -71,7 +73,11 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
     }
     setQuery("");
     setSelected(0);
+    setBrowsed(false);
   }, [mode?.key]);
+
+  const highlighted = mode && browsed ? (results[selected]?.item.id ?? null) : null;
+  useEffect(() => onHighlight?.(highlighted), [highlighted]);
 
   useEffect(() => {
     listRef.current?.querySelector<HTMLElement>(`[data-index="${selected}"]`)?.scrollIntoView({ block: "nearest" });
@@ -88,6 +94,7 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
 
   const move = (delta: number) => {
     if (results.length) {
+      setBrowsed(true);
       setSelected((current) => (current + delta + results.length) % results.length);
     }
   };
@@ -127,6 +134,7 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
         onChange={(event) => {
           setQuery(event.target.value);
           setSelected(0);
+          setBrowsed(event.target.value !== "");
         }}
         onKeyDown={(event) => {
           const actions: Record<string, () => void> = {
@@ -154,7 +162,10 @@ export function QuickPick({ mode, onPick, onClose }: QuickPickProps) {
             role="option"
             aria-selected={index === selected}
             className={index === selected ? "selected" : undefined}
-            onPointerMove={() => setSelected(index)}
+            onPointerMove={() => {
+              setBrowsed(true);
+              setSelected(index);
+            }}
             onClick={() => finish(item.id)}
           >
             <span className="quick-pick-label">{highlight(item.label, match.indices)}</span>

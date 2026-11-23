@@ -1,6 +1,8 @@
 # Themes plan
 
-Written 2026-11-23. Roadmap item 2, after overlay.
+Written 2026-11-23. Phases 0 and 1 shipped in v0.26.0.
+
+How it came out: the picker is a palette button on the toolbar, with View > Theme and the Command Palette as the keyboard routes. Match System uses Clumsy Light and, in dark mode, Ember. The backdrop is flat (`--bg-bottom`), rendered Markdown keeps its own neutral palettes, and About follows the theme. Not done: the mobile status and navigation bars, and the byte-identical export test, which became a test that document colors never reference a theme slot.
 
 ## What this is
 

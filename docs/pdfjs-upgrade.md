@@ -119,6 +119,7 @@ Each row is something pdf.js could change without a type error. "Test" names the
 | --- | --- | --- | --- |
 | `src/components/Editing.css:1` | Variables `pdf_viewer.css` uses but only Firefox's `viewer.css` defines (`--comment-edit-button-icon`, `--main-color`, `--toolbar-icon-bg-color`, `--icon-size`, `--dir-factor`, `--editor-toolbar-min-width`) | Comment buttons draw as blank squares, toolbars collapse | CSS (snapshot of every undefined variable) |
 | `src/components/Editing.css:11` | Draw and Text cursors with hotspot `0 16` on 16×16 images, defined on `:root` | WebKit falls back to the arrow cursor | CSS |
+| `src/components/Editing.css` (last rules) and `src/styles/tokens.css` | `pdf_viewer.css` sets `color-scheme: light dark` on `:root`, `.commentPopup`, and `.annotationCommentButton`, and uses `light-dark()` and one `prefers-color-scheme` query | Those pieces follow the system instead of the theme's base: a light theme on a dark system gets dark comment popups (macOS hides it, because `setTheme` moves the webview's scheme with the base) | Manual: Paper theme on a dark system in the browser build, open a comment |
 | `src/components/Editing.css:24` | pdf.js hides popups, toolbars, and color menus with a `hidden` class only `viewer.css` styles | Hidden comment popups and toolbars show | CSS (class still used), manual |
 
 ### Worker and polyfills

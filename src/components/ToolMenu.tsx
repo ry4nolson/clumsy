@@ -11,10 +11,11 @@ type MenuPopoverProps = {
   label: string;
   className?: string;
   onClick?: (event: MouseEvent<HTMLDivElement>) => void;
+  onClose?: () => void;
   children: ReactNode;
 };
 
-export function MenuPopover({ id, anchor, label, className, onClick, children }: MenuPopoverProps) {
+export function MenuPopover({ id, anchor, label, className, onClick, onClose, children }: MenuPopoverProps) {
   const menu = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,6 +60,11 @@ export function MenuPopover({ id, anchor, label, className, onClick, children }:
       role="dialog"
       aria-label={label}
       onBeforeToggle={place}
+      onToggle={(event) => {
+        if (event.newState === "closed") {
+          onClose?.();
+        }
+      }}
       onClick={onClick}
     >
       {children}

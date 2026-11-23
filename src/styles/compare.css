@@ -1,0 +1,280 @@
+.compare-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 6px 0 10px;
+  background: var(--ink-elevated);
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.compare-side {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--diff-removed) 14%, transparent);
+  color: var(--diff-removed);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.compare-bar.right .compare-side {
+  background: color-mix(in srgb, var(--diff-added) 14%, transparent);
+  color: var(--diff-added);
+}
+
+.compare-summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0 6px;
+  overflow: hidden;
+  color: var(--ash);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pdfViewer .page .diff-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.dark-pages:not(.keep-images) .pdfViewer .page .diff-layer {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.diff-layer:has(> .diff-note.added) {
+  background: color-mix(in srgb, var(--page-added) 6%, transparent);
+}
+
+.diff-layer:has(> .diff-note.removed) {
+  background: color-mix(in srgb, var(--page-removed) 6%, transparent);
+}
+
+.diff-mark {
+  position: absolute;
+  border-radius: 2px;
+}
+
+.diff-mark.removed {
+  background: color-mix(in srgb, var(--page-removed) 20%, transparent);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--page-removed) 65%, transparent);
+}
+
+.diff-mark.added {
+  background: color-mix(in srgb, var(--page-added) 20%, transparent);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--page-added) 65%, transparent);
+}
+
+.diff-mark.modified {
+  background: color-mix(in srgb, var(--page-modified) 20%, transparent);
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--page-modified) 65%, transparent);
+}
+
+.diff-mark.marker {
+  min-width: 2px;
+  box-shadow: none;
+}
+
+.diff-mark.marker.added {
+  background: var(--page-added);
+}
+
+.diff-mark.marker.removed {
+  background: var(--page-removed);
+}
+
+.diff-mark.current {
+  outline: 2px solid var(--page-current);
+  outline-offset: 1px;
+}
+
+.diff-note {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--page-note) 90%, transparent);
+  color: var(--page);
+  font: 600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.diff-note.added {
+  background: color-mix(in srgb, var(--page-added) 92%, transparent);
+}
+
+.diff-note.removed {
+  background: color-mix(in srgb, var(--page-removed) 92%, transparent);
+}
+
+.changes-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 6px;
+  background: var(--ink-elevated);
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.change-filters {
+  display: flex;
+  gap: 3px;
+}
+
+.change-filter {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ash);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.change-filter:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.change-filter[aria-pressed="true"] {
+  background: var(--active);
+  color: var(--bone);
+}
+
+.change-filter:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.change-filter.added .change-dot {
+  background: var(--diff-added);
+}
+
+.change-filter.removed .change-dot {
+  background: var(--diff-removed);
+}
+
+.change-words {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  color: var(--ash);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.change-words .added {
+  color: var(--diff-added);
+}
+
+.change-words .removed {
+  color: var(--diff-removed);
+}
+
+.changes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+
+.changes-more {
+  margin: 4px 14px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: var(--hover);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.change-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.change-row:hover {
+  background: var(--hover);
+}
+
+.change-row.in-view {
+  box-shadow: inset 3px 0 0 var(--ember);
+}
+
+.change-row[aria-current="true"] {
+  background: var(--active);
+}
+
+.change-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ash);
+  font-size: 11px;
+}
+
+.change-page {
+  margin-left: auto;
+}
+
+.change-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--diff-modified);
+}
+
+.change-row.added .change-dot {
+  background: var(--diff-added);
+}
+
+.change-row.removed .change-dot {
+  background: var(--diff-removed);
+}
+
+.change-row :is(del, ins) {
+  display: -webkit-box;
+  padding: 1px 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.change-row del {
+  background: color-mix(in srgb, var(--diff-removed) 14%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--diff-removed) 60%, transparent);
+}
+
+.change-row ins {
+  background: color-mix(in srgb, var(--diff-added) 14%, transparent);
+  text-decoration: none;
+}

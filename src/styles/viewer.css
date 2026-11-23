@@ -1,0 +1,207 @@
+.viewer-container.hand {
+  cursor: grab;
+}
+
+.viewer-container.hand .pdfViewer,
+.viewer-container.hand .pdfViewer * {
+  cursor: inherit !important;
+  user-select: none;
+}
+
+.viewer-container.grabbing {
+  cursor: grabbing;
+}
+
+.caret-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ember);
+  pointer-events: none;
+}
+
+.caret-mark.blink {
+  animation: caret-blink 1.06s steps(1) 0.5s infinite;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.viewer-area {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-bottom);
+}
+
+.document-map {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--bg-bottom);
+  border-left: 1px solid var(--ink-line);
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+
+.document-map-content {
+  position: relative;
+  will-change: transform;
+}
+
+.document-map-page {
+  position: absolute;
+  background: var(--page);
+}
+
+.document-map-page canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.app.dark-pages .document-map-page {
+  background: var(--page-dark);
+}
+
+.app.dark-pages .document-map-page canvas:not(.image-restore) {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+.document-map-page.selected {
+  outline: 2px solid var(--ember);
+  outline-offset: -2px;
+}
+
+.document-map-mark {
+  position: absolute;
+  min-width: 2px;
+  min-height: 2px;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.document-map-mark.find {
+  background: color-mix(in srgb, var(--find-mark) 85%, transparent);
+}
+
+.document-map-mark.find.current {
+  background: var(--find-mark-current);
+  outline: 1px solid var(--find-mark-current);
+}
+
+.document-map-mark.added {
+  background: color-mix(in srgb, var(--page-added) 75%, transparent);
+}
+
+.document-map-mark.removed {
+  background: color-mix(in srgb, var(--page-removed) 75%, transparent);
+}
+
+.document-map-mark.modified {
+  background: color-mix(in srgb, var(--page-modified) 75%, transparent);
+}
+
+.document-map-mark.current:not(.find) {
+  outline: 1px solid var(--ember);
+}
+
+.document-map-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--bone) 12%, transparent);
+  pointer-events: none;
+}
+
+.document-map:hover .document-map-slider {
+  background: color-mix(in srgb, var(--bone) 18%, transparent);
+}
+
+.document-map.dragging .document-map-slider {
+  background: color-mix(in srgb, var(--bone) 26%, transparent);
+}
+
+.viewer-container {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  outline: none;
+}
+
+.viewer-container .pdfViewer {
+  padding: 16px 0;
+}
+
+.viewer-container .pdfViewer .page {
+  border: none;
+  margin: 0 auto 16px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15), 0 4px 16px rgb(0 0 0 / 0.08);
+}
+
+.dark-pages:not(.keep-images) .pdfViewer .page,
+.dark-pages.keep-images .pdfViewer .page .canvasWrapper,
+.dark-pages.keep-images .pdfViewer .page .annotationEditorLayer,
+.app.dark-pages .thumbnail-page canvas:not(.image-restore) {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+:where(.app.dark-pages) .thumbnail-page {
+  background: var(--page-dark);
+  box-shadow: 0 0 0 1px var(--page-dark-edge), 0 1px 3px var(--page-edge);
+}
+
+:is(.thumbnail-page, .document-map-page) .image-restore {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app.dark-pages.keep-images :is(.thumbnail-page, .document-map-page) .image-restore {
+  display: block;
+}
+
+.dark-pages.keep-images .pdfViewer .page {
+  --page-bg-color: var(--page-dark);
+  isolation: isolate;
+}
+
+.dark-pages.keep-images .pdfViewer .page > :is(.textLayer, .annotationLayer, .annotationEditorLayer) {
+  z-index: 1;
+}
+
+.pdfViewer .page .image-restore {
+  display: none;
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.dark-pages.keep-images .pdfViewer .page .image-restore {
+  display: block;
+}
+
+.dark-pages .pdfViewer .page .editToolbar {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.viewer-area.comparing .viewer-container {
+  top: 36px;
+}
+
+.viewer-area.comparing .findbar {
+  top: 46px;
+}

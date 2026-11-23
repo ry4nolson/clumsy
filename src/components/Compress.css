@@ -5,7 +5,7 @@
 }
 
 .compress-levels input {
-  accent-color: var(--accent);
+  accent-color: var(--ember);
 }
 
 .compress-level {
@@ -19,7 +19,7 @@
 
 .compress-level small {
   display: block;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 12px;
 }
 
@@ -30,11 +30,11 @@
   gap: 6px;
   min-height: 44px;
   margin: 16px 0 0;
-  color: var(--text-muted);
+  color: var(--ash);
   font-variant-numeric: tabular-nums;
 }
 
 .compress-result {
-  color: var(--text);
+  color: var(--bone);
   font-weight: 600;
 }

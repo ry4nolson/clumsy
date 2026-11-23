@@ -1,11 +1,17 @@
 import { LogicalPosition } from "@tauri-apps/api/dpi";
 import { CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu } from "@tauri-apps/api/menu";
-import { acceleratorFor, commandById, contentAvailable, documentAvailable, needsContent, platformSupports, type Command, type CommandId, type MenuName, type PlatformAbilities } from "./commands";
+import { acceleratorFor, commandById, contentAvailable, documentAvailable, needsContent, platformSupports, themeCommandId, type Command, type CommandId, type MenuName, type PlatformAbilities } from "./commands";
 import type { RecentEntry } from "./recent";
+import { themeChoices, type ThemeChoice } from "./themes";
 import type { ScrollModeName, SpreadModeName, ViewModes } from "./viewModes";
 
 type Predefined = "Services" | "Hide" | "HideOthers" | "ShowAll" | "Cut" | "Copy" | "Paste" | "SelectAll" | "Fullscreen" | "Minimize" | "Maximize" | "BringAllToFront";
-type Slot = CommandId | "-" | "recent" | { predefined: Predefined };
+type Slot = CommandId | "-" | "recent" | { predefined: Predefined } | { submenu: string; slots: CommandId[] };
+
+const themeSlots = themeChoices.map((choice) => themeCommandId(choice.id));
+
+export const layoutCommands = (slots: Slot[]): CommandId[] =>
+  slots.flatMap((slot) => (typeof slot === "object" ? ("submenu" in slot ? slot.slots : []) : slot === "-" || slot === "recent" ? [] : [slot]));
 
 const RECENT_LIMIT = 10;
 
@@ -120,6 +126,7 @@ export const menuLayout: Array<[MenuName, Slot[]]> = [
       "spreadEven",
       "-",
       "toggleCaretBrowsing",
+      { submenu: "Theme", slots: themeSlots },
       "toggleDarkPages",
       "toggleInvertImages",
       "toggleFieldHighlights",
@@ -214,7 +221,7 @@ const popupPredefined = new Set<Predefined>(["Cut", "Copy", "Paste", "SelectAll"
 
 export function visibleSlots(slots: Slot[], platform: PlatformAbilities, popup = false) {
   const shown = slots.filter((slot) =>
-    typeof slot === "object" ? !popup || popupPredefined.has(slot.predefined) : slot === "-" || slot === "recent" || platformSupports(commandById.get(slot)!, platform),
+    typeof slot === "object" ? "submenu" in slot || !popup || popupPredefined.has(slot.predefined) : slot === "-" || slot === "recent" || platformSupports(commandById.get(slot)!, platform),
   );
   const result: Slot[] = [];
   for (const slot of shown) {
@@ -234,7 +241,7 @@ const scrollModeCommands: Record<ScrollModeName, CommandId> = {
 
 const spreadModeCommands: Record<SpreadModeName, CommandId> = { none: "spreadNone", odd: "spreadOdd", even: "spreadEven" };
 
-const radioCommands = new Set<CommandId>([...Object.values(scrollModeCommands), ...Object.values(spreadModeCommands)]);
+const radioCommands = new Set<CommandId>([...Object.values(scrollModeCommands), ...Object.values(spreadModeCommands), ...themeSlots]);
 
 const checkCommands = new Set<CommandId>([
   "toggleDocumentMap",
@@ -246,6 +253,7 @@ const checkCommands = new Set<CommandId>([
   "toggleFormScripts",
   ...Object.values(scrollModeCommands),
   ...Object.values(spreadModeCommands),
+  ...themeSlots,
 ]);
 
 export type MenuState = {
@@ -266,6 +274,7 @@ export type MenuState = {
   hasLayers: boolean;
   fieldHighlights: boolean;
   formScripts: boolean;
+  theme: ThemeChoice;
 } & ViewModes;
 
 export function checkedCommands(state: MenuState): Set<CommandId> {
@@ -279,6 +288,7 @@ export function checkedCommands(state: MenuState): Set<CommandId> {
     ["toggleFormScripts", state.formScripts],
     [scrollModeCommands[state.scrollMode], state.hasDocument],
     [spreadModeCommands[state.spreadMode], state.hasDocument],
+    [themeCommandId(state.theme), true],
   ];
   return new Set(checks.flatMap(([id, checked]) => (checked ? [id] : [])));
 }
@@ -338,6 +348,14 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
     return item;
   };
 
+  const submenuItem = async (text: string, ids: CommandId[]) => {
+    const items = [];
+    for (const id of ids) {
+      items.push(await commandItem(id));
+    }
+    return Submenu.new({ text, items });
+  };
+
   const slotItem = (slot: Slot) => {
     if (slot === "-") {
       return PredefinedMenuItem.new({ item: "Separator" });
@@ -346,7 +364,7 @@ export async function installAppMenu(callbacks: MenuCallbacks): Promise<AppMenu>
       return Promise.resolve(recentMenu);
     }
     if (typeof slot === "object") {
-      return PredefinedMenuItem.new({ item: slot.predefined });
+      return "submenu" in slot ? submenuItem(slot.submenu, slot.slots) : PredefinedMenuItem.new({ item: slot.predefined });
     }
     return commandItem(slot);
   };

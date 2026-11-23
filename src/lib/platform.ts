@@ -263,6 +263,17 @@ export async function showError(text: string, title = "Clumsy", kind: "error" | 
 }
 export const showMessage = (text: string, title: string) => showError(text, title, "info");
 
+export async function setNativeTheme(base: "light" | "dark" | null) {
+  if (!isDesktop || isMobile) {
+    return;
+  }
+  try {
+    await getCurrentWindow().setTheme(base);
+  } catch {
+    return;
+  }
+}
+
 export async function setWindowTitle(title: string) {
   document.title = title;
   if (hasAppMenu) {

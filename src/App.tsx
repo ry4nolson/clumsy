@@ -38,6 +38,7 @@ import { usePasswordPrompts } from "./hooks/usePasswordPrompts";
 import { useUpdateInstall } from "./hooks/useUpdateInstall";
 import { useUpdatePrompt } from "./hooks/useUpdatePrompt";
 import { useQuickPick } from "./hooks/useQuickPick";
+import { useTheme } from "./hooks/useTheme";
 import { useRecentFiles } from "./hooks/useRecentFiles";
 import { useRestartSession } from "./hooks/useRestartSession";
 import { useTabMenu } from "./hooks/useTabMenu";
@@ -47,7 +48,7 @@ import { useToolbarTools } from "./hooks/useToolbarTools";
 import { useViewControls } from "./hooks/useViewControls";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { hasCaret, moveCaretToEdge } from "./lib/caret";
-import { commandById, documentAvailable, isTypingTarget, shortcutFor, type CommandId } from "./lib/commands";
+import { commandById, documentAvailable, isTypingTarget, shortcutFor, themeOfCommand, type CommandId } from "./lib/commands";
 import { openDocumentWindow, requestRestart } from "./lib/documentWindows";
 import { sidebarFits } from "./lib/drawer";
 import { dropTargetAt, showDropTarget } from "./lib/dropTarget";
@@ -75,7 +76,7 @@ import {
   revealInFinder,
   setWindowTitle,
 } from "./lib/platform";
-import { usePersistentState, useSystemDarkMode } from "./lib/preferences";
+import { usePersistentState } from "./lib/preferences";
 import { createPaneId, createStartTab, isFileTab, isModified, tabItemFor } from "./lib/tabs";
 import * as ws from "./lib/workspace";
 import { repoUrl } from "./lib/updates";
@@ -141,8 +142,8 @@ export default function App() {
   const activeViewer = () => activeHandle()?.viewer;
   const viewControls = useViewControls(activeViewer);
   const forms = useFormControls(activeViewer, (id) => runCommandRef.current(id));
-  const systemDark = useSystemDarkMode();
-  const darkPages = darkPagesPreference === "on" || (darkPagesPreference === "auto" && systemDark);
+  const theme = useTheme();
+  const darkPages = darkPagesPreference === "on" || (darkPagesPreference === "auto" && theme.base === "dark");
 
   const activeTab = ws.focusedTab(workspace);
   const activeSnapshot = activeTab.kind === "document" ? snapshots[activeTab.id] : undefined;
@@ -239,6 +240,7 @@ export default function App() {
     onShowTab: selectTab,
     onOpenRecent: openRecent,
     onArmTool: (id) => markupControls.chest.armById(id),
+    onPreviewTheme: theme.preview,
   });
 
   const editingCommand = (name: "undo" | "redo") => {
@@ -262,6 +264,11 @@ export default function App() {
   };
 
   const runCommand = (id: CommandId, { fromMenu = false, pages }: { fromMenu?: boolean; pages?: number[] } = {}) => {
+    const themeChoice = themeOfCommand(id);
+    if (themeChoice) {
+      theme.choose(themeChoice);
+      return;
+    }
     const handle = activeHandle();
     const command = commandById.get(id);
     if (command && !documentAvailable(command, { hasDocument: hasDocument && !!handle, hasMarkdown })) {
@@ -393,7 +400,7 @@ export default function App() {
       hasForm,
       isProtected,
       ...contents,
-      fieldHighlights: forms.fieldHighlights, formScripts: forms.formScripts,
+      fieldHighlights: forms.fieldHighlights, formScripts: forms.formScripts, theme: theme.choice,
       ...viewMenuState,
     },
     recentFiles,
@@ -447,6 +454,9 @@ export default function App() {
               onRotate={() => viewer?.rotate(1)}
               onToggleFind={toggleFind}
               onToggleDarkPages={() => setDarkPagesPreference(darkPages ? "off" : "on")}
+              theme={theme.choice}
+              onTheme={theme.choose}
+              onPreviewTheme={theme.preview}
               onTouchCommand={isMobile ? (id) => runCommandRef.current(id) : undefined}
               onToggleSource={() => activeMarkdown()?.toggleSource()}
             />
@@ -530,7 +540,7 @@ export default function App() {
       <ShortcutsDialog open={infoSheet?.kind === "shortcuts"} isMac={usesMacKeys} onClose={() => setInfoSheet(null)} />
       <StampPicker {...markupControls.picker} />
       <ToolSheet {...markupControls.chest.sheet} />
-      <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} />
+      <QuickPick mode={quickPick.mode} onPick={quickPick.pick} onClose={quickPick.close} onHighlight={quickPick.highlight} />
     </div>
   );
 }

@@ -1,0 +1,250 @@
+.app-sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-width, 200px);
+  min-width: 160px;
+  max-width: 60%;
+  flex-shrink: 0;
+  background: var(--ink-elevated);
+  border-right: 1px solid var(--ink-line);
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 6;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: transparent;
+}
+
+.sidebar-resizer:hover::before,
+.sidebar-resizer:active::before {
+  background: var(--ember);
+}
+
+.sidebar-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.sidebar-tabs button {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ash);
+  cursor: pointer;
+}
+
+.sidebar-tabs button.icon-tab {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  max-width: 30px;
+  padding: 0;
+}
+
+.sidebar-tabs button[aria-selected="true"] {
+  background: var(--active);
+  color: var(--bone);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-empty {
+  padding: 16px;
+  color: var(--ash);
+}
+
+.thumbnails {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 0;
+}
+
+.thumbnail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.thumbnail:hover {
+  background: var(--hover);
+}
+
+.thumbnail-page {
+  display: block;
+  position: relative;
+  width: 120px;
+  background: var(--page);
+  box-shadow: 0 0 0 1px var(--page-edge), 0 1px 3px var(--page-edge);
+  overflow: hidden;
+}
+
+.thumbnail.active .thumbnail-page {
+  box-shadow: 0 0 0 3px var(--ember);
+}
+
+.thumbnail-page canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.thumbnail-label {
+  font-size: 11px;
+  color: var(--ash);
+  font-variant-numeric: tabular-nums;
+}
+
+.thumbnail.active .thumbnail-label {
+  color: var(--ember-text);
+  font-weight: 600;
+}
+
+.thumbnails:focus {
+  outline: none;
+}
+
+.thumbnail {
+  position: relative;
+  touch-action: none;
+}
+
+.thumbnail.selected {
+  background: color-mix(in srgb, var(--ember) 14%, transparent);
+}
+
+.thumbnail.selected .thumbnail-page {
+  box-shadow: 0 0 0 3px var(--ember);
+}
+
+.thumbnails:focus-visible .thumbnail.selected {
+  background: color-mix(in srgb, var(--ember) 22%, transparent);
+}
+
+.thumbnails.dragging {
+  cursor: grabbing;
+}
+
+.thumbnails.dragging .thumbnail:hover {
+  background: transparent;
+}
+
+.thumbnails.dragging .thumbnail.selected {
+  opacity: 0.55;
+}
+
+.thumbnail.drop-before::before,
+.thumbnail.drop-after::after,
+.thumbnail[data-drop-slot="before"]::before,
+.thumbnail[data-drop-slot="after"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ember);
+}
+
+.thumbnail.drop-before::before,
+.thumbnail[data-drop-slot="before"]::before {
+  top: -4px;
+}
+
+.thumbnail.drop-after::after,
+.thumbnail[data-drop-slot="after"]::after {
+  bottom: -4px;
+}
+
+.thumbnails[data-drop-target] {
+  background: color-mix(in srgb, var(--ember) 8%, transparent);
+}
+
+.outline,
+.outline ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.outline {
+  padding: 8px 6px;
+}
+
+.outline-row {
+  display: flex;
+  align-items: center;
+}
+
+.outline-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ash);
+  cursor: pointer;
+}
+
+.outline-toggle svg {
+  transition: transform 120ms;
+}
+
+.outline-toggle.expanded svg {
+  transform: rotate(90deg);
+}
+
+.outline-title {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.outline-title:hover {
+  background: var(--hover);
+}

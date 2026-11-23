@@ -4,10 +4,10 @@
   margin: 54px auto auto;
   padding: 6px;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 12px;
   background: var(--surface-raised);
-  color: var(--text);
+  color: var(--bone);
   box-shadow: var(--shadow);
   animation: quick-pick-in 120ms ease-out;
 }
@@ -31,17 +31,17 @@
 .quick-pick-input {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 7px;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--ink);
+  color: var(--bone);
   font: inherit;
   font-size: 14px;
   outline: none;
 }
 
 .quick-pick-input:focus {
-  border-color: var(--accent);
+  border-color: var(--ember);
   box-shadow: 0 0 0 3px var(--focus);
 }
 
@@ -64,8 +64,8 @@
 }
 
 .quick-pick-list li.selected {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--ember-fill);
+  color: var(--on-ember);
 }
 
 .quick-pick-label {
@@ -83,14 +83,14 @@
 }
 
 .quick-pick-list li:not(.selected) .quick-pick-label mark {
-  color: var(--accent);
+  color: var(--ember-text);
 }
 
 .quick-pick-detail {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -104,7 +104,7 @@
 .quick-pick-hint {
   margin-left: auto;
   flex: none;
-  color: var(--text-muted);
+  color: var(--ash);
   font: 12px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
@@ -114,5 +114,5 @@
 }
 
 .quick-pick-list .quick-pick-empty {
-  color: var(--text-muted);
+  color: var(--ash);
 }

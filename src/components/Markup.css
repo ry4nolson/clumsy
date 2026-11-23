@@ -39,15 +39,15 @@
 
 .markup-outline {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--ember);
   stroke-width: 1;
   stroke-dasharray: 4 3;
   pointer-events: none;
 }
 
 .markup-handle {
-  fill: #ffffff;
-  stroke: var(--accent);
+  fill: var(--page);
+  stroke: var(--ember);
   stroke-width: 1.5;
   cursor: crosshair;
 }
@@ -99,7 +99,7 @@
 }
 
 .segmented button[aria-checked="true"] {
-  background: var(--surface);
+  background: var(--ink-elevated);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
 }
 
@@ -125,7 +125,7 @@
 
 .stamp-section h3 {
   margin: 12px 0 8px;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -144,9 +144,9 @@
   width: 44px;
   height: 44px;
   padding: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--page);
   cursor: pointer;
 }
 
@@ -155,7 +155,7 @@
 }
 
 .stamp-choice:hover {
-  border-color: var(--accent);
+  border-color: var(--ember);
 }
 
 .stamp-choice:focus-visible {
@@ -171,13 +171,13 @@
 .stamp-empty,
 .stamp-hint {
   margin: 12px 14px;
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .stamp-hint {
   margin: 0;
   padding: 8px 14px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ink-line);
   font-size: 12px;
 }
 
@@ -202,7 +202,7 @@
 }
 
 .calibration-line line {
-  stroke: var(--accent);
+  stroke: var(--ember);
   stroke-width: 2;
   stroke-dasharray: 6 4;
   vector-effect: non-scaling-stroke;
@@ -214,7 +214,7 @@
   left: 50%;
   z-index: 22;
   padding: 6px 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 10px;
   background: var(--surface-raised);
   box-shadow: var(--shadow);
@@ -233,7 +233,7 @@
 }
 
 .measurement-count {
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .measurement-actions {
@@ -247,7 +247,7 @@
   border: none;
   border-radius: 6px;
   background: var(--hover);
-  color: var(--text);
+  color: var(--bone);
   font-size: 12px;
   cursor: pointer;
 }
@@ -276,15 +276,15 @@
   min-width: 0;
   height: 26px;
   padding: 0 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--ink-elevated);
+  color: var(--bone);
   font-size: 12px;
 }
 
 .markup-filter-details summary {
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 12px;
   cursor: pointer;
 }
@@ -302,7 +302,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 11px;
 }
 
@@ -328,7 +328,7 @@
   border: none;
   border-radius: 6px;
   background: var(--hover);
-  color: var(--text);
+  color: var(--bone);
   font-size: 12px;
   cursor: pointer;
 }
@@ -355,7 +355,7 @@
 
 .markup-selection > span {
   padding: 6px 8px 0;
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .markup-selection-actions .markup-filter {
@@ -364,7 +364,7 @@
 
 .markup-row .markup-subject {
   overflow: hidden;
-  color: var(--text);
+  color: var(--bone);
   font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -400,7 +400,7 @@
 
 .markup-note {
   overflow: hidden;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 11px;
   text-align: left;
   text-overflow: ellipsis;
@@ -417,7 +417,7 @@
   border: none;
   border-radius: 6px;
   background: var(--hover);
-  color: var(--text);
+  color: var(--bone);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   text-align: left;
@@ -444,7 +444,7 @@
 .markup-flash {
   position: absolute;
   z-index: 3;
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ember);
   outline-offset: 3px;
   border-radius: 2px;
   pointer-events: none;
@@ -488,6 +488,6 @@
 }
 
 .markup-type {
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 11px;
 }

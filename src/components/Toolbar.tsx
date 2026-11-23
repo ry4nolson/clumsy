@@ -5,8 +5,10 @@ import { hasCustomLabels, pageFromInput, pageLabelOf } from "../lib/pageLabels";
 import { usesMacKeys } from "../lib/platform";
 import type { MarkdownMode } from "../lib/tabs";
 import { usePersistentState } from "../lib/preferences";
+import type { ThemeChoice } from "../lib/themes";
 import { useToolbarOverflow } from "../hooks/useToolbarOverflow";
 import { IconButton } from "./IconButton";
+import { ThemeMenu } from "./ThemeMenu";
 import { ToolbarOverflow } from "./ToolbarOverflow";
 import { toolEntries, type ToolsProps } from "./ToolsGroup";
 
@@ -49,6 +51,9 @@ type ToolbarProps = {
   onRotate: () => void;
   onToggleFind: () => void;
   onToggleDarkPages: () => void;
+  theme: ThemeChoice;
+  onTheme: (choice: ThemeChoice) => void;
+  onPreviewTheme: (choice: ThemeChoice | null) => void;
   onTouchCommand?: (id: "commandPalette" | "undo" | "redo") => void;
   onToggleSource: () => void;
 };
@@ -219,6 +224,7 @@ export function Toolbar(props: ToolbarProps) {
               {imagesChoice}
             </div>
           )}
+          <ThemeMenu theme={props.theme} onTheme={props.onTheme} onPreview={props.onPreviewTheme} />
           <IconButton title={props.darkPages ? "Light pages" : "Dark pages"} active={props.darkPages} disabled={!hasDocument} onClick={props.onToggleDarkPages}>
             {props.darkPages ? <Sun size={18} /> : <Moon size={18} />}
           </IconButton>

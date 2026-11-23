@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 import type { QuickPickMode } from "../components/QuickPick";
-import type { CommandId } from "../lib/commands";
+import { themeOfCommand, type CommandId } from "../lib/commands";
 import { pageJumpItem, pageJumpTarget, paletteItems, quickOpenItems, quickOpenTarget, rememberCommand, savedToolItems, savedToolTarget, type OpenTab, type PageTargets, type PaletteContext } from "../lib/quickPick";
 import { readToolChest } from "../lib/toolChest";
 import type { RecentEntry } from "../lib/recent";
+import type { ThemeChoice } from "../lib/themes";
 
 type QuickPickSources = PaletteContext & {
   tabs: OpenTab[];
@@ -14,6 +15,7 @@ type QuickPickSources = PaletteContext & {
   onShowTab: (tabId: string) => void;
   onOpenRecent: (entry: RecentEntry) => void;
   onArmTool?: (id: string) => void;
+  onPreviewTheme?: (choice: ThemeChoice | null) => void;
 };
 
 type Kind = "palette" | "quickOpen";
@@ -42,7 +44,13 @@ export function useQuickPick(sources: QuickPickSources) {
     });
   }, []);
 
-  const close = useCallback(() => setMode(null), []);
+  const close = useCallback(() => {
+    sourcesRef.current.onPreviewTheme?.(null);
+    setMode(null);
+  }, []);
+
+  const palette = mode?.kind === "palette";
+  const highlight = useCallback((id: string | null) => sourcesRef.current.onPreviewTheme?.(palette && id ? themeOfCommand(id) : null), [palette]);
 
   const pick = useCallback(
     (id: string) => {
@@ -50,6 +58,9 @@ export function useQuickPick(sources: QuickPickSources) {
       setMode(null);
       const latest = sourcesRef.current;
       const page = pageJumpTarget(id);
+      if (!themeOfCommand(id)) {
+        latest.onPreviewTheme?.(null);
+      }
       if (page || id === "page:") {
         if (page) {
           latest.onGoToPage(page);
@@ -79,5 +90,5 @@ export function useQuickPick(sources: QuickPickSources) {
     [mode],
   );
 
-  return { mode, toggle, close, pick };
+  return { mode, toggle, close, pick, highlight };
 }

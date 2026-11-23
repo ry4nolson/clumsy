@@ -23,7 +23,7 @@ export function paletteItems({ isMac, documentMapAvailable = true, ...context }:
     .sort((a, b) => a.rank - b.rank || a.order - b.order)
     .map(({ command }) => ({
       id: command.id,
-      label: `${command.menu}: ${command.label.replace(/…$/, "")}`,
+      label: `${command.group ?? command.menu}: ${command.label.replace(/…$/, "")}`,
       hint: command.combos[0] ? displayCombo(command.combos[0], isMac) : null,
     }));
 }

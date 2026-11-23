@@ -1,0 +1,43 @@
+:root {
+  --page: #ffffff;
+  --page-dark: #141414;
+  --page-edge: rgb(0 0 0 / 0.12);
+  --page-dark-edge: rgb(255 255 255 / 0.12);
+  --page-added: rgb(22 163 74);
+  --page-removed: rgb(220 38 38);
+  --page-modified: rgb(217 119 6);
+  --page-current: rgb(37 99 235);
+  --page-note: rgb(113 113 122);
+  --page-ink: #111111;
+  --page-muted: #6b7280;
+  --page-faint: #9ca3af;
+  --find-mark: rgb(234 179 8);
+  --find-mark-current: rgb(249 115 22);
+
+  --danger: #dc2626;
+  --diff-removed: #dc2626;
+  --diff-added: #16a34a;
+  --diff-modified: #d97706;
+  --tone-added: #16a34a;
+  --tone-fixed: #2563eb;
+  --tone-changed: #ea580c;
+  --tone-removed: #dc2626;
+
+  --backdrop: rgb(0 0 0 / 0.35);
+  --backdrop-sheet: rgb(0 0 0 / 0.18);
+  --window-close: #e81123;
+  --on-window-close: #ffffff;
+  --sponsor-mark: #133865;
+}
+
+:root[data-base="dark"] {
+  --danger: #f87171;
+  --diff-removed: #f87171;
+  --diff-added: #4ade80;
+  --diff-modified: #fbbf24;
+  --tone-added: #4ade80;
+  --tone-fixed: #60a5fa;
+  --tone-changed: #fb923c;
+  --tone-removed: #f87171;
+  --sponsor-mark: #ffffff;
+}

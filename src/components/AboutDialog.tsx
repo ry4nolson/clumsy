@@ -24,6 +24,7 @@ import { appVersion, isInstalling, repoUrl, useUpdateCheck } from "../lib/update
 import { ChangelogList } from "./ChangelogList";
 import { LicensesView } from "./LicensesView";
 import { InstallProgress } from "./UpdateDialog";
+import { useThemeBase } from "../hooks/useTheme";
 
 const platformLabel = deviceLabels[device];
 
@@ -63,6 +64,7 @@ type AboutDialogProps = {
 export function AboutDialog({ request, updateInstall, onRestart, onClose }: AboutDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [tab, setTab] = useState<AboutTab>("about");
+  const darkBase = useThemeBase() === "dark";
   const releases = useMemo(() => parseChangelog(changelogSource), []);
   const { status, check } = useUpdateCheck();
   const { install, start: installUpdate, dismissFailure } = updateInstall;
@@ -285,10 +287,7 @@ export function AboutDialog({ request, updateInstall, onRestart, onClose }: Abou
             <span>Sponsored by</span>
             <div className="sponsor-logos">
               <button type="button" className="sponsor-logo" onClick={() => onOpenUrl("https://www.texasbeardcompany.com")} aria-label="Texas Beard Company">
-                <picture>
-                  <source srcSet={sponsorLogoWhite} media="(prefers-color-scheme: dark)" />
-                  <img src={sponsorLogo} alt="Texas Beard Company" height={30} />
-                </picture>
+                <img src={darkBase ? sponsorLogoWhite : sponsorLogo} alt="Texas Beard Company" height={30} />
               </button>
               <button type="button" className="sponsor-logo" onClick={() => onOpenUrl("https://www.fsg.com")} aria-label="Facility Solutions Group">
                 <FsgLogo />

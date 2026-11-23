@@ -15,8 +15,8 @@
   gap: 8px;
   height: 34px;
   padding: 0 6px 0 10px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--ink-elevated);
+  border-bottom: 1px solid var(--ink-line);
 }
 
 .signature-bar-text {
@@ -50,15 +50,15 @@
 }
 
 .signature-icon.neutral {
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .signature-note {
   flex-shrink: 0;
   padding: 1px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--ember) 14%, transparent);
+  color: var(--ember-text);
   font-size: 11px;
   font-weight: 600;
   align-self: flex-start;
@@ -79,7 +79,7 @@
 }
 
 .signature-detail {
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .signature-changed {
@@ -95,7 +95,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 12px;
 }
 
@@ -118,7 +118,7 @@
 }
 
 .signature-facts dt {
-  color: var(--text-muted);
+  color: var(--ash);
   text-align: right;
 }
 
@@ -141,13 +141,13 @@
 .signature-chain ol {
   margin: 0;
   padding-left: 18px;
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .signature-trust-note,
 .sign-note {
   margin: 12px 0 0;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 12px;
 }
 
@@ -179,7 +179,7 @@
 }
 
 .sign-choices input {
-  accent-color: var(--accent);
+  accent-color: var(--ember);
 }
 
 .sign-choice-text {
@@ -189,7 +189,7 @@
 }
 
 .sign-choice-detail {
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 12px;
 }
 
@@ -213,14 +213,14 @@
   width: 92px;
   height: 40px;
   padding: 4px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 7px;
-  background: var(--bg);
+  background: var(--ink);
   cursor: pointer;
 }
 
 .sign-appearance[aria-checked="true"] {
-  border-color: var(--accent);
+  border-color: var(--ember);
   box-shadow: 0 0 0 2px var(--focus);
 }
 
@@ -244,7 +244,7 @@
 }
 
 .sign-advanced summary {
-  color: var(--text-muted);
+  color: var(--ash);
   cursor: pointer;
 }
 
@@ -260,8 +260,8 @@
 .signature-placement {
   position: absolute;
   z-index: 30;
-  border: 2px dashed var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 2px dashed var(--ember);
+  background: color-mix(in srgb, var(--ember) 12%, transparent);
   pointer-events: none;
 }
 

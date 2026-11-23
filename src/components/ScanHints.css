@@ -5,10 +5,10 @@
   z-index: 4;
   display: flex;
   align-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--ink-elevated);
+  color: var(--bone);
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
   font: 12px/1 system-ui, sans-serif;
   overflow: hidden;
@@ -33,7 +33,7 @@
 
 .scan-hint-dismiss {
   width: 26px;
-  border-left: 1px solid var(--border) !important;
-  color: var(--text-muted) !important;
+  border-left: 1px solid var(--ink-line) !important;
+  color: var(--ash) !important;
   font-size: 15px !important;
 }

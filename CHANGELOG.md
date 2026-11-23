@@ -7,6 +7,14 @@ and this project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Themes** recolor the toolbar, tabs, sidebar, and sheets. Pick one from the palette button on the toolbar, or from View > Theme. Besides **Match System** and the two looks Clumsy already had, there are six: **Ember**, **Ice**, and **Forest** are dark, and **Paper**, **Snow**, and **Bloom** are light. Point at a theme in the toolbar menu, or arrow through them in the Command Palette, to see it before you pick. The choice applies to every window and is remembered. Your documents keep their own colors in every theme, and printing and exporting are unchanged
+
+### Changed
+
+- When your computer is in dark mode, Clumsy now uses the **Ember** theme. The dark look it had before is still there as **Clumsy Dark**
+
 ## [0.25.0] - 2026-11-23
 
 ### Added

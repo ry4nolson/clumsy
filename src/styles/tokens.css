@@ -1,0 +1,64 @@
+:root {
+  --ink: #f4f4f5;
+  --ink-elevated: #ffffff;
+  --ink-line: #e4e4e7;
+  --ash: #71717a;
+  --mist: #71717a;
+  --bone: #18181b;
+  --ember: #2563eb;
+  --ember-soft: #3b82f6;
+  --ember-deep: #2563eb;
+  --copper: #71717a;
+  --pulse: #2563eb;
+  --bg-top: #e4e4e7;
+  --bg-bottom: #e4e4e7;
+
+  --surface-raised: var(--ink-elevated);
+  --ember-fill: var(--ember-deep);
+  --ember-fill-hover: color-mix(in srgb, var(--ember-fill) 88%, black);
+  --ember-text: var(--ember-deep);
+  --on-ember: var(--ink-elevated);
+  --hover: color-mix(in srgb, var(--bone) 6%, transparent);
+  --active: color-mix(in srgb, var(--bone) 10%, transparent);
+  --focus: color-mix(in srgb, var(--ember) 45%, transparent);
+  --shadow: 0 10px 40px rgb(0 0 0 / 0.18);
+
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--bone);
+  background: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-base="dark"] {
+  --ink: #100c0a;
+  --ink-elevated: #1c1612;
+  --ink-line: #3a2c26;
+  --ash: #8b827a;
+  --mist: #d0c8c0;
+  --bone: #f4efe8;
+  --ember: #ff6a3d;
+  --ember-soft: #ff8f66;
+  --ember-deep: #e04520;
+  --copper: #d4a574;
+  --pulse: #ffc857;
+  --bg-top: #1a1210;
+  --bg-bottom: #0a0706;
+
+  --surface-raised: color-mix(in srgb, var(--ink-elevated) 95%, var(--bone));
+  --ember-fill: var(--ember);
+  --ember-text: var(--ember);
+  --on-ember: var(--ink);
+  --hover: color-mix(in srgb, var(--bone) 7%, transparent);
+  --active: color-mix(in srgb, var(--bone) 13%, transparent);
+  --focus: color-mix(in srgb, var(--ember) 55%, transparent);
+  --shadow: 0 10px 40px rgb(0 0 0 / 0.5);
+
+  color-scheme: dark;
+}
+
+:root[data-theme="clumsy-dark"] {
+  --surface-raised: #2a2a2f;
+  --on-ember: #ffffff;
+}

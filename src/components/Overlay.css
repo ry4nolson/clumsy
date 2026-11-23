@@ -63,7 +63,7 @@
   margin: 0;
   padding: 4px;
   overflow-y: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 8px;
   list-style: none;
 }
@@ -124,7 +124,7 @@
 .align-pane-name {
   min-width: 0;
   overflow: hidden;
-  color: var(--text-muted);
+  color: var(--ash);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -138,15 +138,15 @@
 .align-scroll {
   height: min(58vh, 620px);
   overflow: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 8px;
-  background: var(--canvas-bg);
+  background: var(--bg-bottom);
 }
 
 .align-page {
   position: relative;
   margin: 0 auto;
-  background: #fff;
+  background: var(--page);
   cursor: crosshair;
 }
 
@@ -175,13 +175,13 @@
   left: 14px;
   padding: 0 4px;
   border-radius: 4px;
-  background: #fff;
+  background: var(--page);
   font-size: 11px;
 }
 
 .align-hint {
   align-self: center;
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 @media (max-width: 700px) {

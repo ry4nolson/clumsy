@@ -1,5 +1,20 @@
 The settings that decide how a document sits on your screen. All of them are in the View menu, and Clumsy remembers the last one you picked.
 
+## Themes
+
+The palette button near the right end of the toolbar changes the colors of Clumsy itself: the toolbar, tabs, sidebar, and sheets. Point at a theme in its menu to see it, and click to keep it. The same nine choices are in View > Theme.
+
+- **Match System** is the default. Clumsy is light when your computer is light, and Ember when it's dark.
+- **Clumsy Light** is that light look, pinned. **Clumsy Dark** is the neutral gray and blue dark look Clumsy had before themes.
+- **Ember**, **Ice**, and **Forest** are dark, with an orange, blue, or green accent.
+- **Paper**, **Snow**, and **Bloom** are light: warm off-white, cool white, and rose.
+
+From the keyboard, open the Command Palette with [[⇧⌘P]], type `theme`, and move through the list with the arrow keys. Each one shows as you land on it. [[Return]] keeps it and [[Esc]] puts back what you had.
+
+The choice covers every window and is still there the next time you open Clumsy.
+
+A theme never recolors your document. Pages, highlights, shapes, stamps, comparison colors, and find matches look the same in all nine, and printing and exporting don't change. Dark pages, below, is the setting that changes how a page looks, and it's separate: until you turn it on or off yourself, it follows the theme, so dark themes start with dark pages.
+
 ## Dark pages
 
 [[⇧⌘D]] turns the page dark: white paper becomes near-black and black text becomes light.

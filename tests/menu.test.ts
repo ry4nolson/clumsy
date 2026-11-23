@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { commands } from "../src/lib/commands";
-import { checkedCommands, menuLayout, visibleSlots, type MenuState } from "../src/lib/menu";
+import { checkedCommands, layoutCommands, menuLayout, visibleSlots, type MenuState } from "../src/lib/menu";
 
 describe("menu layout", () => {
-  const placed = menuLayout.flatMap(([menu, slots]) =>
-    slots.filter((slot): slot is (typeof commands)[number]["id"] => typeof slot === "string" && slot !== "-" && slot !== "recent").map((id) => ({ menu, id })),
-  );
+  const placed = menuLayout.flatMap(([menu, slots]) => layoutCommands(slots).map((id) => ({ menu, id })));
 
   it("places every menu command exactly once, in its own menu", () => {
     for (const command of commands.filter((candidate) => candidate.menu)) {
@@ -77,19 +75,33 @@ describe("checkedCommands", () => {
     fieldHighlights: false,
     scrollMode: "wrapped",
     spreadMode: "odd",
+    theme: "ember",
   };
 
   it("checks one scroll mode and one spread mode", () => {
-    expect([...checkedCommands(state)].sort()).toEqual(["scrollWrapped", "spreadOdd", "toggleDocumentMap"]);
+    expect([...checkedCommands(state)].sort()).toEqual(["scrollWrapped", "spreadOdd", "theme-ember", "toggleDocumentMap"]);
   });
 
   it("clears the mode checks without a document and the map check when it can't show", () => {
-    expect([...checkedCommands({ ...state, hasDocument: false, documentMapAvailable: false, caretBrowsing: true })]).toEqual(["toggleCaretBrowsing"]);
+    expect([...checkedCommands({ ...state, hasDocument: false, documentMapAvailable: false, caretBrowsing: true })]).toEqual(["toggleCaretBrowsing", "theme-ember"]);
   });
 
   it("checks Markdown Source only while a Markdown tab shows its source", () => {
     expect(checkedCommands({ ...state, markdownSource: true }).has("toggleMarkdownSource")).toBe(false);
     expect(checkedCommands({ ...state, hasMarkdown: true, markdownSource: true }).has("toggleMarkdownSource")).toBe(true);
     expect(checkedCommands({ ...state, hasMarkdown: true }).has("toggleMarkdownSource")).toBe(false);
+  });
+});
+
+describe("the Theme submenu", () => {
+  it("holds every theme choice in the View menu, Match System first", () => {
+    const view = menuLayout.find(([menu]) => menu === "View")![1];
+    const submenu = view.find((slot) => typeof slot === "object" && "submenu" in slot);
+    expect(submenu).toEqual({ submenu: "Theme", slots: ["theme-system", "theme-clumsy-light", "theme-clumsy-dark", "theme-ember", "theme-ice", "theme-forest", "theme-paper", "theme-snow", "theme-bloom"] });
+  });
+
+  it("stays in the popup menu and on every platform", () => {
+    const view = menuLayout.find(([menu]) => menu === "View")![1];
+    expect(visibleSlots(view, {}, true).some((slot) => typeof slot === "object" && "submenu" in slot)).toBe(true);
   });
 });

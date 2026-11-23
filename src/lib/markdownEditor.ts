@@ -35,14 +35,14 @@ export type MarkdownEditor = {
 };
 
 const highlightStyle = HighlightStyle.define([
-  { tag: tags.heading, fontWeight: "600", color: "var(--text)" },
+  { tag: tags.heading, fontWeight: "600", color: "var(--bone)" },
   { tag: tags.strong, fontWeight: "600" },
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: [tags.link, tags.url], color: "var(--accent)" },
+  { tag: [tags.link, tags.url], color: "var(--ember-text)" },
   { tag: [tags.monospace], color: "var(--md-code-text)" },
-  { tag: [tags.processingInstruction, tags.meta, tags.contentSeparator, tags.labelName], color: "var(--text-muted)" },
-  { tag: tags.quote, color: "var(--text-muted)" },
+  { tag: [tags.processingInstruction, tags.meta, tags.contentSeparator, tags.labelName], color: "var(--ash)" },
+  { tag: tags.quote, color: "var(--ash)" },
 ]);
 
 const setMatchesEffect = StateEffect.define<{ matches: TextMatch[]; current: number }>();
@@ -107,12 +107,12 @@ const diffTheme = Object.fromEntries(
 
 const theme = EditorView.theme({
   ...diffTheme,
-  "&": { height: "100%", fontSize: "var(--md-source-size, 13px)", background: "transparent", color: "var(--text)" },
+  "&": { height: "100%", fontSize: "var(--md-source-size, 13px)", background: "transparent", color: "var(--bone)" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", lineHeight: "1.6", scrollbarGutter: "stable" },
-  ".cm-content": { padding: "24px 0 40vh", maxWidth: "860px", margin: "0 auto", caretColor: "var(--text)" },
+  ".cm-content": { padding: "24px 0 40vh", maxWidth: "860px", margin: "0 auto", caretColor: "var(--bone)" },
   ".cm-line": { padding: "0 32px" },
-  ".cm-cursor": { borderLeftColor: "var(--text)" },
+  ".cm-cursor": { borderLeftColor: "var(--bone)" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { background: "var(--md-selection)" },
 });
 

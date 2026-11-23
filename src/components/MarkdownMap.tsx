@@ -5,6 +5,7 @@ import { changeBands, documentLayout, mapScale, mapWidth, type LineChange, type 
 import { barCollector, collectMarks, collectShapes, onlyFindMarks, packBars, paintChanges, paintShapes, type BarCollector, type ChangePalette, type MapShapes } from "../lib/markdownMapShapes";
 import type { LineBlock } from "../lib/markdownScroll";
 import type { MarkdownMode } from "../lib/tabs";
+import { THEME_EVENT } from "../lib/themeStore";
 
 const MIN_SLIDER_HEIGHT = 4;
 const COLLECT_DELAY = 120;
@@ -24,7 +25,7 @@ type MarkdownMapProps = {
 const paletteOf = (element: HTMLElement): ChangePalette => {
   const style = getComputedStyle(element);
   const read = (name: string) => style.getPropertyValue(name).trim();
-  return { added: read("--diff-added"), removed: read("--diff-removed"), modified: read("--diff-modified"), current: read("--accent") };
+  return { added: read("--diff-added"), removed: read("--diff-removed"), modified: read("--diff-modified"), current: read("--ember") };
 };
 
 export function MarkdownMap({ content, container, editorHost, mode, view, scrollTo, scrollBy, changes }: MarkdownMapProps) {
@@ -157,19 +158,18 @@ export function MarkdownMap({ content, container, editorHost, mode, view, scroll
     mutations.observe(article, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["src", "class"] });
     const resize = new ResizeObserver(() => schedule(true));
     resize.observe(article);
-    const scheme = window.matchMedia("(prefers-color-scheme: dark)");
     const recolor = () => {
       paletteRef.current = null;
       schedule(true);
     };
-    scheme.addEventListener("change", recolor);
+    window.addEventListener(THEME_EVENT, recolor);
     article.addEventListener("load", paint, true);
     full = true;
     collectNow();
     return () => {
       mutations.disconnect();
       resize.disconnect();
-      scheme.removeEventListener("change", recolor);
+      window.removeEventListener(THEME_EVENT, recolor);
       article.removeEventListener("load", paint, true);
       window.clearTimeout(timer);
       window.clearTimeout(slice);

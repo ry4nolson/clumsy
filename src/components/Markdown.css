@@ -11,17 +11,15 @@
   --md-source-size: calc(13px * var(--md-zoom));
 }
 
-@media (prefers-color-scheme: dark) {
-  .markdown-tab {
-    --md-page: #1c1c1f;
-    --md-code-bg: #27272a;
-    --md-code-text: #f0abfc;
-    --md-rule: #3f3f46;
-    --md-quote: #52525b;
-    --md-mark: rgb(250 204 21 / 0.3);
-    --md-mark-current: rgb(249 115 22 / 0.6);
-    --md-selection: rgb(59 130 246 / 0.35);
-  }
+:root[data-base="dark"] .markdown-tab {
+  --md-page: #1c1c1f;
+  --md-code-bg: #27272a;
+  --md-code-text: #f0abfc;
+  --md-rule: #3f3f46;
+  --md-quote: #52525b;
+  --md-mark: rgb(250 204 21 / 0.3);
+  --md-mark-current: rgb(249 115 22 / 0.6);
+  --md-selection: rgb(59 130 246 / 0.35);
 }
 
 .markdown-area {
@@ -65,7 +63,7 @@
   padding: 32px 40px 40vh;
   font-size: calc(15px * var(--md-zoom));
   line-height: 1.65;
-  color: var(--text);
+  color: var(--bone);
   overflow-wrap: break-word;
   user-select: text;
   cursor: auto;
@@ -107,7 +105,7 @@
 }
 
 .markdown-body h6 {
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .markdown-body :is(p, ul, ol, blockquote, pre, table, dl, details) {
@@ -136,7 +134,7 @@
 }
 
 .markdown-body a {
-  color: var(--accent);
+  color: var(--ember-text);
   text-decoration: none;
   cursor: pointer;
 }
@@ -147,7 +145,7 @@
 
 .markdown-body blockquote {
   padding: 0 1em;
-  color: var(--text-muted);
+  color: var(--ash);
   border-left: 0.25em solid var(--md-quote);
 }
 
@@ -166,7 +164,7 @@
 .markdown-body .missing-image {
   display: inline-block;
   padding: 2px 6px;
-  color: var(--text-muted);
+  color: var(--ash);
   border: 1px dashed var(--md-rule);
   border-radius: 4px;
   font-size: 0.85em;
@@ -196,7 +194,7 @@
 }
 
 .markdown-body pre.front-matter {
-  color: var(--text-muted);
+  color: var(--ash);
   border: 1px solid var(--md-rule);
   background: transparent;
 }
@@ -237,7 +235,7 @@
 
 .markdown-body .footnotes {
   font-size: 0.875em;
-  color: var(--text-muted);
+  color: var(--ash);
 }
 
 .markdown-tab mark.find-match,
@@ -317,54 +315,56 @@
   font-weight: 600;
 }
 
-@media screen and (prefers-color-scheme: dark) {
-  .markdown-body .hljs-comment,
-  .markdown-body .hljs-quote,
-  .markdown-body .hljs-meta {
-    color: #8b949e;
-  }
+@media screen {
+  :root[data-base="dark"] {
+    .markdown-body .hljs-comment,
+    .markdown-body .hljs-quote,
+    .markdown-body .hljs-meta {
+      color: #8b949e;
+    }
 
-  .markdown-body .hljs-keyword,
-  .markdown-body .hljs-selector-tag,
-  .markdown-body .hljs-meta .hljs-keyword,
-  .markdown-body .hljs-doctag {
-    color: #ff7b72;
-  }
+    .markdown-body .hljs-keyword,
+    .markdown-body .hljs-selector-tag,
+    .markdown-body .hljs-meta .hljs-keyword,
+    .markdown-body .hljs-doctag {
+      color: #ff7b72;
+    }
 
-  .markdown-body .hljs-string,
-  .markdown-body .hljs-regexp,
-  .markdown-body .hljs-addition,
-  .markdown-body .hljs-meta .hljs-string {
-    color: #a5d6ff;
-  }
+    .markdown-body .hljs-string,
+    .markdown-body .hljs-regexp,
+    .markdown-body .hljs-addition,
+    .markdown-body .hljs-meta .hljs-string {
+      color: #a5d6ff;
+    }
 
-  .markdown-body .hljs-number,
-  .markdown-body .hljs-literal,
-  .markdown-body .hljs-variable,
-  .markdown-body .hljs-template-variable,
-  .markdown-body .hljs-attr,
-  .markdown-body .hljs-attribute,
-  .markdown-body .hljs-selector-attr,
-  .markdown-body .hljs-selector-class,
-  .markdown-body .hljs-selector-id {
-    color: #79c0ff;
-  }
+    .markdown-body .hljs-number,
+    .markdown-body .hljs-literal,
+    .markdown-body .hljs-variable,
+    .markdown-body .hljs-template-variable,
+    .markdown-body .hljs-attr,
+    .markdown-body .hljs-attribute,
+    .markdown-body .hljs-selector-attr,
+    .markdown-body .hljs-selector-class,
+    .markdown-body .hljs-selector-id {
+      color: #79c0ff;
+    }
 
-  .markdown-body .hljs-title,
-  .markdown-body .hljs-section,
-  .markdown-body .hljs-name {
-    color: #d2a8ff;
-  }
+    .markdown-body .hljs-title,
+    .markdown-body .hljs-section,
+    .markdown-body .hljs-name {
+      color: #d2a8ff;
+    }
 
-  .markdown-body .hljs-type,
-  .markdown-body .hljs-built_in,
-  .markdown-body .hljs-symbol,
-  .markdown-body .hljs-bullet {
-    color: #ffa657;
-  }
+    .markdown-body .hljs-type,
+    .markdown-body .hljs-built_in,
+    .markdown-body .hljs-symbol,
+    .markdown-body .hljs-bullet {
+      color: #ffa657;
+    }
 
-  .markdown-body .hljs-deletion {
-    color: #ffdcd7;
+    .markdown-body .hljs-deletion {
+      color: #ffdcd7;
+    }
   }
 }
 
@@ -404,9 +404,10 @@
     --md-code-text: #b4235a;
     --md-rule: #e4e4e7;
     --md-quote: #d4d4d8;
-    --text: #18181b;
-    --text-muted: #52525b;
-    --accent: #1d4ed8;
+    --bone: #18181b;
+    --ash: #52525b;
+    --ember: #1d4ed8;
+    --ember-text: #1d4ed8;
     --hover: transparent;
     position: static;
     z-index: auto;

@@ -12,7 +12,7 @@
 
 .custom-stamps-empty {
   margin: 0;
-  color: var(--text-muted);
+  color: var(--ash);
   font-size: 12px;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .custom-stamp-rows .stamp-choice.static:hover {
-  border-color: var(--border);
+  border-color: var(--ink-line);
 }
 
 .custom-stamp-rows .text-input {
@@ -68,9 +68,9 @@
   place-items: center;
   height: 96px;
   padding: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ink-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--page);
 }
 
 .custom-stamp-preview.sample {
